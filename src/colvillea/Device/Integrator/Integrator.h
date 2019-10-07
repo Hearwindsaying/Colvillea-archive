@@ -371,10 +371,10 @@ static __device__ __inline__ float4 SampleLightsAggregate(const CommonStructs::S
 {
 	float4 L = make_float4(0.f);
 
-     /*if (hdriEnvmap != RT_TEXTURE_ID_NULL)
+     if (hdriEnvmap != RT_TEXTURE_ID_NULL)
      {
          L += EstimateDirectLighting<CommonStructs::LightType::HDRILight>(-1, shaderParams, isectP, isectDir, localSampler);
-     }*/
+     }
         
     for (int i = 0; i < pointLightBuffer.size(); ++i)//todo:use BufferId and RT_BUFFER_ID_NULL
     {

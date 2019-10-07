@@ -25,8 +25,12 @@ using namespace optix;
 void create_CornellBoxScene(std::unique_ptr<SceneGraph> &sceneGraph, std::unique_ptr<Application> &application, std::unique_ptr<MaterialPool> &materialPool, const std::string & basePath)
 {
     /* Create integator. */
-    //sceneGraph->createDirectLightingIntegrator();
-    sceneGraph->createPathTracingIntegrator(true, 5);
+
+    /* For finding a better position to look at CornellBox. */
+    /*//*/sceneGraph->createHDRILight(basePath + "HDRI\\uffizi-large.hdr", Matrix4x4::identity());
+
+    sceneGraph->createDirectLightingIntegrator();
+    //sceneGraph->createPathTracingIntegrator(true, 5);
 
     /* Create sampler. */
     sceneGraph->createSampler(CommonStructs::SamplerType::SobolQMCSampler);// define USE_HALTON_SAMPLER to enable Halton

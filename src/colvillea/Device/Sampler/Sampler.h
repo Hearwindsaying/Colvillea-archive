@@ -60,7 +60,7 @@ rtDeclareVariable(int, sysSamplerType, , );         /* Sampler type chosen in GP
                                                          CommonStructs::SamplerType. */
 #endif
 
-//#define USE_HALTON_SAMPLER
+#define USE_HALTON_SAMPLER
 
 /************************************************
  *               Sampler Interface              *
