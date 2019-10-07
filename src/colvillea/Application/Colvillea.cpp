@@ -16,11 +16,13 @@
 #include "SceneGraph.h"
 
 #include <iostream>
+#include <locale>
+#include <string>
 
 using namespace optix;
 
 /* Create Cornellbox. */
-void create_CornellBoxScene(std::unique_ptr<SceneGraph> &sceneGraph, std::unique_ptr<Application> &application, std::unique_ptr<MaterialPool> &materialPool)
+void create_CornellBoxScene(std::unique_ptr<SceneGraph> &sceneGraph, std::unique_ptr<Application> &application, std::unique_ptr<MaterialPool> &materialPool, const std::string & basePath)
 {
     /* Create integator. */
     //sceneGraph->createDirectLightingIntegrator();
@@ -31,13 +33,13 @@ void create_CornellBoxScene(std::unique_ptr<SceneGraph> &sceneGraph, std::unique
 
     /* Create triangle mesh. */
     sceneGraph->createTriangleMesh(
-        "D:\\Project\\Twilight\\GraphicsRes\\Colvillea\\Cornell\\green.obj",
+        basePath + "Cornell\\green.obj",
         materialPool->createLambertMaterial(optix::make_float4(0.63f, 0.065f, 0.05f, 1.f)));
     sceneGraph->createTriangleMesh(
-        "D:\\Project\\Twilight\\GraphicsRes\\Colvillea\\Cornell\\red.obj",
+        basePath + "Cornell\\red.obj",
         materialPool->createLambertMaterial(optix::make_float4(0.14f, 0.45f, 0.091f, 1.f)));
     sceneGraph->createTriangleMesh(
-        "D:\\Project\\Twilight\\GraphicsRes\\Colvillea\\Cornell\\grey.obj",
+        basePath + "Cornell\\grey.obj",
         materialPool->createLambertMaterial(optix::make_float4(0.725f, 0.71f, 0.68f, 1.f)));
 
     /* Create light. */
@@ -48,11 +50,11 @@ void create_CornellBoxScene(std::unique_ptr<SceneGraph> &sceneGraph, std::unique
 }
 
 /* Create test scene. */
-void create_TestScene(std::unique_ptr<SceneGraph> &sceneGraph, std::unique_ptr<Application> &application, std::unique_ptr<MaterialPool> &materialPool)
+void create_TestScene(std::unique_ptr<SceneGraph> &sceneGraph, std::unique_ptr<Application> &application, std::unique_ptr<MaterialPool> &materialPool, const std::string & basePath)
 {
     sceneGraph->createDirectLightingIntegrator();
     //sceneGraph->createPathTracingIntegrator(true, 5);
-    sceneGraph->createHDRILight("D:\\Project\\Twilight\\GraphicsRes\\HDRI\\uffizi-large.hdr", Matrix4x4::identity());
+    sceneGraph->createHDRILight(basePath + "HDRI\\uffizi-large.hdr", Matrix4x4::identity());
     sceneGraph->createSampler(CommonStructs::SamplerType::SobolQMCSampler);// todo:ifdef USE_HALTON_SAMPLER to enable Halton
 
     /* TriangleMesh is created with the help of MaterialPool. */
@@ -131,6 +133,19 @@ int main(int argc, char *argv[])
         return 3;
     }
 
+    auto getExampleDirectoryPath = []()->std::string
+    {
+        const std::string filename = __FILE__;
+        std::string::size_type extension_index = filename.find_last_of("\\");
+        std::string filePath = extension_index != std::string::npos ?
+            filename.substr(0, extension_index) :
+            std::string();
+
+        return filePath + "\\..\\..\\..\\examples\\";
+    };
+
+    const std::string examplesBasePath = getExampleDirectoryPath();
+
     
     /* Create scene. */ 
 
@@ -150,7 +165,7 @@ int main(int argc, char *argv[])
 
     /* Create scene using sceneGraph::createXXX methods. */
     sceneGraph->createCamera(Matrix4x4::identity(), fov, filmWidth, filmHeight);
-    create_CornellBoxScene(sceneGraph, application, materialPool); /* left scene configurations are created... */
+    create_CornellBoxScene(sceneGraph, application, materialPool, examplesBasePath); /* left scene configurations are created... */
 
     /* Finally initialize scene and prepare for launch. */
     application->InitializeSceneGraph(sceneGraph);
