@@ -1,9 +1,11 @@
 #pragma once
 
+#include <src/sampleConfig.h>
+
 #define LIBPATH(param,libname)   param##libname
 //#pragma comment(lib, "D:\\Project\\Colvillea\\colvillea-0.1.0\\dependencies\\FreeImage.lib")
 /* Requires to place "build" folder in the same level as "src". */
-#pragma comment(lib,"..\\..\\..\\dependencies\\FreeImage.lib")
+#pragma comment(lib,LIBPATH(SAMPLES_DIR, "\\dependencies\\FreeImage.lib"))
 //#pragma comment(lib,LIBPATH(__FILE__,"../../../../../dependencies/FreeImagePlus.lib"))
 
 #include "../../../FreeImage/FreeImagePlus.h"

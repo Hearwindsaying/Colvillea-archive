@@ -45,26 +45,10 @@
 #include "../Module/Image/ImageLoader.h"
 #include "SceneGraph.h"
 
+#include <src/sampleConfig.h>
 
-//
-////#include "../Module/Camera/Camera.h"
-//
-//
-//
-//#include "../Device/Light/LightUtil.h"
-//
-//#include "../Device/Toolkit/MCSampling.h"
-//#include "../Module/Sampler/Sampler.h"
-//#include "../Device/Sampler/HaltonSampler_Common.h"
-//#include "../Module/Sampler/SobolSampler_Host.h"
-//#include "../Device/Toolkit/Serialize.h"
-//
-//#include "SceneGraph.h"
-//#include "../Module/Material/MaterialPool.h"
-//#include "../Module/Light/Light.h"
-//
-//
-//#include "TWAssert.h"
+
+
 
 
 
@@ -730,13 +714,13 @@ Application::~Application()
 
 std::string Application::getPTXpath(const std::string & program)
 {
-	const char *ptxFolderPath = std::getenv("Twilight_PTX");
-	if (!ptxFolderPath)
-	{
-		std::cerr << "[Error]Fatal error when seraching system environment variable for Twilight_PTX storing ptx file folder" << std::endl;
-		exit(-1);
-	}
-	return std::string(ptxFolderPath) + std::string("twilight_generated_") + program + std::string(".cu.ptx");
+// 	const char *ptxFolderPath = std::getenv("Twilight_PTX");
+// 	if (!ptxFolderPath)
+// 	{
+// 		std::cerr << "[Error]Fatal error when seraching system environment variable for Twilight_PTX storing ptx file folder" << std::endl;
+// 		exit(-1);
+// 	}
+	return std::string(SAMPLES_PTX_DIR) + std::string("\\colvillea_generated_") + program + std::string(".cu.ptx");
 	
 	//return std::string("D:\\Project\\Twilight\\OptiX_Master\\build\\lib\\ptx\\") + std::string("twilight_generated_") + program + std::string(".cu.ptx");
 }
