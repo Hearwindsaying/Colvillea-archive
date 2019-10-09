@@ -81,9 +81,11 @@ void Application::buildSceneGraph(std::unique_ptr<SceneGraph> &sceneGraph)
     {
         this->m_sceneGraph->buildGraph();
 
-        if (this->m_sceneGraph->getHDRILight())
+        /* Before launching rendering kernel, maybe some necessary preprocessing launches
+         * -- need to be done. */
+        if (this->m_preprocessFunc)
         {
-            this->m_sceneGraph->getHDRILight()->loadLight();
+            this->m_preprocessFunc();
         }
         else
         {

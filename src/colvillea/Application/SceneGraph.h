@@ -37,9 +37,6 @@ public:
 	{
 		this->initGraph();
         this->initScene();
-
-        /* todo:after implementating prefiltering hdrilight on CPU, this is redundant. Just for resolving variables only. */
-        //this->buildGraph();
 	}
 
     /**
@@ -147,11 +144,9 @@ public:
      */
     void createHDRILight(const std::string & HDRIFilename, const optix::Matrix4x4 &lightToWorld)
     {
-        this->m_HDRILight = std::make_shared<HDRILight>(this->m_context, this->m_programsMap, HDRIFilename, lightToWorld);
+        this->m_HDRILight = std::make_shared<HDRILight>(this->m_application, this->m_context, this->m_programsMap, HDRIFilename, lightToWorld);
 
-        /* Note that we've initialized light in ctor of SceneGraph, all variables is resolved and we could invoke loadLight here safely. Todo:a complete solution is CPU prefiltering HDRILight instead. */
-        //todo:early invoke loadLight need to markDirty for accel.
-        //this->m_HDRILight->loadLight(lightToWorld); 
+        this->m_HDRILight->loadLight(); 
     }
 
     /**

@@ -1,11 +1,35 @@
 #include "HDRILight.h"
-#include "../../Application/GlobalDefs.h"
-#include "../../Device/Toolkit/MCSampling.h"
 
 #include <chrono>
+#include <functional>
 #include <memory>
 
+
+#include "../../Application/GlobalDefs.h"
+#include "../../Application/Application.h"
+#include "../../Device/Toolkit/MCSampling.h"
+
+
 using namespace optix;
+
+HDRILight::HDRILight(Application *application, optix::Context context, const std::map<std::string, optix::Program> &programsMap, const std::string & hdriFilename, const optix::Matrix4x4 &lightToWorld) :Light(context, programsMap, "HDRI"/*fix name*/), m_HDRIFilename(hdriFilename)
+{
+    TW_ASSERT(application);
+    application->setPreprocessFunc(std::bind(&HDRILight::preprocess, this));
+
+    auto programItr = this->m_programsMap.find("RayGeneration_PrefilterHDRILight");
+    TW_ASSERT(programItr != this->m_programsMap.end());
+    this->m_context->setRayGenerationProgram(toUnderlyingValue(RayGenerationEntryType::HDRI), programItr->second);
+
+    /* Check whether transform matrix has scale. */
+    if (TwUtil::hasScale(lightToWorld))
+        std::cerr << "[Warning] HDRILight has scale, which could lead to undefined behavior!" << std::endl;
+    std::cout << "[Info] Scale component for HDRILight is: (" << TwUtil::getXScale(lightToWorld) << "," << TwUtil::getYScale(lightToWorld) << "," << TwUtil::getZScale(lightToWorld) << ")." << std::endl;
+
+    this->m_csHDRILight.lightToWorld = lightToWorld;
+    this->m_csHDRILight.worldToLight = lightToWorld.inverse();
+}
+
 
 void HDRILight::preprocess()
 {
@@ -14,7 +38,7 @@ void HDRILight::preprocess()
     /* Setup buffer for prefiltering launch. */
     RTsize HDRIWidth, HDRIHeight;
     this->m_HDRITextureSampler->getBuffer()->getSize(HDRIWidth, HDRIHeight);
-    std::cout << "[Info] Getting HDRIWidth: " << HDRIWidth << " HDRIHeight:" << HDRIHeight << std::endl;
+    std::cout << "[Info]Getting HDRIWidth: " << HDRIWidth << " HDRIHeight:" << HDRIHeight << std::endl;
 
     optix::Buffer prefilteringLaunchBuffer = context->createBuffer(RT_BUFFER_OUTPUT, RT_FORMAT_FLOAT, HDRIWidth, HDRIWidth);
     context["hdriEnvmapLuminance"]->setBuffer(prefilteringLaunchBuffer);

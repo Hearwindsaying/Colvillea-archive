@@ -1,14 +1,14 @@
 #pragma once
 
-
-#include <optix.h>
-#include <optixu/optixpp_namespace.h>
-#include <optixu_matrix_namespace.h>
-
+#include <functional>
 #include <iostream>
 #include <iomanip>
 #include <map>
 #include <memory>
+
+#include <optix.h>
+#include <optixu/optixpp_namespace.h>
+#include <optixu_matrix_namespace.h>
 
 #define  CL_CHECK_MEMORY_LEAKS
 #ifdef CL_CHECK_MEMORY_LEAKS
@@ -113,6 +113,21 @@ public:
     const std::map<std::string, optix::Program> &getProgramsMap() const 
     { 
         return this->m_programsMap; 
+    }
+
+    /**
+     * @brief Specify a preprocessing function that needs to be done
+     * before launching rendering kernel but right after everything
+     * is prepared for rendering (all variables in GPU programs are
+     * resolved). This can be useful when HDRILight would like to
+     * do some prefiltering job, which can use this to specify a 
+     * HDRILight::preprocess() member function.
+     * 
+     * @see HDRILight::preprocess()
+     */
+    void setPreprocessFunc(std::function<void()> preprocessFunc)
+    {
+        this->m_preprocessFunc = preprocessFunc;
     }
 
 private:
@@ -224,4 +239,7 @@ private:
     unsigned int                      m_sysIterationIndex;
     std::unique_ptr<SceneGraph>       m_sceneGraph;
     std::unique_ptr<CameraController> m_cameraController;
+
+    /// Function object to store preprocessor using OptiX launch 
+    std::function<void()> m_preprocessFunc;
 };
