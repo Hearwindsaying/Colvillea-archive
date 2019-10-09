@@ -35,7 +35,10 @@
 using namespace optix;
 
 Application::Application(GLFWwindow* glfwWindow, const uint32_t filmWidth, const uint32_t filmHeight, const int optixReportLevel, const uint32_t optixStackSize) : 
-    m_filmWidth(filmWidth), m_filmHeight(filmHeight), m_optixReportLevel(optixReportLevel), m_stackSize(optixStackSize),m_sysIterationIndex(0),m_resetRenderParamsNotification(true)
+    m_filmWidth(filmWidth), m_filmHeight(filmHeight), 
+    m_optixReportLevel(optixReportLevel), m_stackSize(optixStackSize),
+    m_sysIterationIndex(0),m_resetRenderParamsNotification(true),
+    m_sceneGraph(nullptr), m_cameraController(nullptr)
 {
     /* Output OptiX Device information. */
     this->outputDeviceInfo();
@@ -59,20 +62,33 @@ Application::Application(GLFWwindow* glfwWindow, const uint32_t filmWidth, const
     }
 }
 
-void Application::InitializeSceneGraph(std::unique_ptr<SceneGraph> &sceneGraph)
+Application::~Application()
+{
+    this->m_context->destroy();
+    std::cout << "[Info] Context has been destroyed." << std::endl;
+
+    ImGui_ImplGlfwGL2_Shutdown();
+    ImGui::DestroyContext();
+}
+
+
+void Application::buildSceneGraph(std::unique_ptr<SceneGraph> &sceneGraph)
 {
     this->m_sceneGraph = std::move(sceneGraph);
-
     this->m_cameraController = std::make_unique<CameraController>(this->m_sceneGraph->getCamera(), this->m_filmWidth, this->m_filmHeight);
 
     try
     {
         this->m_sceneGraph->buildGraph();
-        //scene graph init order? HDRI order?
 
-        this->m_context->validate(); //todo:validate is inside loadLight
-        if(this->m_sceneGraph->getHDRILight())
-            this->m_sceneGraph->getHDRILight()->loadLight(optix::Matrix4x4::identity());//todo:delete this
+        if (this->m_sceneGraph->getHDRILight())
+        {
+            this->m_sceneGraph->getHDRILight()->loadLight();
+        }
+        else
+        {
+            this->m_context->validate();
+        }
 
     }
     catch (optix::Exception& e)
@@ -81,6 +97,235 @@ void Application::InitializeSceneGraph(std::unique_ptr<SceneGraph> &sceneGraph)
         DebugBreak();
     }
 }
+
+void Application::drawWidget()
+{
+    static uint32_t frame_count = 0; // todo:use iteration index
+
+
+    //{
+    //    static const ImGuiWindowFlags window_flags = 0;
+
+    //    //ImGui::SetNextWindowPos(ImVec2(2.0f, 40.0f));
+    //    ImGui::SetNextWindowSize(ImVec2(550, 680), ImGuiCond_FirstUseEver);
+    //    if (!ImGui::Begin("Hierarchy", NULL, window_flags))
+    //    {
+    //        // Early out if the window is collapsed, as an optimization.
+    //        ImGui::End();
+    //        return;
+    //    }
+    //    ImGui::PushItemWidth(-140);
+
+    //    ImGui::Spacing();
+
+    //    ImGui::End();
+    //}
+
+    {
+        static const ImGuiWindowFlags window_flags = 0;
+
+        ImGui::SetNextWindowPos(ImVec2(-1.0f, 826.0f));
+        ImGui::SetNextWindowSize(ImVec2(550, 200), ImGuiCond_FirstUseEver);
+        if (!ImGui::Begin("System", NULL, window_flags))
+        {
+            // Early out if the window is collapsed, as an optimization.
+            ImGui::End();
+            return;
+        }
+        ImGui::PushItemWidth(-140);
+
+        ImGui::Spacing();
+
+
+        //////////////////////////////////////////////////////////////////////////
+        //System Module:
+        ImGui::Text("Current Iterations:%d", this->m_sysIterationIndex);
+
+        auto GetFPS = [](const int frame)->float
+        {
+            static double fps = -1.0;
+            static unsigned last_frame_count = 0;
+            static auto last_update_time = std::chrono::system_clock::now();
+            static decltype(last_update_time) current_time = last_update_time;
+            current_time = std::chrono::system_clock::now();
+            std::chrono::duration<double> fp_ms = current_time - last_update_time;
+            if (fp_ms.count() > 0.5)
+            {
+                fps = (frame_count - last_frame_count) / fp_ms.count();
+                last_frame_count = frame_count;
+                last_update_time = current_time;
+            }
+
+            return static_cast<float>(fps);
+        };
+
+        auto GetCurrentDateTime = []() ->std::string
+        {
+            time_t     now = time(0);
+            struct tm  tstruct;
+            char       buf[80];
+            tstruct = *localtime(&now);
+
+            strftime(buf, sizeof(buf), "%Y-%m-%d %H-%M-%S", &tstruct);
+
+            return buf;
+        };
+
+        float currfps = GetFPS(frame_count++);
+        ImGui::Text("FPS(frame per second):%.2f\nAverage Rendering Time(per launch):%.5fms", currfps, 1000.f / currfps);
+
+        if (ImGui::Button("Save Current Result"))
+        {
+            ImageLoader::saveHDRBufferToImage(this->m_sysHDRBuffer, (GetCurrentDateTime() + ".exr").c_str());
+            //             double currentRenderingTime = sutil::currentTime();
+            //             double renderingTimeElapse = currentRenderingTime - this->startRenderingTime;
+            //             std::cout << "[Info]currentFrame:" << sysIterationIndex << " time elapsed:" << renderingTimeElapse << std::endl;
+        }
+
+        ImGui::End();
+    }
+}
+
+void Application::render()
+{
+    try
+    {
+        if (this->m_resetRenderParamsNotification)
+        {
+            this->m_sysIterationIndex = 0;
+            this->m_context->launch(toUnderlyingValue(RayGenerationEntryType::InitFilter), this->m_filmWidth, this->m_filmHeight);
+            this->m_resetRenderParamsNotification = false;
+        }
+
+        this->m_context->launch(toUnderlyingValue(RayGenerationEntryType::Render), this->m_filmWidth, this->m_filmHeight);
+        this->m_context->launch(toUnderlyingValue(RayGenerationEntryType::Filter), this->m_filmWidth, this->m_filmHeight);
+
+        this->drawRenderView();
+
+        this->m_context["sysIterationIndex"]->setUint(this->m_sysIterationIndex++);
+    }
+    catch (optix::Exception& e)
+    {
+        std::cerr << e.getErrorString() << std::endl;
+        DebugBreak();
+    }
+}
+
+void Application::handleInputEvent(bool dispatchMouseInput)
+{
+    ImGuiIO const& io = ImGui::GetIO();
+    const ImVec2 mousePosition = ImGui::GetMousePos();
+
+    CameraController::InputMouseActionType mouseAction;
+
+    if (dispatchMouseInput) /* Only allow camera interactions to begin when interacting with the GUI.  However, release operation is not affected. */
+    {
+        if (ImGui::IsMouseDown(0))
+        {
+            mouseAction = static_cast<CameraController::InputMouseActionType>(toUnderlyingValue(CameraController::InputMouseActionType::LeftMouse) | toUnderlyingValue(CameraController::InputMouseActionType::Down));
+            this->m_cameraController->handleInputGUIEvent(mouseAction, make_int2(mousePosition.x, mousePosition.y));
+        }
+
+        else if (ImGui::IsMouseDown(1))
+        {
+            mouseAction = static_cast<CameraController::InputMouseActionType>(toUnderlyingValue(CameraController::InputMouseActionType::RightMouse) | toUnderlyingValue(CameraController::InputMouseActionType::Down));
+            this->m_cameraController->handleInputGUIEvent(mouseAction, make_int2(mousePosition.x, mousePosition.y));
+        }
+
+        else if (ImGui::IsMouseDown(2))
+        {
+            mouseAction = static_cast<CameraController::InputMouseActionType>(toUnderlyingValue(CameraController::InputMouseActionType::MiddleMouse) | toUnderlyingValue(CameraController::InputMouseActionType::Down));
+            this->m_cameraController->handleInputGUIEvent(mouseAction, make_int2(mousePosition.x, mousePosition.y));
+        }
+
+        else if (ImGui::IsMouseReleased(0))
+        {
+            mouseAction = static_cast<CameraController::InputMouseActionType>(toUnderlyingValue(CameraController::InputMouseActionType::LeftMouse) | toUnderlyingValue(CameraController::InputMouseActionType::Release));
+            this->m_cameraController->handleInputGUIEvent(mouseAction, make_int2(mousePosition.x, mousePosition.y));
+        }
+
+        else if (ImGui::IsMouseReleased(1))
+        {
+            mouseAction = static_cast<CameraController::InputMouseActionType>(toUnderlyingValue(CameraController::InputMouseActionType::RightMouse) | toUnderlyingValue(CameraController::InputMouseActionType::Release));
+            this->m_cameraController->handleInputGUIEvent(mouseAction, make_int2(mousePosition.x, mousePosition.y));
+        }
+
+        else if (ImGui::IsMouseReleased(2))
+        {
+            mouseAction = static_cast<CameraController::InputMouseActionType>(toUnderlyingValue(CameraController::InputMouseActionType::MiddleMouse) | toUnderlyingValue(CameraController::InputMouseActionType::Release));
+            this->m_cameraController->handleInputGUIEvent(mouseAction, make_int2(mousePosition.x, mousePosition.y));
+        }
+    }
+
+    else
+    {
+        if (ImGui::IsMouseReleased(0))
+        {
+            mouseAction = static_cast<CameraController::InputMouseActionType>(toUnderlyingValue(CameraController::InputMouseActionType::LeftMouse) | toUnderlyingValue(CameraController::InputMouseActionType::Release));
+            this->m_cameraController->handleInputGUIEvent(mouseAction, make_int2(mousePosition.x, mousePosition.y));
+        }
+
+        else if (ImGui::IsMouseReleased(1))
+        {
+            mouseAction = static_cast<CameraController::InputMouseActionType>(toUnderlyingValue(CameraController::InputMouseActionType::RightMouse) | toUnderlyingValue(CameraController::InputMouseActionType::Release));
+            this->m_cameraController->handleInputGUIEvent(mouseAction, make_int2(mousePosition.x, mousePosition.y));
+        }
+
+        else if (ImGui::IsMouseReleased(2))
+        {
+            mouseAction = static_cast<CameraController::InputMouseActionType>(toUnderlyingValue(CameraController::InputMouseActionType::MiddleMouse) | toUnderlyingValue(CameraController::InputMouseActionType::Release));
+            this->m_cameraController->handleInputGUIEvent(mouseAction, make_int2(mousePosition.x, mousePosition.y));
+        }
+    }
+
+
+
+
+
+
+}
+
+void Application::drawRenderView()
+{
+    RTformat buffer_format = this->m_sysOutputBuffer->getFormat();
+    TW_ASSERT(buffer_format == RT_FORMAT_FLOAT4);
+
+    const unsigned pboId = this->m_sysOutputBuffer->getGLBOId();
+    TW_ASSERT(pboId);
+
+    /* Draw RenderView widget. */
+    static const ImGuiWindowFlags window_flags = ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoMove;
+    ImGui::SetNextWindowPos(ImVec2(733.0f, 58.0f));
+    ImGui::SetNextWindowSize(ImVec2(1489.0f, 810.0f));
+    if (!ImGui::Begin("RenderView", NULL, window_flags))
+    {
+        // Early out if the window is collapsed, as an optimization.
+        ImGui::End();
+        return;
+    }
+
+    /* Handle mouse input event for RenderView. */
+    this->handleInputEvent(ImGui::IsWindowHovered());
+
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, this->m_renderViewTexture);
+
+    glBindBuffer(GL_PIXEL_UNPACK_BUFFER, pboId);
+    //todo:using glTexSubImage2D
+    //glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, (GLsizei)this->filmWidth, (GLsizei)this->filmHeight, GL_RGBA, GL_FLOAT, (void*)0);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, static_cast<GLsizei>(this->m_filmWidth), static_cast<GLsizei>(this->m_filmHeight), 0, GL_RGBA, GL_FLOAT, nullptr); // RGBA32F from byte offset 0 in the pixel unpack buffer.
+    glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
+
+    ImGui::Image((void*)(intptr_t)this->m_renderViewTexture, ImVec2(this->m_filmWidth, this->m_filmHeight), ImVec2(0, 1), ImVec2(1, 0)); /* flip UV Coordinates due to the inconsistence(vertically invert) */
+
+    ImGui::End();
+}
+
+
+
+/************************************************************************/
+/*              Helper functions for initialization                     */
+/************************************************************************/ 
 
 void Application::outputDeviceInfo()
 {
@@ -151,6 +396,11 @@ void Application::outputDeviceInfo()
     }
 }
 
+std::string Application::getPTXFilepath(const std::string & program)
+{
+    return std::string(SAMPLES_PTX_DIR) + std::string("\\colvillea_generated_") + program + std::string(".cu.ptx");
+}
+
 void Application::createProgramsFromPTX()
 {
     auto loadProgram = [this](const std::string &file, const std::initializer_list<std::string> programs) -> void
@@ -197,57 +447,11 @@ void Application::createProgramsFromPTX()
 
 }
 
-void Application::initializeContext()
-{
-    /* Create context. */
-    this->m_context = Context::create();
 
-    /* Setup context parameters. */
-    this->m_context->setStackSize(this->m_stackSize);
-    this->m_context->setPrintEnabled(true);
 
-    if (this->m_optixReportLevel > 0)
-    {
-        this->m_context->setUsageReportCallback(
-            [](int lvl, const char * tag, const char * msg, void * cbdata)
-        {
-            Application::OptixUsageReportLogger* logger = reinterpret_cast<Application::OptixUsageReportLogger*>(cbdata);
-            logger->log(lvl, tag, msg);
-        }, this->m_optixReportLevel, &this->m_optixUsageReportLogger);
-    }
-    
-    /* Disable exceptions. */
-    /* this->m_context->setExceptionEnabled(RT_EXCEPTION_ALL, true); */
-
-    /* Setup launch entries. */
-    this->m_context->setEntryPointCount(toUnderlyingValue(RayGenerationEntryType::CountOfType));
-
-    /* Setup number of ray type. */
-    this->m_context->setRayTypeCount(toUnderlyingValue(CommonStructs::RayType::CountOfType));
-
-    // todo:pack scene related paramters(materialBuffer) into a struct
-    this->m_context["sysSceneEpsilon"]->setFloat(1e-4f);
-
-    /* Create gpu programs from PTX files and add to programs map. */
-    this->createProgramsFromPTX();
-
-    /* Set programs for exception, miss and filters (ray generation). */
-    auto programItr = this->m_programsMap.find("Exception_Default");
-    TW_ASSERT(programItr != this->m_programsMap.end());
-    this->m_context->setExceptionProgram(toUnderlyingValue(RayGenerationEntryType::Render), programItr->second);
-
-    programItr = this->m_programsMap.find("Miss_Default");
-    TW_ASSERT(programItr != this->m_programsMap.end());
-    this->m_context->setMissProgram(toUnderlyingValue(RayGenerationEntryType::Render), programItr->second);
-
-    programItr = this->m_programsMap.find("RayGeneration_InitializeFilter");
-    TW_ASSERT(programItr != this->m_programsMap.end());
-    this->m_context->setRayGenerationProgram(toUnderlyingValue(RayGenerationEntryType::InitFilter), programItr->second);
-
-    programItr = this->m_programsMap.find("RayGeneration_Filter");
-    TW_ASSERT(programItr != this->m_programsMap.end());
-    this->m_context->setRayGenerationProgram(toUnderlyingValue(RayGenerationEntryType::Filter), programItr->second);
-}
+/*******************************************************************/
+/*           Initialization functions called by constructor        */
+/*******************************************************************/
 
 void Application::initializeImGui(GLFWwindow *glfwWindow)
 {
@@ -319,7 +523,7 @@ void Application::initializeRenderView()
     /* 1.Generate a new buffer object with glGenBuffers(). */
     glGenBuffers(1, &this->m_glPBO);
     TW_ASSERT(this->m_glPBO != 0); // Buffer size must be > 0 or OptiX can't create a buffer from it.
-    
+
     /* 2.Bind the buffer object with glBindBuffer(). */
     glBindBuffer(GL_PIXEL_UNPACK_BUFFER, this->m_glPBO);
 
@@ -343,6 +547,88 @@ void Application::initializeRenderView()
 
     /* DAR ImGui has been changed to push the GL_TEXTURE_BIT so that this works. */
     glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
+}
+
+void Application::initializeContext()
+{
+    /* Create context. */
+    this->m_context = Context::create();
+
+    /* Setup context parameters. */
+    this->m_context->setStackSize(this->m_stackSize);
+    this->m_context->setPrintEnabled(true);
+
+    if (this->m_optixReportLevel > 0)
+    {
+        this->m_context->setUsageReportCallback(
+            [](int lvl, const char * tag, const char * msg, void * cbdata)
+        {
+            Application::OptixUsageReportLogger* logger = reinterpret_cast<Application::OptixUsageReportLogger*>(cbdata);
+            logger->log(lvl, tag, msg);
+        }, this->m_optixReportLevel, &this->m_optixUsageReportLogger);
+    }
+    
+    /* Disable exceptions. */
+    /* this->m_context->setExceptionEnabled(RT_EXCEPTION_ALL, true); */
+
+    /* Setup launch entries. */
+    this->m_context->setEntryPointCount(toUnderlyingValue(RayGenerationEntryType::CountOfType));
+
+    /* Setup number of ray type. */
+    this->m_context->setRayTypeCount(toUnderlyingValue(CommonStructs::RayType::CountOfType));
+
+    // todo:pack scene related paramters(materialBuffer) into a struct
+    this->m_context["sysSceneEpsilon"]->setFloat(1e-4f);
+
+    /* Create gpu programs from PTX files and add to programs map. */
+    this->createProgramsFromPTX();
+
+    /* Set programs for exception, miss and filters (ray generation). */
+    auto programItr = this->m_programsMap.find("Exception_Default");
+    TW_ASSERT(programItr != this->m_programsMap.end());
+    this->m_context->setExceptionProgram(toUnderlyingValue(RayGenerationEntryType::Render), programItr->second);
+
+    programItr = this->m_programsMap.find("Miss_Default");
+    TW_ASSERT(programItr != this->m_programsMap.end());
+    this->m_context->setMissProgram(toUnderlyingValue(RayGenerationEntryType::Render), programItr->second);
+
+    programItr = this->m_programsMap.find("RayGeneration_InitializeFilter");
+    TW_ASSERT(programItr != this->m_programsMap.end());
+    this->m_context->setRayGenerationProgram(toUnderlyingValue(RayGenerationEntryType::InitFilter), programItr->second);
+
+    programItr = this->m_programsMap.find("RayGeneration_Filter");
+    TW_ASSERT(programItr != this->m_programsMap.end());
+    this->m_context->setRayGenerationProgram(toUnderlyingValue(RayGenerationEntryType::Filter), programItr->second);
+}
+
+void Application::initializeOutputBuffers()
+{
+    /* Setup progressive rendering iteration index, which is used in RandomSampler, progressive filtering. */
+    this->m_context["sysIterationIndex"]->setUint(0);
+
+    /* Setup output buffer for RenderView. */
+    this->m_sysOutputBuffer = this->m_context->createBufferFromGLBO(RT_BUFFER_OUTPUT, this->m_glPBO);
+    this->m_sysOutputBuffer->setFormat(RT_FORMAT_FLOAT4); // RGBA32F Buffer for output, todo:review format
+    this->m_sysOutputBuffer->setSize(this->m_filmWidth, this->m_filmHeight);
+    this->m_context["sysOutputBuffer"]->set(this->m_sysOutputBuffer);
+
+    /* Setup HDR output buffer for exporting result to OpenEXR. */
+    this->m_sysHDRBuffer = this->m_context->createBuffer(RT_BUFFER_OUTPUT, RT_FORMAT_FLOAT4, this->m_filmWidth, this->m_filmHeight);
+    this->m_context["sysHDRBuffer"]->set(this->m_sysHDRBuffer);
+
+    /* Setup reconstruction and filtering buffers. */
+    Buffer weightedSumBuffer = this->m_context->createBuffer(RT_BUFFER_OUTPUT, RT_FORMAT_FLOAT, this->m_filmWidth, this->m_filmHeight);
+    this->m_context["sysSampleWeightedSum"]->setBuffer(weightedSumBuffer);
+
+    /* Setup current radiance and weightedSum buffers for filtering.
+     * Note that in current progressive filtering algorithm, it stores elements
+     * of the sum of weighted radiance(f(dx,dy)*Li) with respect to the current iteration. */
+    Buffer sysCurrResultBuffer = this->m_context->createBuffer(RT_BUFFER_OUTPUT, RT_FORMAT_FLOAT4, this->m_filmWidth, this->m_filmHeight);
+    this->m_context["sysCurrResultBuffer"]->setBuffer(sysCurrResultBuffer);
+
+    /*weightedSum buffer with respect to the current iteration*/
+    Buffer sysCurrWeightedSumBuffer = this->m_context->createBuffer(RT_BUFFER_OUTPUT, RT_FORMAT_FLOAT, this->m_filmWidth, this->m_filmHeight);
+    this->m_context["sysCurrWeightedSumBuffer"]->setBuffer(sysCurrWeightedSumBuffer);
 }
 
 void Application::initializeCallableProgramGroup()
@@ -426,275 +712,4 @@ void Application::initializeCallableProgramGroup()
     this->m_context["Sample_Ld"]->setBuffer(sampleLdProgramBuffer);
     this->m_context["LightPdf"]->setBuffer(lightPdfProgramBuffer);
 }
-
-void Application::initializeOutputBuffers()
-{
-    /* Setup progressive rendering iteration index, which is used in RandomSampler, progressive filtering. */
-    this->m_context["sysIterationIndex"]->setUint(0);
-
-    /* Setup output buffer for RenderView. */
-    this->m_sysOutputBuffer = this->m_context->createBufferFromGLBO(RT_BUFFER_OUTPUT, this->m_glPBO);
-    this->m_sysOutputBuffer->setFormat(RT_FORMAT_FLOAT4); // RGBA32F Buffer for output, todo:review format
-    this->m_sysOutputBuffer->setSize(this->m_filmWidth, this->m_filmHeight);
-    this->m_context["sysOutputBuffer"]->set(this->m_sysOutputBuffer);
-
-    /* Setup HDR output buffer for exporting result to OpenEXR. */
-    this->m_sysHDRBuffer = this->m_context->createBuffer(RT_BUFFER_OUTPUT, RT_FORMAT_FLOAT4, this->m_filmWidth, this->m_filmHeight);
-    this->m_context["sysHDRBuffer"]->set(this->m_sysHDRBuffer);
-
-    /* Setup reconstruction and filtering buffers. */
-    Buffer weightedSumBuffer = this->m_context->createBuffer(RT_BUFFER_OUTPUT, RT_FORMAT_FLOAT, this->m_filmWidth, this->m_filmHeight);
-    this->m_context["sysSampleWeightedSum"]->setBuffer(weightedSumBuffer);
-
-    /* Setup current radiance and weightedSum buffers for filtering.
-     * Note that in current progressive filtering algorithm, it stores elements
-     * of the sum of weighted radiance(f(dx,dy)*Li) with respect to the current iteration. */
-    Buffer sysCurrResultBuffer = this->m_context->createBuffer(RT_BUFFER_OUTPUT, RT_FORMAT_FLOAT4, this->m_filmWidth, this->m_filmHeight);
-    this->m_context["sysCurrResultBuffer"]->setBuffer(sysCurrResultBuffer);
-
-    /*weightedSum buffer with respect to the current iteration*/
-    Buffer sysCurrWeightedSumBuffer = this->m_context->createBuffer(RT_BUFFER_OUTPUT, RT_FORMAT_FLOAT, this->m_filmWidth, this->m_filmHeight);
-    this->m_context["sysCurrWeightedSumBuffer"]->setBuffer(sysCurrWeightedSumBuffer);
-}
-
-void Application::render()
-{
-    try
-    {
-        if (this->m_resetRenderParamsNotification)
-        {
-            this->m_sysIterationIndex = 0;
-            this->m_context->launch(toUnderlyingValue(RayGenerationEntryType::InitFilter), this->m_filmWidth, this->m_filmHeight);
-            this->m_resetRenderParamsNotification = false;
-        }
-
-        this->m_context->launch(toUnderlyingValue(RayGenerationEntryType::Render), this->m_filmWidth, this->m_filmHeight);//launch renderer
-        this->m_context->launch(toUnderlyingValue(RayGenerationEntryType::Filter), this->m_filmWidth, this->m_filmHeight);//filtering
-
-        this->drawRenderView();
-
-        this->m_context["sysIterationIndex"]->setUint(static_cast<unsigned int>(this->m_sysIterationIndex++));
-    }
-    catch (optix::Exception& e)
-    {
-        std::cerr << e.getErrorString() << std::endl;
-        DebugBreak();
-    }
-
-}
-
-void Application::handleInputEvent(bool dispatchMouseInput)
-{
-    ImGuiIO const& io = ImGui::GetIO();
-    const ImVec2 mousePosition = ImGui::GetMousePos();
-
-    CameraController::InputMouseActionType mouseAction;
-    
-    if (dispatchMouseInput) /* Only allow camera interactions to begin when interacting with the GUI.  However, release operation is not affected. */
-    {
-        if (ImGui::IsMouseDown(0))
-        {
-            mouseAction = static_cast<CameraController::InputMouseActionType>(toUnderlyingValue(CameraController::InputMouseActionType::LeftMouse) | toUnderlyingValue(CameraController::InputMouseActionType::Down));
-            this->m_cameraController->handleInputGUIEvent(mouseAction, make_int2(mousePosition.x, mousePosition.y));
-        }
-
-        else if (ImGui::IsMouseDown(1))
-        {
-            mouseAction = static_cast<CameraController::InputMouseActionType>(toUnderlyingValue(CameraController::InputMouseActionType::RightMouse) | toUnderlyingValue(CameraController::InputMouseActionType::Down));
-            this->m_cameraController->handleInputGUIEvent(mouseAction, make_int2(mousePosition.x, mousePosition.y));
-        }
-
-        else if (ImGui::IsMouseDown(2))
-        {
-            mouseAction = static_cast<CameraController::InputMouseActionType>(toUnderlyingValue(CameraController::InputMouseActionType::MiddleMouse) | toUnderlyingValue(CameraController::InputMouseActionType::Down));
-            this->m_cameraController->handleInputGUIEvent(mouseAction, make_int2(mousePosition.x, mousePosition.y));
-        }
-
-        else if (ImGui::IsMouseReleased(0))
-        {
-            mouseAction = static_cast<CameraController::InputMouseActionType>(toUnderlyingValue(CameraController::InputMouseActionType::LeftMouse) | toUnderlyingValue(CameraController::InputMouseActionType::Release));
-            this->m_cameraController->handleInputGUIEvent(mouseAction, make_int2(mousePosition.x, mousePosition.y));
-        }
-
-        else if (ImGui::IsMouseReleased(1))
-        {
-            mouseAction = static_cast<CameraController::InputMouseActionType>(toUnderlyingValue(CameraController::InputMouseActionType::RightMouse) | toUnderlyingValue(CameraController::InputMouseActionType::Release));
-            this->m_cameraController->handleInputGUIEvent(mouseAction, make_int2(mousePosition.x, mousePosition.y));
-        }
-
-        else if (ImGui::IsMouseReleased(2))
-        {
-            mouseAction = static_cast<CameraController::InputMouseActionType>(toUnderlyingValue(CameraController::InputMouseActionType::MiddleMouse) | toUnderlyingValue(CameraController::InputMouseActionType::Release));
-            this->m_cameraController->handleInputGUIEvent(mouseAction, make_int2(mousePosition.x, mousePosition.y));
-        }
-    }
-
-    else
-    {
-        if (ImGui::IsMouseReleased(0))
-        {
-            mouseAction = static_cast<CameraController::InputMouseActionType>(toUnderlyingValue(CameraController::InputMouseActionType::LeftMouse) | toUnderlyingValue(CameraController::InputMouseActionType::Release));
-            this->m_cameraController->handleInputGUIEvent(mouseAction, make_int2(mousePosition.x, mousePosition.y));
-        }
-
-        else if (ImGui::IsMouseReleased(1))
-        {
-            mouseAction = static_cast<CameraController::InputMouseActionType>(toUnderlyingValue(CameraController::InputMouseActionType::RightMouse) | toUnderlyingValue(CameraController::InputMouseActionType::Release));
-            this->m_cameraController->handleInputGUIEvent(mouseAction, make_int2(mousePosition.x, mousePosition.y));
-        }
-
-        else if (ImGui::IsMouseReleased(2))
-        {
-            mouseAction = static_cast<CameraController::InputMouseActionType>(toUnderlyingValue(CameraController::InputMouseActionType::MiddleMouse) | toUnderlyingValue(CameraController::InputMouseActionType::Release));
-            this->m_cameraController->handleInputGUIEvent(mouseAction, make_int2(mousePosition.x, mousePosition.y));
-        }
-    }
-        
-
-    
-        
-
-    
-}
-
-void Application::drawWidget()
-{
-    static uint32_t frame_count = 0; // todo:use iteration index
-
-
-    //{
-    //    static const ImGuiWindowFlags window_flags = 0;
-
-    //    //ImGui::SetNextWindowPos(ImVec2(2.0f, 40.0f));
-    //    ImGui::SetNextWindowSize(ImVec2(550, 680), ImGuiCond_FirstUseEver);
-    //    if (!ImGui::Begin("Hierarchy", NULL, window_flags))
-    //    {
-    //        // Early out if the window is collapsed, as an optimization.
-    //        ImGui::End();
-    //        return;
-    //    }
-    //    ImGui::PushItemWidth(-140);
-
-    //    ImGui::Spacing();
-
-    //    ImGui::End();
-    //}
-
-    {
-        static const ImGuiWindowFlags window_flags = 0;
-
-        ImGui::SetNextWindowPos(ImVec2(-1.0f, 826.0f));
-        ImGui::SetNextWindowSize(ImVec2(550, 200), ImGuiCond_FirstUseEver);
-        if (!ImGui::Begin("System", NULL, window_flags))
-        {
-            // Early out if the window is collapsed, as an optimization.
-            ImGui::End();
-            return;
-        }
-        ImGui::PushItemWidth(-140);
-
-        ImGui::Spacing();
-
-
-        //////////////////////////////////////////////////////////////////////////
-        //System Module:
-        ImGui::Text("Current Iterations:%d", this->m_sysIterationIndex);
-
-        auto GetFPS = [](const int frame)->float
-        {
-            static double fps = -1.0;
-            static unsigned last_frame_count = 0;
-            static auto last_update_time = std::chrono::system_clock::now();
-            static decltype(last_update_time) current_time = last_update_time;
-            current_time = std::chrono::system_clock::now();
-            std::chrono::duration<double> fp_ms = current_time - last_update_time;
-            if (fp_ms.count() > 0.5)
-            {
-                fps = (frame_count - last_frame_count) / fp_ms.count();
-                last_frame_count = frame_count;
-                last_update_time = current_time;
-            }
-
-            return static_cast<float>(fps);
-        };
-
-        auto GetCurrentDateTime = []() ->std::string
-        {
-            time_t     now = time(0);
-            struct tm  tstruct;
-            char       buf[80];
-            tstruct = *localtime(&now);
-
-            strftime(buf, sizeof(buf), "%Y-%m-%d %H-%M-%S", &tstruct);
-
-            return buf;
-        };
-
-        float currfps = GetFPS(frame_count++);
-        ImGui::Text("FPS(frame per second):%.2f\nAverage Rendering Time(per launch):%.5fms", currfps, 1000.f / currfps);
-
-        if (ImGui::Button("Save Current Result"))
-        {
-            ImageLoader::saveHDRBufferToImage(this->m_sysHDRBuffer, (GetCurrentDateTime() + ".exr").c_str());
-//             double currentRenderingTime = sutil::currentTime();
-//             double renderingTimeElapse = currentRenderingTime - this->startRenderingTime;
-//             std::cout << "[Info]currentFrame:" << sysIterationIndex << " time elapsed:" << renderingTimeElapse << std::endl;
-        }
-
-        ImGui::End();
-    }
-}
-
-void Application::drawRenderView()
-{
-    RTformat buffer_format = this->m_sysOutputBuffer->getFormat();
-    TW_ASSERT(buffer_format == RT_FORMAT_FLOAT4);
-
-    const unsigned pboId = this->m_sysOutputBuffer->getGLBOId();
-    TW_ASSERT(pboId);
-
-    /* Draw RenderView widget. */
-    static const ImGuiWindowFlags window_flags = ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoMove;
-    ImGui::SetNextWindowPos(ImVec2(733.0f, 58.0f));
-    ImGui::SetNextWindowSize(ImVec2(1489.0f, 810.0f));
-    if (!ImGui::Begin("RenderView", NULL, window_flags))
-    {
-        // Early out if the window is collapsed, as an optimization.
-        ImGui::End();
-        return;
-    }
-
-    /* Handle mouse input event for RenderView. */
-    this->handleInputEvent(ImGui::IsWindowHovered());
-
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, this->m_renderViewTexture);
-
-    glBindBuffer(GL_PIXEL_UNPACK_BUFFER, pboId);
-    //todo:using glTexSubImage2D
-    //glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, (GLsizei)this->filmWidth, (GLsizei)this->filmHeight, GL_RGBA, GL_FLOAT, (void*)0);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, static_cast<GLsizei>(this->m_filmWidth), static_cast<GLsizei>(this->m_filmHeight), 0, GL_RGBA, GL_FLOAT, nullptr); // RGBA32F from byte offset 0 in the pixel unpack buffer.
-    glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
-
-    ImGui::Image((void*)(intptr_t)this->m_renderViewTexture, ImVec2(this->m_filmWidth, this->m_filmHeight), ImVec2(0, 1), ImVec2(1, 0)); /* flip UV Coordinates due to the inconsistence(vertically invert) */
-
-    ImGui::End();
-}
-
-
-Application::~Application()
-{
-    this->m_context->destroy();
-    std::cout << "[Info] Context has been destroyed." << std::endl;
-
-	ImGui_ImplGlfwGL2_Shutdown();
-	ImGui::DestroyContext();
-}
-
-
-std::string Application::getPTXFilepath(const std::string & program)
-{
-	return std::string(SAMPLES_PTX_DIR) + std::string("\\colvillea_generated_") + program + std::string(".cu.ptx");
-}
-
 

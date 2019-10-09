@@ -39,30 +39,72 @@ public:
     /**
      * @brief Create application and initialize ray tracer.
      * The initialization job doesn't include sceneGraph.
-     * Call Application::InitializeSceneGraph() once sceneGraph
+     * Call Application::buildSceneGraph() once sceneGraph
      * is ready.
      * 
-     * @see Application::InitializeSceneGraph()
+     * @see Application::buildSceneGraph()
      */
     Application(GLFWwindow* glfwWindow, const uint32_t filmWidth, const uint32_t filmHeight, const int optixReportLevel, const uint32_t optixStackSize);
 
     /**
-     * @brief Initialize sceneGraph for application and validate.
+     * @brief Destroy context and release resouces.
      */
-    void InitializeSceneGraph(std::unique_ptr<SceneGraph> &sceneGraph);
-    
+    ~Application();
 
     /**
-     * @brief Create a SceneGraph object to contain all
-     * information related to rendering.
+     * @brief Build sceneGraph for application and validate.
+     * This should be called when scene is ready for rendering
+     * before calling Application::render().
      */
-     //void createSceneGraph();
+    void buildSceneGraph(std::unique_ptr<SceneGraph> &sceneGraph);
+    
+    /**
+     * @brief Use widgets from Dear ImGui to draw User Interface.
+     */
+    void drawWidget();
 
+    /**
+     * @brief Apply camera transformation and launch GPU kernel
+     * to render. Display result in RenderView after filtering.
+     */
+    void render();
+
+private:
+    /**
+     * @brief Handle input event from mouse and send to CameraController
+     * in order to manipulate RenderView via mouse buttons.
+     * This function is called by Application::drawRenderView().
+     */
+    void handleInputEvent(bool dispatchMouseInput);
+
+    /**
+     * @brief Draw RenderView using OpenGL & Dear ImGui.
+     * This function is called by Application::render().
+     */
+    void drawRenderView();
+
+
+public:
+    /**
+     * @brief Force to relaunch progressive rendering.
+     * Note that this will clear up data accmulated before
+     * and current iteration goes from 0 again.
+     * It could be useful when we have edited scene such as
+     * moving camera and changing SceneGraph parameters and
+     * under that circumstance, we want to simply discard
+     * all previous rendered data and start rendering again.
+     * 
+     * @see Camera::updateCameraMatrices()
+     */
     void resetRenderParams()
     {
         m_resetRenderParamsNotification = true;
     }
 
+public:
+    /************************************************************************/
+    /*                         Getters & Setters                            */
+    /************************************************************************/ 
     optix::Context getContext() const
     { 
         return this->m_context; 
@@ -73,29 +115,11 @@ public:
         return this->m_programsMap; 
     }
 
-    /**
-     * @brief Apply camera transformation and launch GPU kernel
-     * to render. Display result in RenderView after filtering.
-     */
-    void render();
-
-    /**
-     * @brief Use widgets from Dear ImGui to draw User Interface.
-     */
-    void drawWidget();
-
-    /**
-     * @brief Get *.ptx files from sampleConfig.h
-     * @param[in] program Program name to get ptx.
-     */
-    std::string getPTXFilepath(const std::string &program);
-
-    /**
-     * @brief Destroy context and release resouces.
-     */
-    ~Application();
-
 private:
+    /************************************************************************/
+    /*              Helper functions for initialization                     */
+    /************************************************************************/
+
     /**
      * @brief Fetch and display some GPU device information
      * without context.
@@ -108,24 +132,27 @@ private:
     void outputDeviceInfo();
 
     /**
+     * @brief Get *.ptx files from sampleConfig.h
+     * @param[in] program Program name to get ptx.
+     */
+    std::string getPTXFilepath(const std::string &program);
+
+    /**
      * @brief Create programs from *.ptx file and add to
      * programs map for access later.
      *
      * @note This function should be called once inside
      * setupContext().
      *
-     * @see Application::setupContext()
+     * @see Application::initializeContext()
      */
     void createProgramsFromPTX();
 
-	/**
-	 * @brief Setup OptiX context, including setting exception
-	 * program, miss program, entries information and system-wide
-	 * parameters.
-	 * 
-	 * @note This function should be called once.
-	 */
-	void initializeContext();
+
+
+    /*******************************************************************/
+    /*           Initialization functions called by constructor        */
+    /*******************************************************************/
 
     /**
      * @brief Setup Dear ImGui context. Load style information
@@ -137,23 +164,21 @@ private:
 
     /**
      * @brief Setup RenderView for displaying output buffer
-     * from ray tracing, including OpenGL status machine 
+     * from ray tracing, including OpenGL status machine
      * setup, generating textures for PBO.
      *
      * @note This function should be called once.
      */
     void initializeRenderView();
 
-
-    /**
-     * @brief Load and setup bindless callable program group for
-     * BSDFs and Lights. Perhaps add samplers and cameras in the 
-     * future.
-     * 
-     * @note This function should be called once.
-     */
-    void initializeCallableProgramGroup();
-
+	/**
+	 * @brief Setup OptiX context, including setting exception
+	 * program, miss program, entries information and system-wide
+	 * parameters.
+	 * 
+	 * @note This function should be called once.
+	 */
+	void initializeContext();
 
     /**
      * @brief Setup output buffers accounting for progressive
@@ -168,41 +193,35 @@ private:
      */
     void initializeOutputBuffers();
 
-
-    
-
     /**
-     * @brief Handle input event from mouse and send to CameraController
-     * in order to manipulate RenderView via mouse buttons.
+     * @brief Load and setup bindless callable program group for
+     * BSDFs and Lights. Perhaps add samplers and cameras in the 
+     * future.
+     * 
+     * @note This function should be called once.
      */
-    void handleInputEvent(bool dispatchMouseInput);
-
-    
-
-    /**
-     * @brief Draw RenderView using OpenGL & Dear ImGui.
-     */
-    void drawRenderView();
+    void initializeCallableProgramGroup();
 
 private:
-
-	std::map<std::string, optix::Program> m_programsMap;
-    std::unique_ptr<CameraController>     m_cameraController;
-
+    /// OptiX environment settings
     optix::Context m_context;
     RTsize         m_stackSize;
     int            m_optixReportLevel;
     OptixUsageReportLogger m_optixUsageReportLogger;
 
+    /// OptiX programs
+    std::map<std::string, optix::Program> m_programsMap;
+
+    /// Render buffers
     optix::Buffer  m_sysOutputBuffer; 
     optix::Buffer  m_sysHDRBuffer;
-    unsigned int   m_renderViewTexture; //todo:GLuint
+    unsigned int   m_renderViewTexture;
     unsigned int   m_glPBO;
     unsigned int   m_filmWidth, m_filmHeight;
+    bool           m_resetRenderParamsNotification;
 
-    unsigned int   m_sysIterationIndex;
-
-    std::unique_ptr<SceneGraph> m_sceneGraph;
-
-    bool m_resetRenderParamsNotification = true;
+    /// Scene related variables
+    unsigned int                      m_sysIterationIndex;
+    std::unique_ptr<SceneGraph>       m_sceneGraph;
+    std::unique_ptr<CameraController> m_cameraController;
 };

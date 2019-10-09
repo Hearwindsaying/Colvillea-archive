@@ -17,17 +17,17 @@
 class PointLight : public Light
 {
 public:
-    PointLight(optix::Context context, const std::map<std::string, optix::Program> &programsMap, const optix::float3 intensity) : Light(context, programsMap, "Point")
+    PointLight(optix::Context context, const std::map<std::string, optix::Program> &programsMap, const optix::float3 intensity, const optix::Matrix4x4 &lightToWorld) : Light(context, programsMap, "Point"), m_lightToWorld(lightToWorld)
     {
         this->m_csPointLight.intensity = optix::make_float4(intensity.x, intensity.y, intensity.z, 1.f);
     }
 
 
-    void loadLight(const optix::Matrix4x4 &lightToWorld) override
+    void loadLight() override
     {/* todo:redundant ops. */
         /* Create PointLight Struct for GPU program. */
         this->m_csPointLight.lightType = CommonStructs::LightType::PointLight;
-        this->m_csPointLight.lightPos = TwUtil::xfmPoint(optix::make_float3(0.f, 0.f, 0.f), lightToWorld);
+        this->m_csPointLight.lightPos = TwUtil::xfmPoint(optix::make_float3(0.f, 0.f, 0.f), this->m_lightToWorld);
     }
 
     /**
@@ -59,4 +59,6 @@ public:
 
 private:
     CommonStructs::PointLight m_csPointLight;
+
+    optix::Matrix4x4 m_lightToWorld;
 };

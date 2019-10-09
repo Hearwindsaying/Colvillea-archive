@@ -147,7 +147,7 @@ public:
      */
     void createHDRILight(const std::string & HDRIFilename, const optix::Matrix4x4 &lightToWorld)
     {
-        this->m_HDRILight = std::make_shared<HDRILight>(this->m_context, this->m_programsMap, HDRIFilename);
+        this->m_HDRILight = std::make_shared<HDRILight>(this->m_context, this->m_programsMap, HDRIFilename, lightToWorld);
 
         /* Note that we've initialized light in ctor of SceneGraph, all variables is resolved and we could invoke loadLight here safely. Todo:a complete solution is CPU prefiltering HDRILight instead. */
         //todo:early invoke loadLight need to markDirty for accel.
@@ -166,8 +166,8 @@ public:
      */
     void createPointLight(const optix::Matrix4x4 &lightToWorld, const optix::float3 &intensity)
     {
-        std::shared_ptr<PointLight> pointLight = std::make_shared<PointLight>(this->m_context, this->m_programsMap, intensity);
-        pointLight->loadLight(lightToWorld);
+        std::shared_ptr<PointLight> pointLight = std::make_shared<PointLight>(this->m_context, this->m_programsMap, intensity, lightToWorld);
+        pointLight->loadLight();
 
         this->m_pointLights.push_back(pointLight);
 
@@ -204,7 +204,7 @@ public:
     {
         std::shared_ptr<QuadLight> quadLight = std::make_shared<QuadLight>(this->m_context, this->m_programsMap, intensity,
             this->createQuad(materialIndex, lightToWorld, this->m_quadLights.size() /* size() is the index we want for the current creating quad */, flipNormal));
-        quadLight->loadLight(lightToWorld /* todo:delete this useless parameter */ );
+        quadLight->loadLight();
         this->m_quadLights.push_back(quadLight);
 
         /* Setup quadLightBuffer for GPU Program */
@@ -273,7 +273,7 @@ public:
 	 * This function should be called once all shapes are created.
 	 * 
 	 * @note In current implementation, it's not supported instancing
-	 * that we gather all geometryInstance to share a parent of 
+	 * so we gather all geometryInstance to share a parent of 
 	 * geometryGroup and one acceleration structure without any
 	 * transform nodes availiable.
 	 */

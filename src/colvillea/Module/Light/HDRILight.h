@@ -20,12 +20,19 @@
 class HDRILight : public Light 
 {
 public:
-    HDRILight(optix::Context context, const std::map<std::string, optix::Program> &programsMap, const std::string & hdriFilename) :Light(context, programsMap, "HDRI"/*fix name*/), m_HDRIFilename(hdriFilename)
+    HDRILight(optix::Context context, const std::map<std::string, optix::Program> &programsMap, const std::string & hdriFilename, const optix::Matrix4x4 &lightToWorld) :Light(context, programsMap, "HDRI"/*fix name*/), m_HDRIFilename(hdriFilename)
     {
         auto programItr = this->m_programsMap.find("RayGeneration_PrefilterHDRILight");
         TW_ASSERT(programItr != this->m_programsMap.end());
         this->m_context->setRayGenerationProgram(toUnderlyingValue(RayGenerationEntryType::HDRI), programItr->second);
        
+        /* Check whether transform matrix has scale. */
+        if (TwUtil::hasScale(lightToWorld))
+            std::cerr << "[Warning] HDRILight has scale, which could lead to undefined behavior!" << std::endl;
+        std::cout << "[Info] Scale component for HDRILight is: (" << TwUtil::getXScale(lightToWorld) << "," << TwUtil::getYScale(lightToWorld) << "," << TwUtil::getZScale(lightToWorld) << ")." << std::endl;
+
+        this->m_csHDRILight.lightToWorld = lightToWorld;
+        this->m_csHDRILight.worldToLight = lightToWorld.inverse();
     }
 
     /**
@@ -67,21 +74,16 @@ public:
     }
 
     //todo:bad design, light related parameters should be as loadLight?
-    void loadLight(const optix::Matrix4x4 &lightToWorld) override
+    void loadLight() override
     {
-        /* Check whether transform matrix has scale. */
-        if (TwUtil::hasScale(lightToWorld))
-            std::cerr << "[Warning] HDRILight has scale, which could lead to undefined behavior!" << std::endl;
-        std::cout << "[Info] Scale component for HDRILight is: (" << TwUtil::getXScale(lightToWorld) << "," << TwUtil::getYScale(lightToWorld) << "," << TwUtil::getZScale(lightToWorld) <<  ")." << std::endl;
-
         /* Load HDRI texture and set |hdriEnvmap|, which is shared by spherical skybox (Miss program) and HDRILight program. */
         auto context = this->m_context;
         this->m_HDRITextureSampler = ImageLoader::LoadImageTexture(context, this->m_HDRIFilename, optix::make_float4(0.f));
         this->updateHDRIEnvmap();
 
         /* Create HDRILight Struct for GPU program. */
-        this->m_csHDRILight.lightToWorld = lightToWorld;
-        this->m_csHDRILight.worldToLight = lightToWorld.inverse();
+        /*this->m_csHDRILight.lightToWorld = lightToWorld;
+        this->m_csHDRILight.worldToLight = lightToWorld.inverse();*/
         this->m_csHDRILight.hdriEnvmap   = this->m_HDRITextureSampler->getId();
         this->m_csHDRILight.lightType    = CommonStructs::LightType::HDRILight;
         this->m_csHDRILight.nSamples     = 1; //todo:add support for nSamples

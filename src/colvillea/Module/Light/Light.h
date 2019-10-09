@@ -49,7 +49,7 @@ public:
         this->m_lightPdf = programItr->second;
     }
 
-    virtual void loadLight(const optix::Matrix4x4 &lightToWorld) = 0;
+    virtual void loadLight() = 0;
 
     //virtual void getCommonStructsLight()
 

@@ -22,7 +22,7 @@
 class QuadLight : public Light
 {
 public:
-    QuadLight(optix::Context context, const std::map<std::string, optix::Program> &programsMap, const optix::float3 intensity, std::shared_ptr<Quad> quadShape) : 
+    QuadLight(optix::Context context, const std::map<std::string, optix::Program> &programsMap, const optix::float3 intensity, std::shared_ptr<Quad> quadShape) :
         Light(context, programsMap, "Quad"), m_quadShape(quadShape)
     {
         this->m_csQuadLight.intensity = optix::make_float4(intensity.x, intensity.y, intensity.z, 1.f);
@@ -31,11 +31,11 @@ public:
     /**
      * @note todo:Never use |lightToWorld| parameter!
      */
-    void loadLight(const optix::Matrix4x4 &lightToWorld) override
+    void loadLight() override
     {
         /* Create QuadLight Struct for GPU program. */
         this->m_csQuadLight.lightType = CommonStructs::LightType::QuadLight;
-        this->m_quadShape->getMatrix(this->m_csQuadLight.lightToWorld, this->m_csQuadLight.worldToLight);
+        this->m_quadShape->getMatrix(this->m_csQuadLight.lightToWorld, this->m_csQuadLight.worldToLight); /* note that |lightToWorld| is directly decided by |m_quadShape| */
         this->m_csQuadLight.reverseOrientation = this->m_quadShape->isFlippedGeometryNormal();
         this->m_csQuadLight.invSurfaceArea = 1.f / this->m_quadShape->getSurfaceArea();
 

@@ -172,7 +172,7 @@ int main(int argc, char *argv[])
     create_CornellBoxScene(sceneGraph, application, materialPool, examplesBasePath); /* left scene configurations are created... */
 
     /* Finally initialize scene and prepare for launch. */
-    application->InitializeSceneGraph(sceneGraph);
+    application->buildSceneGraph(sceneGraph);
 
     /* Main loop for Colvillea. */
     while (!glfwWindowShouldClose(glfwWindow))
