@@ -105,7 +105,7 @@ static __device__ __inline__ float4 FresnelBlend_InnerSample_f(const float3 & wo
 /********************************************************************************/
 /*********************************   BSDF   *************************************/
 /********************************************************************************/
-RT_CALLABLE_PROGRAM float4 Plastic_Eval_f(const float3 & wo_World, const float3 & wi_World, const ShaderParams & shaderParams)
+RT_CALLABLE_PROGRAM float4 Eval_f_Plastic(const float3 & wo_World, const float3 & wi_World, const ShaderParams & shaderParams)
 {
 #ifdef PLASTIC_ADDING
 	float3 wi = TwUtil::BSDFMath::WorldToLocal(wi_World, shaderParams.dgShading.dpdu, shaderParams.dgShading.tn, shaderParams.dgShading.nn);
@@ -138,7 +138,7 @@ RT_CALLABLE_PROGRAM float4 Plastic_Eval_f(const float3 & wo_World, const float3 
 }
 
 
-RT_CALLABLE_PROGRAM float4 Plastic_Sample_f(const float3 &wo_World, float3 & outwi_World, float2 & urand, float & outPdf, float bsdfChoiceRand, const ShaderParams & shaderParams)
+RT_CALLABLE_PROGRAM float4 Sample_f_Plastic(const float3 &wo_World, float3 & outwi_World, float2 & urand, float & outPdf, float bsdfChoiceRand, const ShaderParams & shaderParams)
 {
 #ifdef PLASTIC_ADDING
 	float3 wo = TwUtil::BSDFMath::WorldToLocal(wo_World, shaderParams.dgShading.dpdu, shaderParams.dgShading.tn, shaderParams.dgShading.nn);
@@ -209,7 +209,7 @@ RT_CALLABLE_PROGRAM float4 Plastic_Sample_f(const float3 &wo_World, float3 & out
 #endif
 }
 
-RT_CALLABLE_PROGRAM float Plastic_Pdf(const float3 & wo_World, const float3 & wi_World, const ShaderParams & shaderParams)
+RT_CALLABLE_PROGRAM float Pdf_Plastic(const float3 & wo_World, const float3 & wi_World, const ShaderParams & shaderParams)
 {
 #ifdef PLASTIC_ADDING
 	//need to be corrected(consider light leak and light spot)

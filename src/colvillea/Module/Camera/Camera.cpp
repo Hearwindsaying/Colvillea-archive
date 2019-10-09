@@ -51,15 +51,6 @@ Camera::Camera(const optix::Matrix4x4 & cam2world, float fov, float filmWidth, f
                              Matrix4x4::translate(make_float3(-pminx, pmaxy, 0.f));
     this->m_rasterToScreen = this->m_screenToRaster.inverse();
     this->m_rasterToCamera = Matrix4x4(this->m_cameraToScreen.inverse()) * this->m_rasterToScreen;
-
-#pragma region oldcode
-    /*Scale(1 / (screenWindow.pMax.x - screenWindow.pMin.x),
-                  1 / (screenWindow.pMin.y - screenWindow.pMax.y), 1) *
-            Translate(Vector3f(-screenWindow.pMin.x, -screenWindow.pMax.y, 0));*/
-            /*this->m_screenToRaster = Matrix4x4::scale(make_float3(this->m_filmWidth, this->m_filmHeight, 1.f)) *
-                                   Matrix4x4::scale(make_float3(1.f / 2, 1.f / 2, 1.f)) *
-                                   Matrix4x4::translate(make_float3(1, 1, 0.f));*/
-#pragma endregion oldcode
 }
 
 

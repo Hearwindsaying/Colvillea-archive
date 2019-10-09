@@ -12,7 +12,7 @@ using namespace CommonStructs;
 
 //////////////////////////////////////////////////////////////////////////
 //[BSDF]Lambert Pdf function:
-RT_CALLABLE_PROGRAM float Lambert_Pdf(const float3 & wo_World, const float3 & wi_World, const ShaderParams & shaderParams)
+RT_CALLABLE_PROGRAM float Pdf_Lambert(const float3 & wo_World, const float3 & wi_World, const ShaderParams & shaderParams)
 {
 	if (TwUtil::dot(wi_World, shaderParams.nGeometry) * TwUtil::dot(wo_World, shaderParams.nGeometry) > 0)
 	{
@@ -29,7 +29,7 @@ RT_CALLABLE_PROGRAM float Lambert_Pdf(const float3 & wo_World, const float3 & wi
 }
 
 //[BSDF]Lambert Eval_f function:
-RT_CALLABLE_PROGRAM float4 Lambert_Eval_f(const float3 & wo_World, const float3 & wi_World, const ShaderParams & shaderParams)
+RT_CALLABLE_PROGRAM float4 Eval_f_Lambert(const float3 & wo_World, const float3 & wi_World, const ShaderParams & shaderParams)
 {
 	//Technically, we need to transform wo_World and wi_World into Local Shading Coordinate System.For Lambertian Shader, this transformation is ommited(just constant).
 	
@@ -50,7 +50,7 @@ RT_CALLABLE_PROGRAM float4 Lambert_Eval_f(const float3 & wo_World, const float3 
 
 
 //[BSDF]Lambert Sample_f function:
-RT_CALLABLE_PROGRAM float4 Lambert_Sample_f(const float3 &wo_World, float3 & outwi_World, float2 & urand, float & outPdf, float bsdfChoiceRand, const ShaderParams & shaderParams)
+RT_CALLABLE_PROGRAM float4 Sample_f_Lambert(const float3 &wo_World, float3 & outwi_World, float2 & urand, float & outPdf, float bsdfChoiceRand, const ShaderParams & shaderParams)
 {
 	//Bug found when transplanting to OptiX, Shader::Sample_f() method should calculate after transform wo_World into Shading Coordinate System and transform back to World Coordinate System.
 	//Flip wo_world was wrong in the original code.

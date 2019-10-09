@@ -27,17 +27,17 @@ namespace TwUtil
 
 //////////////////////////////////////////////////////////////////////////
 //
-RT_CALLABLE_PROGRAM float4 SmoothGlass_Eval_f(const float3 & wo_World, const float3 & wi_World, const ShaderParams & shaderParams)
+RT_CALLABLE_PROGRAM float4 Eval_f_SmoothGlass(const float3 & wo_World, const float3 & wi_World, const ShaderParams & shaderParams)
 {
 	return make_float4(0.f);
 }
 
-RT_CALLABLE_PROGRAM float SmoothGlass_Pdf(const float3 & wo_World, const float3 & wi_World, const ShaderParams & shaderParams)
+RT_CALLABLE_PROGRAM float Pdf_SmoothGlass(const float3 & wo_World, const float3 & wi_World, const ShaderParams & shaderParams)
 {
 	return 0.f;
 }
 
-RT_CALLABLE_PROGRAM float4 SmoothGlass_Sample_f(const float3 &wo_World, float3 & outwi_World, float2 & urand, float & outPdf, float bsdfChoiceRand, const ShaderParams & shaderParams)
+RT_CALLABLE_PROGRAM float4 Sample_f_SmoothGlass(const float3 &wo_World, float3 & outwi_World, float2 & urand, float & outPdf, float bsdfChoiceRand, const ShaderParams & shaderParams)
 {
 
 	/*old version*/

@@ -44,7 +44,7 @@ public:
      * 
      * @see Application::InitializeSceneGraph()
      */
-    Application(GLFWwindow* glfwWindow, const uint32_t filmWidth, const uint32_t filmHeight, const int _optixReportLevel, const uint32_t _optixStackSize);
+    Application(GLFWwindow* glfwWindow, const uint32_t filmWidth, const uint32_t filmHeight, const int optixReportLevel, const uint32_t optixStackSize);
 
     /**
      * @brief Initialize sceneGraph for application and validate.
@@ -85,6 +85,12 @@ public:
     void drawWidget();
 
     /**
+     * @brief Get *.ptx files from sampleConfig.h
+     * @param[in] program Program name to get ptx.
+     */
+    std::string getPTXFilepath(const std::string &program);
+
+    /**
      * @brief Destroy context and release resouces.
      */
     ~Application();
@@ -93,6 +99,9 @@ private:
     /**
      * @brief Fetch and display some GPU device information
      * without context.
+     * 
+     * @note This function should be called once inside
+     * constructor.
      * 
      * @ref OptiX Advanced Samples
      */
@@ -116,7 +125,7 @@ private:
 	 * 
 	 * @note This function should be called once.
 	 */
-	void setupContext();
+	void initializeContext();
 
     /**
      * @brief Setup Dear ImGui context. Load style information
@@ -124,7 +133,7 @@ private:
      *
      * @note This function should be called once.
      */
-    void setupImGui(GLFWwindow *glfwWindow);
+    void initializeImGui(GLFWwindow *glfwWindow);
 
     /**
      * @brief Setup RenderView for displaying output buffer
@@ -133,7 +142,7 @@ private:
      *
      * @note This function should be called once.
      */
-    void setupRenderView();
+    void initializeRenderView();
 
 
     /**
@@ -143,7 +152,7 @@ private:
      * 
      * @note This function should be called once.
      */
-    void initCallableProgramGroup();
+    void initializeCallableProgramGroup();
 
 
     /**
@@ -157,7 +166,7 @@ private:
      *
      * @note This function should be called once.
      */
-    void setupOutputBuffers();
+    void initializeOutputBuffers();
 
 
     
@@ -196,9 +205,4 @@ private:
     std::unique_ptr<SceneGraph> m_sceneGraph;
 
     bool m_resetRenderParamsNotification = true;
-
-
-	//old code
-public:
-	std::string getPTXpath(const std::string &program);//Hardcoded ptx path,should use system environment variables instead
 };

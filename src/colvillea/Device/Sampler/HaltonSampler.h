@@ -7409,7 +7409,7 @@ namespace TwUtil
  * @param sampleNum i_th sample in current pixel
  * @return return the computed index
  */
-static __device__ __inline__ uint32_t Halton_GetIndexForSample(uint32_t sampleNum)
+static __device__ __inline__ uint32_t GetIndexForSample_Halton(uint32_t sampleNum)
 {
 	uint32_t &offsetForCurrentPixel = globalHaltonSampler.hs_offsetForCurrentPixelBuffer[sysLaunch_index];
 
@@ -7424,7 +7424,7 @@ static __device__ __inline__ uint32_t Halton_GetIndexForSample(uint32_t sampleNu
  * @return phi(b_dimension)(index), where random permutation is employed
  * when dimension goes beyond 1(start from 0)
  */
-static __device__ __inline__ float Halton_SampleDimension(uint32_t index, int dim)
+static __device__ __inline__ float SampleDimension_Halton(uint32_t index, int dim)
 {
 	/*see mitsuba halton.cpp L375 for another equivalent implementation*/
 	if (dim == 0)
@@ -7446,9 +7446,9 @@ static __device__ __inline__ float Halton_SampleDimension(uint32_t index, int di
  * @param globalSampler globalSampler
  * @return 1D sample value
  */
-static __device__ __inline__ float Halton_Get1D(HaltonSampler &localSampler)
+static __device__ __inline__ float Get1D_Halton(HaltonSampler &localSampler)
 {
-	return Halton_SampleDimension(localSampler.intervalSampleIndex, localSampler.dimension++);
+	return SampleDimension_Halton(localSampler.intervalSampleIndex, localSampler.dimension++);
 }
 
 /**
@@ -7457,11 +7457,11 @@ static __device__ __inline__ float Halton_Get1D(HaltonSampler &localSampler)
  * @param globalSampler globalSampler
  * @return 2D sample value
  */
-static __device__ __inline__ optix::float2 Halton_Get2D(HaltonSampler &localSampler)
+static __device__ __inline__ optix::float2 Get2D_Halton(HaltonSampler &localSampler)
 {
-	optix::float2 p = make_float2(Halton_SampleDimension(localSampler.intervalSampleIndex,
+	optix::float2 p = make_float2(SampleDimension_Halton(localSampler.intervalSampleIndex,
 		                                                 localSampler.dimension),
-		                          Halton_SampleDimension(localSampler.intervalSampleIndex,
+		                          SampleDimension_Halton(localSampler.intervalSampleIndex,
 			                                             localSampler.dimension + 1));
 	localSampler.dimension += 2;
 	return p;
@@ -7483,7 +7483,7 @@ static __device__ __inline__ void StartSamplingPreprocess_RayGen(HaltonSampler &
 
 	/*retrieve the global index of Halton sequences for current pixel*/
 	uint32_t &currentPixelSampleIndex = sysIterationIndex;
-	localSampler.intervalSampleIndex = Halton_GetIndexForSample(currentPixelSampleIndex);
+	localSampler.intervalSampleIndex = GetIndexForSample_Halton(currentPixelSampleIndex);
 }
 
 /**
@@ -7503,7 +7503,7 @@ static __device__ __inline__ void StartSamplingPreprocess_CHit(HaltonSampler &lo
 
 	/*retrieve the global index of Halton sequences for current pixel*/
 	uint32_t &currentPixelSampleIndex = sysIterationIndex;
-	localSampler.intervalSampleIndex = Halton_GetIndexForSample(currentPixelSampleIndex);
+	localSampler.intervalSampleIndex = GetIndexForSample_Halton(currentPixelSampleIndex);
 }
 
 #endif // COLVILLEA_DEVICE_SAMPLER_HALTONSAMPLER_H_

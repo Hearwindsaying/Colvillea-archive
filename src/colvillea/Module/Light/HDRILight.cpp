@@ -36,7 +36,7 @@ void HDRILight::preprocess()
     std::unique_ptr<TwUtil::MonteCarlo::Distribution2D> hdri2DDistribution;
     hdri2DDistribution.reset(new TwUtil::MonteCarlo::Distribution2D(static_cast<float *>(prefilteringLaunchBuffer->map()), HDRIWidth, HDRIHeight));
 
-    std::chrono::system_clock::now();
+    end = std::chrono::system_clock::now();
     diff = end - currentTime;
     std::cout << "[Info]Precomputing HDRI distribution time elapsed: " << (diff).count() << std::endl;
 

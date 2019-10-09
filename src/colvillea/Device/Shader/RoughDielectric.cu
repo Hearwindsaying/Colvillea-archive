@@ -49,7 +49,7 @@ namespace TwUtil
 
 //////////////////////////////////////////////////////////////////////////
 //[BSDF]RoughDielectric BSDF Pdf()
-RT_CALLABLE_PROGRAM float RoughDielectric_Pdf(const float3 & wo_World, const float3 & wi_World, const ShaderParams & shaderParams)
+RT_CALLABLE_PROGRAM float Pdf_RoughDielectric(const float3 & wo_World, const float3 & wi_World, const ShaderParams & shaderParams)
 {
 	float3 wo_Local = TwUtil::BSDFMath::WorldToLocal(wo_World, shaderParams.dgShading.dpdu, shaderParams.dgShading.tn, shaderParams.dgShading.nn);
 	float3 wi_Local = TwUtil::BSDFMath::WorldToLocal(wi_World, shaderParams.dgShading.dpdu, shaderParams.dgShading.tn, shaderParams.dgShading.nn);
@@ -99,7 +99,7 @@ RT_CALLABLE_PROGRAM float RoughDielectric_Pdf(const float3 & wo_World, const flo
 
 //////////////////////////////////////////////////////////////////////////
 //[BSDF]RoughDielectric BSDF Eval_f()
-RT_CALLABLE_PROGRAM float4 RoughDielectric_Eval_f(const float3 & wo_World, const float3 & wi_World, const ShaderParams & shaderParams)
+RT_CALLABLE_PROGRAM float4 Eval_f_RoughDielectric(const float3 & wo_World, const float3 & wi_World, const ShaderParams & shaderParams)
 {
 	float3 wo_Local = TwUtil::BSDFMath::WorldToLocal(wo_World, shaderParams.dgShading.dpdu, shaderParams.dgShading.tn, shaderParams.dgShading.nn);
 	float3 wi_Local = TwUtil::BSDFMath::WorldToLocal(wi_World, shaderParams.dgShading.dpdu, shaderParams.dgShading.tn, shaderParams.dgShading.nn);
@@ -176,7 +176,7 @@ RT_CALLABLE_PROGRAM float4 RoughDielectric_Eval_f(const float3 & wo_World, const
 //////////////////////////////////////////////////////////////////////////
 //[BSDF]RoughDielectric BSDF Sample_f()
 //todo:revise light spot/leak issue
-RT_CALLABLE_PROGRAM float4 RoughDielectric_Sample_f(const float3 &wo_World, float3 & outwi_World, float2 & urand, float & outPdf, float bsdfChoiceRand, const ShaderParams & shaderParams)
+RT_CALLABLE_PROGRAM float4 Sample_f_RoughDielectric(const float3 &wo_World, float3 & outwi_World, float2 & urand, float & outPdf, float bsdfChoiceRand, const ShaderParams & shaderParams)
 {
 	/*convert direction into local space*/
 	float3 wo_Local = TwUtil::BSDFMath::WorldToLocal(wo_World, shaderParams.dgShading.dpdu, shaderParams.dgShading.tn, shaderParams.dgShading.nn);

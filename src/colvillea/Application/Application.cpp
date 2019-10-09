@@ -1,11 +1,14 @@
 #include "Application.h"
 
-
-//#if defined(_WIN32)
-//#include <windows.h>
-//#endif
-
-
+#include <algorithm>
+#include <chrono>
+#include <cstdio>
+#include <fstream>
+#include <initializer_list>
+#include <iostream>
+#include <iterator>
+#include <random>
+#include <string>
 
 #include <imgui/imgui.h>
 
@@ -18,25 +21,7 @@
 //#if defined( _WIN32 )
 //#include <GL/wglew.h> //"HGPUNV" redefinition
 //#endif
-
 #include <GLFW/glfw3.h>
-
-
-
-
-#include <iostream>
-#include <time.h>
-#include <fstream>
-#include <iterator>
-
-#include <random>
-#include <algorithm>
-#include <cstdlib>//environment variable settings
-#include <cstdio>
-#include <cstring>
-#include <initializer_list>
-#include <chrono>
-
 
 #include "TWAssert.h"
 #include "GlobalDefs.h"
@@ -47,26 +32,25 @@
 
 #include <src/sampleConfig.h>
 
-
-
-
-
-
 using namespace optix;
 
-Application::Application(GLFWwindow* glfwWindow, const uint32_t filmWidth, const uint32_t filmHeight, const int _optixReportLevel, const uint32_t _optixStackSize) : 
-    /*m_context(context),*/
-    m_filmWidth(filmWidth), m_filmHeight(filmHeight), m_optixReportLevel(_optixReportLevel), m_stackSize(_optixStackSize),m_sysIterationIndex(0),m_resetRenderParamsNotification(true)
+Application::Application(GLFWwindow* glfwWindow, const uint32_t filmWidth, const uint32_t filmHeight, const int optixReportLevel, const uint32_t optixStackSize) : 
+    m_filmWidth(filmWidth), m_filmHeight(filmHeight), m_optixReportLevel(optixReportLevel), m_stackSize(optixStackSize),m_sysIterationIndex(0),m_resetRenderParamsNotification(true)
 {
-    this->setupImGui(glfwWindow);
-    this->setupRenderView();
+    /* Output OptiX Device information. */
+    this->outputDeviceInfo();
+
+    /* Initialize ImGui, OpenGL context for RenderView, 
+     * -- setup OptiX context, filtering buffers and 
+     * -- callable program gropus. */
+    this->initializeImGui(glfwWindow);
+    this->initializeRenderView();
 
     try
     {
-        this->outputDeviceInfo();
-        this->setupContext();
-        this->setupOutputBuffers();
-        this->initCallableProgramGroup();
+        this->initializeContext();
+        this->initializeOutputBuffers();
+        this->initializeCallableProgramGroup();
     }
     catch (Exception& e)
     {
@@ -169,40 +153,43 @@ void Application::outputDeviceInfo()
 
 void Application::createProgramsFromPTX()
 {
-    //todo:templated version
     auto loadProgram = [this](const std::string &file, const std::initializer_list<std::string> programs) -> void
     {
         for (const auto& program : programs)
         {
-            this->m_programsMap[program] = this->m_context->createProgramFromPTXFile(this->getPTXpath(file), program);
+            this->m_programsMap[program] = this->m_context->createProgramFromPTXFile(this->getPTXFilepath(file), program);
         }
         
     };
 
-    loadProgram("PinholeCamera", { "Exception_Default","RayGeneration_PinholeCamera", 
-                                   "RayGeneration_InitializeFilter","RayGeneration_Filter",
-        }); //todo:distach progs
+    /* Load RayTracingPipeline programs. */
+    loadProgram("PinholeCamera", { "Exception_Default",
+                                   "RayGeneration_PinholeCamera", 
+                                   "RayGeneration_InitializeFilter",
+                                   "RayGeneration_Filter" });
 
     loadProgram("SphericalSkybox", { "Miss_Default" });
 
     loadProgram("TriangleMesh", { "BoundingBox_TriangleMesh" , "Intersect_TriangleMesh" });
-    loadProgram("Quad", { "BoundingBox_Quad", "Intersect_Quad" });
+    loadProgram("Quad",         { "BoundingBox_Quad", "Intersect_Quad" });
 
     loadProgram("DirectLighting", { "ClosestHit_DirectLighting" });
-    loadProgram("PathTracing", { "ClosestHit_PathTracing", "ClosestHit_PTRay_PathTracing" });
+    loadProgram("PathTracing",    { "ClosestHit_PathTracing", "ClosestHit_PTRay_PathTracing" });
 
     loadProgram("HitProgram", { "AnyHit_ShadowRay_Shape" });
 
+
+    /* Load Bindless Callable programs. */
     loadProgram("PointLight", { "Sample_Ld_Point", "LightPdf_Point" });
-    loadProgram("HDRILight", { "Sample_Ld_HDRI", "LightPdf_HDRI", 
-                               "RayGeneration_PrefilterHDRILight" });
-    loadProgram("QuadLight", { "Sample_Ld_Quad", "LightPdf_Quad" });
+    loadProgram("HDRILight",  { "Sample_Ld_HDRI", "LightPdf_HDRI", 
+                                "RayGeneration_PrefilterHDRILight" });
+    loadProgram("QuadLight",  { "Sample_Ld_Quad", "LightPdf_Quad" });
 
     auto loadProgramMaterial = [loadProgram](const std::initializer_list<std::string> materials)->void
     {
         for (const auto& material : materials)
         {
-            loadProgram(material, { material + "_Pdf", material + "_Eval_f",material + "_Sample_f" });
+            loadProgram(material, { "Pdf_" + material, "Eval_f_" + material, "Sample_f_" + material });
         }
     };
     loadProgramMaterial({ "Lambert","RoughMetal","RoughDielectric","SmoothGlass","Plastic","SmoothMirror","FrostedMetal" });
@@ -210,7 +197,7 @@ void Application::createProgramsFromPTX()
 
 }
 
-void Application::setupContext()
+void Application::initializeContext()
 {
     /* Create context. */
     this->m_context = Context::create();
@@ -218,7 +205,6 @@ void Application::setupContext()
     /* Setup context parameters. */
     this->m_context->setStackSize(this->m_stackSize);
     this->m_context->setPrintEnabled(true);
-    /* disable exceptions */
 
     if (this->m_optixReportLevel > 0)
     {
@@ -230,7 +216,8 @@ void Application::setupContext()
         }, this->m_optixReportLevel, &this->m_optixUsageReportLogger);
     }
     
-    //this->m_context->setExceptionEnabled(RT_EXCEPTION_ALL, true);
+    /* Disable exceptions. */
+    /* this->m_context->setExceptionEnabled(RT_EXCEPTION_ALL, true); */
 
     /* Setup launch entries. */
     this->m_context->setEntryPointCount(toUnderlyingValue(RayGenerationEntryType::CountOfType));
@@ -262,7 +249,7 @@ void Application::setupContext()
     this->m_context->setRayGenerationProgram(toUnderlyingValue(RayGenerationEntryType::Filter), programItr->second);
 }
 
-void Application::setupImGui(GLFWwindow *glfwWindow)
+void Application::initializeImGui(GLFWwindow *glfwWindow)
 {
     /* Create ImGui context. */
     ImGui::CreateContext();
@@ -325,7 +312,7 @@ void Application::setupImGui(GLFWwindow *glfwWindow)
 #pragma endregion ImGui_Style_Region
 }
 
-void Application::setupRenderView()
+void Application::initializeRenderView()
 {
     /* Create PBO for the fast OptiX sysOutputBuffer to texture transfer. */
 
@@ -358,7 +345,7 @@ void Application::setupRenderView()
     glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
 }
 
-void Application::initCallableProgramGroup()
+void Application::initializeCallableProgramGroup()
 {
     /* Initialize BSDF program group. */
     Buffer bsdfPdfProgramBuffer = this->m_context->createBuffer(RT_BUFFER_INPUT, RT_FORMAT_PROGRAM_ID, toUnderlyingValue(CommonStructs::BSDFType::CountOfType));
@@ -375,15 +362,15 @@ void Application::initCallableProgramGroup()
     {
         //for (const auto& programName : programNames)
         //{
-            auto programItr = this->m_programsMap.find(programName + "_Pdf");
+            auto programItr = this->m_programsMap.find("Pdf_" + programName);
             TW_ASSERT(programItr != this->m_programsMap.end());
             bsdfPdfProgramBufferData[toUnderlyingValue(bsdfType)] = programItr->second->getId();
 
-            programItr = this->m_programsMap.find(programName + "_Eval_f");
+            programItr = this->m_programsMap.find("Eval_f_" + programName);
             TW_ASSERT(programItr != this->m_programsMap.end());
             bsdfEvalfProgramBufferData[toUnderlyingValue(bsdfType)] = programItr->second->getId();
 
-            programItr = this->m_programsMap.find(programName + "_Sample_f");
+            programItr = this->m_programsMap.find("Sample_f_" + programName);
             TW_ASSERT(programItr != this->m_programsMap.end());
             bsdfSamplefProgramBufferData[toUnderlyingValue(bsdfType)] = programItr->second->getId();
        // }
@@ -396,7 +383,7 @@ void Application::initCallableProgramGroup()
     loadBSDFPrograms(CommonStructs::BSDFType::SmoothGlass,     "SmoothGlass");
     loadBSDFPrograms(CommonStructs::BSDFType::Plastic,         "Plastic");
 
-    /* Note that this is on purpose that loads lambert for emissive material. todo:remove it. */
+    /* Note that this is on purpose that uses Lambert BSDF for emissive material. */
     loadBSDFPrograms(CommonStructs::BSDFType::Emissive, "Lambert");
 
     loadBSDFPrograms(CommonStructs::BSDFType::SmoothMirror, "SmoothMirror");
@@ -440,7 +427,7 @@ void Application::initCallableProgramGroup()
     this->m_context["LightPdf"]->setBuffer(lightPdfProgramBuffer);
 }
 
-void Application::setupOutputBuffers()
+void Application::initializeOutputBuffers()
 {
     /* Setup progressive rendering iteration index, which is used in RandomSampler, progressive filtering. */
     this->m_context["sysIterationIndex"]->setUint(0);
@@ -677,7 +664,7 @@ void Application::drawRenderView()
         return;
     }
 
-    /* Handle mouse input event. */
+    /* Handle mouse input event for RenderView. */
     this->handleInputEvent(ImGui::IsWindowHovered());
 
     glActiveTexture(GL_TEXTURE0);
@@ -695,34 +682,19 @@ void Application::drawRenderView()
 }
 
 
-
-
-
-//Old Code:
 Application::~Application()
 {
-	//if (this->initState)
-	//{
-		this->m_context->destroy();
-        std::cout << "[Info] Context has been destroyed." << std::endl;
-	//}
+    this->m_context->destroy();
+    std::cout << "[Info] Context has been destroyed." << std::endl;
 
 	ImGui_ImplGlfwGL2_Shutdown();
 	ImGui::DestroyContext();
 }
 
 
-std::string Application::getPTXpath(const std::string & program)
+std::string Application::getPTXFilepath(const std::string & program)
 {
-// 	const char *ptxFolderPath = std::getenv("Twilight_PTX");
-// 	if (!ptxFolderPath)
-// 	{
-// 		std::cerr << "[Error]Fatal error when seraching system environment variable for Twilight_PTX storing ptx file folder" << std::endl;
-// 		exit(-1);
-// 	}
 	return std::string(SAMPLES_PTX_DIR) + std::string("\\colvillea_generated_") + program + std::string(".cu.ptx");
-	
-	//return std::string("D:\\Project\\Twilight\\OptiX_Master\\build\\lib\\ptx\\") + std::string("twilight_generated_") + program + std::string(".cu.ptx");
 }
 
 

@@ -277,7 +277,7 @@ static __device__ __inline__ float FrostedMetal_InnerPdf(const float3 & wo_Local
 	}
 }
 
-RT_CALLABLE_PROGRAM float4 FrostedMetal_Eval_f(const float3 & wo_World, const float3 & wi_World, const ShaderParams & shaderParams)
+RT_CALLABLE_PROGRAM float4 Eval_f_FrostedMetal(const float3 & wo_World, const float3 & wi_World, const ShaderParams & shaderParams)
 {
 	if (TwUtil::dot(wi_World, shaderParams.nGeometry) * TwUtil::dot(wo_World, shaderParams.nGeometry) > 0)
 	{//ignore btdf and evaluate brdf only
@@ -290,7 +290,7 @@ RT_CALLABLE_PROGRAM float4 FrostedMetal_Eval_f(const float3 & wo_World, const fl
 	return make_float4(0.f);
 }
 
-RT_CALLABLE_PROGRAM float FrostedMetal_Pdf(const float3 & wo_World, const float3 & wi_World, const ShaderParams & shaderParams)
+RT_CALLABLE_PROGRAM float Pdf_FrostedMetal(const float3 & wo_World, const float3 & wi_World, const ShaderParams & shaderParams)
 {
 	//Revising light leak/light spot issue.
 	if (TwUtil::dot(wi_World, shaderParams.nGeometry) * TwUtil::dot(wo_World, shaderParams.nGeometry) > 0)
@@ -305,7 +305,7 @@ RT_CALLABLE_PROGRAM float FrostedMetal_Pdf(const float3 & wo_World, const float3
 }
 
 
-RT_CALLABLE_PROGRAM float4 FrostedMetal_Sample_f(const float3 &wo_World, float3 & outwi_World, float2 & urand, float & outPdf, float bsdfChoiceRand, const ShaderParams & shaderParams)
+RT_CALLABLE_PROGRAM float4 Sample_f_FrostedMetal(const float3 &wo_World, float3 & outwi_World, float2 & urand, float & outPdf, float bsdfChoiceRand, const ShaderParams & shaderParams)
 {
 	float3 wo = TwUtil::BSDFMath::WorldToLocal(wo_World, shaderParams.dgShading.dpdu, shaderParams.dgShading.tn, shaderParams.dgShading.nn);
 	float3 wi = make_float3(0.f);

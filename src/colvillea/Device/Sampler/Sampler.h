@@ -153,12 +153,12 @@ static __device__ __inline__ optix::float2 Get2D(GPUSampler *localSampler)
 #ifdef USE_HALTON_SAMPLER
         case CommonStructs::SamplerType::HaltonQMCSampler:
         {
-            return Halton_Get2D(localSampler->haltonSampler);
+            return Get2D_Halton(localSampler->haltonSampler);
         }
 #endif        
         case CommonStructs::SamplerType::SobolQMCSampler:
         {
-            return Sobol_Get2D(localSampler->sobolSampler); 
+            return Get2D_Sobol(localSampler->sobolSampler); 
         }
 
         default:
@@ -177,12 +177,12 @@ static __device__ __inline__ float Get1D(GPUSampler *localSampler)
 #ifdef USE_HALTON_SAMPLER
         case CommonStructs::SamplerType::HaltonQMCSampler:
         {
-            return Halton_Get1D(localSampler->haltonSampler);
+            return Get1D_Halton(localSampler->haltonSampler);
         }
 #endif
         case CommonStructs::SamplerType::SobolQMCSampler:
         {
-            return Sobol_Get1D(localSampler->sobolSampler); 
+            return Get1D_Sobol(localSampler->sobolSampler); 
         }
 
         default:

@@ -97,7 +97,7 @@ namespace TwUtil
  * @param GlobalSobolSampler global Sobol sampler
  * @return return the computed index
  */
-static __device__ __inline__ int64_t Sobol_GetIndexForSample(uint32_t sampleNum)
+static __device__ __inline__ int64_t GetIndexForSample_Sobol(uint32_t sampleNum)
 {
 	return Sampler::SobolIntervalToIndex(globalSobolSampler.log2Resolution, sampleNum,
 		sysLaunch_index);
@@ -109,7 +109,7 @@ static __device__ __inline__ int64_t Sobol_GetIndexForSample(uint32_t sampleNum)
  * @param dim the expected dimension of computed sample vector, 0,1,2...,1023
  * @return Sobol'(b_dimension)(index), without scrambling
  */
-static __device__ __inline__ float Sobol_SampleDimension(uint32_t index, int dim)
+static __device__ __inline__ float SampleDimension_Sobol(uint32_t index, int dim)
 {
 	/*dimension check in SobolSampleFloat*/
 
@@ -140,9 +140,9 @@ static __device__ __inline__ float Sobol_SampleDimension(uint32_t index, int dim
  * @param globalSampler globalSampler
  * @return 1D sample value
  */
-static __device__ __inline__ float Sobol_Get1D(SobolSampler &localSampler)
+static __device__ __inline__ float Get1D_Sobol(SobolSampler &localSampler)
 {
-	return Sobol_SampleDimension(localSampler.intervalSampleIndex, localSampler.dimension++);
+	return SampleDimension_Sobol(localSampler.intervalSampleIndex, localSampler.dimension++);
 }
 
 /**
@@ -151,11 +151,11 @@ static __device__ __inline__ float Sobol_Get1D(SobolSampler &localSampler)
  * @param globalSampler globalSampler
  * @return 2D sample value
  */
-static __device__ __inline__ optix::float2 Sobol_Get2D(SobolSampler &localSampler)
+static __device__ __inline__ optix::float2 Get2D_Sobol(SobolSampler &localSampler)
 {
-	optix::float2 p = make_float2(Sobol_SampleDimension(localSampler.intervalSampleIndex, 
+	optix::float2 p = make_float2(SampleDimension_Sobol(localSampler.intervalSampleIndex, 
 		                                                localSampler.dimension),
-		                          Sobol_SampleDimension(localSampler.intervalSampleIndex,
+		                          SampleDimension_Sobol(localSampler.intervalSampleIndex,
 			                                            localSampler.dimension + 1));
 	localSampler.dimension += 2;
 	return p;
@@ -177,7 +177,7 @@ static __device__ __inline__ void StartSamplingPreprocess_RayGen(SobolSampler &l
 
 	/*retrieve the global index of Sobol sequences for current pixel*/
 	uint32_t &currentPixelSampleIndex = sysIterationIndex;
-	localSampler.intervalSampleIndex = Sobol_GetIndexForSample(currentPixelSampleIndex);
+	localSampler.intervalSampleIndex = GetIndexForSample_Sobol(currentPixelSampleIndex);
 }
 
 /**
@@ -197,7 +197,7 @@ static __device__ __inline__ void StartSamplingPreprocess_CHit(SobolSampler &loc
 
 	/*retrieve the global index of Halton sequences for current pixel*/
 	uint32_t &currentPixelSampleIndex = sysIterationIndex;
-	localSampler.intervalSampleIndex = Sobol_GetIndexForSample(currentPixelSampleIndex);
+	localSampler.intervalSampleIndex = GetIndexForSample_Sobol(currentPixelSampleIndex);
 }
 
 #endif // COLVILLEA_DEVICE_SOBOLSAMPLER_SAMPLER_H_
