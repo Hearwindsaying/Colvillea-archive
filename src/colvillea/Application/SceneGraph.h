@@ -39,26 +39,70 @@ public:
         this->initScene();
 	}
 
+private:
+    /*******************************************************************/
+    /*           Initialization functions called by constructor        */
+    /*******************************************************************/
+
+    /**
+     * @brief Initialize context-wide information in scene aspects,
+     * such as light, sampler, etc. This function is invoked in ctor
+     * in SceneGraph and should never be called elsewhere anytime.
+     *
+     * @note This function is quite tricky and according to its description,
+     * it should initialize callable program group as well?
+     *
+     * @see SceneGraph::SceneGraph()
+     */
+    void initScene()
+    {
+        /* Light initialization work that should be done once for rendering,
+        independent of individual light. */
+        PointLight::initPointLight(this->m_context);
+        HDRILight::initHDRILight(this->m_context, this->m_programsMap);
+        QuadLight::initQuadLight(this->m_context);
+    }
+
+    /**
+     * @brief Initialize OptiX Graph nodes that should be set once.
+     */
+    void initGraph()
+    {
+        /* Create top geometryGroup and top Acceleration structure. */
+        auto& context = this->m_context;
+        this->m_topGeometryGroup = context->createGeometryGroup();
+
+        this->m_topAcceleration = context->createAcceleration("Trbvh");//todo:use enum
+        this->m_topAcceleration->setProperty("chunk_size", "-1");
+        this->m_topAcceleration->setProperty("vertex_buffer_name", "vertexBuffer");
+        this->m_topAcceleration->setProperty("index_buffer_name", "indexBuffer");
+
+        this->m_topGeometryGroup->setAcceleration(this->m_topAcceleration);
+    }
+
+public:
+    /************************************************************************/
+    /*                 Scene configuration creating functions               */
+    /************************************************************************/ 
+
     /**
      * @brief Create an integrator and add to sceneGraph.
-     * A simpe function encapsulating constructor and 
-     * Integrator::createIntegratorMaterialNode().
      * 
-     * @see Integrator::createIntegratorMaterialNode()
+     * @see DirectLighting::Integrator()
      */
     void createDirectLightingIntegrator()
-    {//todo: store integrator object directly instead of optix::Material
-        //if (integratorType == IntegratorType::DirectLighting)
-        //{
-            std::unique_ptr<DirectLighting> directLighting = std::make_unique<DirectLighting>(this->m_context, this->m_programsMap);
-            this->m_integrator = directLighting->createIntegratorMaterialNode();
-
-       // }
+    {
+        this->m_integrator = DirectLighting::createIntegrator(this->m_context, this->m_programsMap);
     }
+
+    /**
+     * @brief Create an integrator and add to sceneGraph.
+     *
+     * @see PathTracing::Integrator()
+     */
     void createPathTracingIntegrator(bool enableRoussianRoulette, int maxDepth)
     {
-        std::unique_ptr<PathTracing> pathtracing = std::make_unique<PathTracing>(this->m_context, this->m_programsMap, enableRoussianRoulette, maxDepth);
-        this->m_integrator = pathtracing->createIntegratorMaterialNode();
+        this->m_integrator = PathTracing::createIntegrator(this->m_context, this->m_programsMap, enableRoussianRoulette, maxDepth);
     }
 
 	/**
@@ -75,7 +119,7 @@ public:
 	void createTriangleMesh(const std::string & meshFileName, const int materialIndex)
 	{
         std::shared_ptr<TriangleMesh> triMesh = std::make_shared<TriangleMesh>(this->m_context, this->m_programsMap, meshFileName);
-        triMesh->loadShape(this->m_integrator, materialIndex);
+        triMesh->loadShape(this->m_integrator->getIntegratorMaterial(), materialIndex);
 
 		m_shapes.push_back(triMesh);
 	}
@@ -98,7 +142,7 @@ public:
         //todo:assert that quad is not assigned with Emissive BSDF.//todo:delete emissive?
         //todo:review copy of Quad
         std::shared_ptr<Quad> quad = std::make_shared<Quad>(this->m_context, this->m_programsMap, objectToWorld);
-        quad->loadShape(this->m_integrator, materialIndex);
+        quad->loadShape(this->m_integrator->getIntegratorMaterial(), materialIndex);
         if(flipNormal)
             quad->flipGeometryNormal();
         m_shapes.push_back(quad);
@@ -125,7 +169,7 @@ public:
         //todo:assert that quad is not assigned with Emissive BSDF.//todo:delete emissive?
         //todo:review copy of Quad
         std::shared_ptr<Quad> quad = std::make_shared<Quad>(this->m_context, this->m_programsMap, objectToWorld, quadLightIndex);
-        quad->loadShape(this->m_integrator, materialIndex);
+        quad->loadShape(this->m_integrator->getIntegratorMaterial(), materialIndex);
         if(flipNormal)
             quad->flipGeometryNormal();
         m_shapes.push_back(quad);
@@ -285,6 +329,10 @@ public:
 	}
 
 
+
+    /************************************************************************/
+    /*                         Getters & Setters                            */
+    /************************************************************************/
     std::shared_ptr<Camera> getCamera() const
     {
         return this->m_camera;
@@ -294,42 +342,6 @@ public:
         return this->m_HDRILight;
     }
 
-private:
-    /**
-     * @brief Initialize context-wide information in scene aspects,
-     * such as light, sampler, etc. This function is invoked in ctor
-     * in SceneGraph and should never be called elsewhere anytime.
-     * 
-     * @note todo:review name prefix:init load create
-     * This function is quite tricky and according to its description,
-     * it should initialize callable program group as well?
-     * 
-     * @see SceneGraph::SceneGraph()
-     */
-    void initScene()
-    {
-        /* Light initialization work that should be done once for rendering,
-        independent of individual light. */
-        PointLight::initPointLight(this->m_context);
-        HDRILight::initHDRILight(this->m_context, this->m_programsMap);
-        QuadLight::initQuadLight(this->m_context);
-    }
-
-
-	void initGraph()
-	{
-		/* Create top geometryGroup and top Acceleration structure. */
-        auto& context = this->m_context;
-		this->m_topGeometryGroup = context->createGeometryGroup();
-
-		this->m_topAcceleration = context->createAcceleration("Trbvh");//todo:use enum
-		this->m_topAcceleration->setProperty("chunk_size", "-1");
-		this->m_topAcceleration->setProperty("vertex_buffer_name", "vertexBuffer");
-		this->m_topAcceleration->setProperty("index_buffer_name", "indexBuffer");
-
-		this->m_topGeometryGroup->setAcceleration(this->m_topAcceleration);
-	}
-	
 
 private:
     Application *m_application;
@@ -339,14 +351,14 @@ private:
 
 	std::vector<std::shared_ptr<Shape>>          m_shapes;
 
-	optix::Material            m_integrator;
 	//adding sampler, materialPool, lights etc. here:
     std::shared_ptr<HDRILight> m_HDRILight; // todo: We could only hold one instance of HDRILight
     std::vector<std::shared_ptr<PointLight>>    m_pointLights;
     std::vector<std::shared_ptr<QuadLight>>     m_quadLights; 
 
-    std::unique_ptr<Sampler>   m_sampler;   // todo:We could only hold one instance
-    std::shared_ptr<Camera>    m_camera;    // todo:We could only hold one instance
+    std::unique_ptr<Integrator> m_integrator;
+    std::unique_ptr<Sampler>    m_sampler;   // todo:We could only hold one instance
+    std::shared_ptr<Camera>     m_camera;    // todo:We could only hold one instance
 
 	optix::GeometryGroup  m_topGeometryGroup;
 	optix::Acceleration   m_topAcceleration;

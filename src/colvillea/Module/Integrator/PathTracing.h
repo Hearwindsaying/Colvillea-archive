@@ -10,6 +10,26 @@
 class PathTracing : public Integrator
 {
 public:
+    /**
+     * @brief Factory method for creating a PathTracing instance.
+     * 
+     * @param[in] context
+     * @param[in] programsMap            map to store Programs
+     * @param[in] enableRoussianRoulette use RoussianRoulette to 
+     * stop indirect light tracing?
+     * @param[in] maxDepth               max tracing paths
+     * 
+     * @note When current tracing depth reaches |maxDepth|, ray
+     * tracing for current ray is end. Before that, Roussian Roulette
+     * is applied if it's enabled after 3 bounces.
+     */
+    static std::unique_ptr<Integrator> createIntegrator(optix::Context context, const std::map<std::string, optix::Program> &programsMap, bool enableRoussianRoulette, int maxDepth)
+    {
+        std::unique_ptr<PathTracing> pathTracing = std::make_unique<PathTracing>(context, programsMap, enableRoussianRoulette, maxDepth);
+        pathTracing->initializeIntegratorMaterialNode();
+        return pathTracing;
+    }
+
 	PathTracing(optix::Context context, const std::map<std::string, optix::Program> &programsMap, bool enableRoussianRoulette, int maxDepth) : Integrator(context, programsMap, "PathTracing")
 	{
 		TW_ASSERT(maxDepth > 0);
@@ -23,7 +43,7 @@ public:
 		this->m_closestHitPTRayProgram = programItr->second;
 	}
 
-	optix::Material createIntegratorMaterialNode() override;
+	optix::Material initializeIntegratorMaterialNode() override;
 
 	bool getEnableRoussianRoulette() const
 	{

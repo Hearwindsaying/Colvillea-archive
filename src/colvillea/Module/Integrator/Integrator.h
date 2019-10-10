@@ -5,6 +5,7 @@
 #include <optixu_math_namespace.h>
 
 #include <map>
+#include <memory>
 
 #include "../../Application/TWAssert.h"
 
@@ -17,6 +18,14 @@
 class Integrator
 {
 public:
+    /**
+     * @brief Constructor of Integrator.
+     * 
+     * @note Integrator::initializeIntegratorMaterialNode()
+     * should be called shortly after constructing the Integrator.
+     * For this reason, you should not call the constructor directly
+     * and use factory method Integrator::createIntegrator()
+     */
 	Integrator(const optix::Context context, const std::map<std::string, optix::Program> &programsMap, const std::string &integratorClassName):m_context(context), m_programsMap(programsMap)
 	{
 		std::cout << "[Info] Derived class name from Integrator is: " << integratorClassName << std::endl;
@@ -36,12 +45,13 @@ public:
 
 	/**
 	 * @brief Create material node for the integrator which could
-	 * be used for creating Shape later.
+	 * be used for creating Shape later. This function should be
+	 * called shortly after invoking constructor.
 	 * 
 	 * @note Remember that the integrator is represented as Material
 	 * node in SceneGraph.
 	 */
-	virtual optix::Material createIntegratorMaterialNode();
+	virtual optix::Material initializeIntegratorMaterialNode();
 
 	/**
 	 * @brief Getter for |m_integratorMaterial|. Note that this could
@@ -49,10 +59,10 @@ public:
 	 * 
 	 * @see createIntegratorMaterialNode()
 	 */
-	//optix::Material getIntegratorMaterial() const
-	//{
-	//	return this->m_integratorMaterial;
-	//}
+    optix::Material getIntegratorMaterial() const
+    {
+        return this->m_integratorMaterial;
+    }
 
 protected:
     optix::Context m_context;

@@ -3,7 +3,7 @@
 #include "../../Application/GlobalDefs.h"
 #include "../../Device/Toolkit/CommonStructs.h"
 
-optix::Material Integrator::createIntegratorMaterialNode()
+optix::Material Integrator::initializeIntegratorMaterialNode()
 {
 	TW_ASSERT(this->m_closestHitProgram && this->m_anyHitShadowRayProgram);
 

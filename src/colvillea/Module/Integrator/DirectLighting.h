@@ -10,7 +10,20 @@
 class DirectLighting : public Integrator
 {
 public:
-	DirectLighting(const optix::Context context, const std::map<std::string, optix::Program> &programsMap) :Integrator(context, programsMap, "DirectLighting")
+    /**
+     * @brief Factory method for creating a DirectLighting instance.
+     *
+     * @param[in] context
+     * @param[in] programsMap  map to store Programs
+     */
+    static std::unique_ptr<Integrator> createIntegrator(const optix::Context context, const std::map<std::string, optix::Program> &programsMap)
+    {
+        std::unique_ptr<DirectLighting> directLighting = std::make_unique<DirectLighting>(context, programsMap);
+        directLighting->initializeIntegratorMaterialNode();
+        return directLighting;
+    }
+
+	DirectLighting(const optix::Context context, const std::map<std::string, optix::Program> &programsMap) : Integrator(context, programsMap, "DirectLighting")
 	{
 
 	}

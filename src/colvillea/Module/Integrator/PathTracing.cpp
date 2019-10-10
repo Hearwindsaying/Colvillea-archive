@@ -4,9 +4,9 @@
 #include "../../Device/Toolkit/CommonStructs.h"
 #include "../../Application/GlobalDefs.h"
 
-optix::Material PathTracing::createIntegratorMaterialNode()
+optix::Material PathTracing::initializeIntegratorMaterialNode()
 {
-	auto material = Integrator::createIntegratorMaterialNode();
+	auto material = Integrator::initializeIntegratorMaterialNode();
 
 	/* Additional setup for PTRay program. */
 	material->setClosestHitProgram(toUnderlyingValue(CommonStructs::RayType::Detection), this->m_closestHitPTRayProgram);
