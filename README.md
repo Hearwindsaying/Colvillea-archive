@@ -4,6 +4,11 @@
 ## Overview
 **Colvillea** is a physically based global illumination renderer running on GPU. It relies on [Nvidia's OptiX](https://developer.nvidia.com/optix) to achieve parallelism by leveraging GPU resources, resulting in high performance ray tracing rendering.
 
+## Design methodology
+ - Extending **Colvillea** to add more features is accessible due to the wide use of Object Oriented Programming.
+ - Suitable for the implmentation of many state-of-the-art rendering techniques.
+ - Potential to deliver RTX accleration in Turing GPU.
+
 ## Features
 ### Light Transport
  - Direct Lighting
