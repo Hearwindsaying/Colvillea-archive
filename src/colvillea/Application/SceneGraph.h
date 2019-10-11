@@ -118,8 +118,8 @@ public:
 	 */
 	void createTriangleMesh(const std::string & meshFileName, const int materialIndex)
 	{
-        std::shared_ptr<TriangleMesh> triMesh = std::make_shared<TriangleMesh>(this->m_context, this->m_programsMap, meshFileName);
-        triMesh->loadShape(this->m_integrator->getIntegratorMaterial(), materialIndex);
+        /* Converting unique_ptr to shared_ptr. */
+        std::shared_ptr<TriangleMesh> triMesh = TriangleMesh::createTriangleMesh(this->m_context, this->m_programsMap, meshFileName, this->m_integrator->getIntegratorMaterial(), materialIndex);
 
 		m_shapes.push_back(triMesh);
 	}
@@ -141,8 +141,7 @@ public:
     {
         //todo:assert that quad is not assigned with Emissive BSDF.//todo:delete emissive?
         //todo:review copy of Quad
-        std::shared_ptr<Quad> quad = std::make_shared<Quad>(this->m_context, this->m_programsMap, objectToWorld);
-        quad->loadShape(this->m_integrator->getIntegratorMaterial(), materialIndex);
+        std::shared_ptr<Quad> quad = Quad::createQuad(this->m_context, this->m_programsMap, objectToWorld, this->m_integrator->getIntegratorMaterial(), materialIndex);
         if(flipNormal)
             quad->flipGeometryNormal();
         m_shapes.push_back(quad);
@@ -168,8 +167,7 @@ public:
     {
         //todo:assert that quad is not assigned with Emissive BSDF.//todo:delete emissive?
         //todo:review copy of Quad
-        std::shared_ptr<Quad> quad = std::make_shared<Quad>(this->m_context, this->m_programsMap, objectToWorld, quadLightIndex);
-        quad->loadShape(this->m_integrator->getIntegratorMaterial(), materialIndex);
+        std::shared_ptr<Quad> quad = Quad::createQuad(this->m_context, this->m_programsMap, objectToWorld, quadLightIndex, this->m_integrator->getIntegratorMaterial(), materialIndex);
         if(flipNormal)
             quad->flipGeometryNormal();
         m_shapes.push_back(quad);

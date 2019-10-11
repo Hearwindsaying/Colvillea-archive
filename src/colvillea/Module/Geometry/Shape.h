@@ -23,8 +23,9 @@ public:
 	 * @brief constructor for Shape class, collect all necessary
 	 * parameters to initialize and set up GeometryInstance.
 	 */
-	//todo:set to protected and delete default constructor
-	Shape(optix::Context context, const std::map<std::string, optix::Program> &programsMap, const std::string &shapeClassName):m_context(context), m_programsMap(programsMap), m_primitiveCount(-1), m_materialIndex(-1)
+	Shape(optix::Context context, const std::map<std::string, optix::Program> &programsMap, const std::string &shapeClassName, optix::Material integrator, const int materialIndex) : 
+        m_context(context), m_programsMap(programsMap), m_primitiveCount(-1), 
+        m_materialIndex(materialIndex), m_integrator(integrator)
 	{
 		std::cout << "[Info] Derived class name from Shape is: " << shapeClassName << std::endl;
 
@@ -44,7 +45,7 @@ public:
 	 * @param integrator material node for specifying an integrator
 	 * @param materialIndex index of material parameter stack
 	 */
-    virtual void loadShape(optix::Material integrator, const int materialIndex) = 0;
+    virtual void initializeShape() = 0;
 
 	/**
 	 * @brief materialIndex setter
@@ -168,5 +169,6 @@ protected:
 	optix::Program          m_intersectionProgram;
 	unsigned int            m_primitiveCount;
 
-	int m_materialIndex;
+    optix::Material m_integrator;
+	int             m_materialIndex;
 };

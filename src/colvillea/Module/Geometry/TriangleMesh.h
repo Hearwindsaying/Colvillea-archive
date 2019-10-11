@@ -36,18 +36,35 @@ private:
 
 
 public:
+    /**
+     * @brief Factory method for creating a trianglemesh instance.
+     *
+     * @param[in] context
+     * @param[in] programsMap      map to store Programs
+     * @param[in] filename         obj filename
+     * @param[in] integrator       integrator of optix::Material type
+     * @param[in] materialIndex    material index in |materialBuffer|
+     */
+    static std::unique_ptr<TriangleMesh> createTriangleMesh(optix::Context context, const std::map<std::string, optix::Program> &programsMap, const std::string &filename, optix::Material integrator, const int materialIndex)
+    {
+        std::unique_ptr<TriangleMesh> triangleMesh = std::make_unique<TriangleMesh>(context, programsMap, filename, integrator, materialIndex);
+        triangleMesh->initializeShape();
+        return triangleMesh;
+    }
+
 	/**
 	 * @brief Constructor for TriangleMesh.
 	 * @param filename filename with path
 	 */
-	TriangleMesh(optix::Context context, const std::map<std::string, optix::Program> &programsMap, const std::string &filename):
-		Shape(context, programsMap, "TriangleMesh"),m_filename(filename),m_verticesCount(-1),hasNormals(false),hasTexcoords(false)
+	TriangleMesh(optix::Context context, const std::map<std::string, optix::Program> &programsMap, const std::string &filename, optix::Material integrator, const int materialIndex):
+		Shape(context, programsMap, "TriangleMesh", integrator, materialIndex),
+        m_filename(filename),m_verticesCount(-1),hasNormals(false),hasTexcoords(false)
 	{
 
 	}
 
 	
-	void loadShape(optix::Material integrator, const int materialIndex) override;
+	void initializeShape() override;
 
 private:
     void setupGeometry(const MeshBuffer &meshBuffer); //note: not override to setupGeometry

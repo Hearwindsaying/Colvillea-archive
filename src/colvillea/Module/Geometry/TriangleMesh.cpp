@@ -9,7 +9,7 @@
 
 
 
-void TriangleMesh::loadShape(optix::Material integrator, const int materialIndex)
+void TriangleMesh::initializeShape()
 {
 	/* First, parse wavefront obj file. */
 	tinyobj::attrib_t                attrib;
@@ -28,9 +28,9 @@ void TriangleMesh::loadShape(optix::Material integrator, const int materialIndex
 
 	/* Finally, create nodes for SceneGraph and initialize. */
 	this->setupGeometry(meshBuffer);
-	this->setupGeometryInstance(integrator);
+	this->setupGeometryInstance(this->m_integrator);
 
-	this->setMaterialIndex(materialIndex);
+	this->setMaterialIndex(this->m_materialIndex);
     this->m_geometryInstance["reverseOrientation"]->setInt(0);
     this->m_geometryInstance["quadLightIndex"]->setInt(-1); //todo:fix this
 }

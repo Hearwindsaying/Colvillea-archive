@@ -25,12 +25,57 @@ class Quad : public Shape
 {
 public:
     /**
+     * @brief Factory method for creating a Quad instance for ordinary
+     * usage but not for quad light.
+     *
+     * @param[in] context
+     * @param[in] programsMap      map to store Programs
+     * @param[in] objectToWorld  
+     * @param[in] integrator       integrator of optix::Material type
+     * @param[in] materialIndex    material index in |materialBuffer|
+     */
+    static std::unique_ptr<Quad> createQuad(optix::Context context, const std::map<std::string, optix::Program> &programsMap, const optix::Matrix4x4 &objectToWorld, optix::Material integrator, const int materialIndex)
+    {
+        return Quad::createQuadInner(context, programsMap, objectToWorld, integrator, materialIndex);
+    }
+
+    /**
+     * @brief Factory method for creating a Quad instance for quad light.
+     *
+     * @param[in] context
+     * @param[in] programsMap      map to store Programs
+     * @param[in] objectToWorld    also hints lightToWorld
+     * @param[in] quadLightIndex   index to |quadLightBuffer|
+     * @param[in] integrator       integrator of optix::Material type
+     * @param[in] materialIndex    material index in |materialBuffer|
+     */
+    static std::unique_ptr<Quad> createQuad(optix::Context context, const std::map<std::string, optix::Program> &programsMap, const optix::Matrix4x4 &objectToWorld, int quadLightIndex, optix::Material integrator, const int materialIndex)
+    {
+        return Quad::createQuadInner(context, programsMap, objectToWorld, quadLightIndex, integrator, materialIndex);
+    }
+
+private:
+    /**
+     * @brief Inner factory method.
+     */
+    template<typename... Ts>
+    static std::unique_ptr<Quad> createQuadInner(Ts&&... params)
+    {
+        std::unique_ptr<Quad> quad = std::make_unique<Quad>(std::forward<Ts>(params)...);
+        quad->initializeShape();
+        return quad;
+    }
+
+
+public:
+
+    /**
      * @brief Constructor for an ordinary quad shape given transform matrix.
      * 
      * @note |objectToWorld| matrix should have no scale component in z-axis.
      */
-    Quad(optix::Context context, const std::map<std::string, optix::Program> &programsMap, const optix::Matrix4x4 &objectToWorld)
-        : Shape(context, programsMap, "Quad"), m_objectToWorld(objectToWorld), m_worldToObject(objectToWorld.inverse())
+    Quad(optix::Context context, const std::map<std::string, optix::Program> &programsMap, const optix::Matrix4x4 &objectToWorld, optix::Material integrator, const int materialIndex)
+        : Shape(context, programsMap, "Quad", integrator, materialIndex), m_objectToWorld(objectToWorld), m_worldToObject(objectToWorld.inverse())
     {
         /* Check whether transform matrix has z-component scale. */
         if (TwUtil::hasZScale(objectToWorld))
@@ -44,8 +89,8 @@ public:
      *
      * @note |objectToWorld| matrix should have no scale component in z-axis.
      */
-    Quad(optix::Context context, const std::map<std::string, optix::Program> &programsMap, const optix::Matrix4x4 &objectToWorld, int quadLightIndex)
-        : Shape(context, programsMap, "Quad"),
+    Quad(optix::Context context, const std::map<std::string, optix::Program> &programsMap, const optix::Matrix4x4 &objectToWorld, int quadLightIndex, optix::Material integrator, const int materialIndex)
+        : Shape(context, programsMap, "Quad", integrator, materialIndex),
           m_objectToWorld(objectToWorld), m_worldToObject(objectToWorld.inverse()), m_quadLightIndex(quadLightIndex), m_isAreaLight(true)
     {
         TW_ASSERT(quadLightIndex >= 0);
@@ -56,19 +101,20 @@ public:
         std::cout << "[Info] Scale component for quad shape is: (" << TwUtil::getXScale(objectToWorld) << "," << TwUtil::getYScale(objectToWorld) << ")." << std::endl;
     }
 
-    void loadShape(optix::Material integrator, const int materialIndex) override
+    void initializeShape() override
     {
-        TW_ASSERT(integrator && materialIndex >= 0);
+        TW_ASSERT(this->m_integrator && this->m_materialIndex >= 0);
 
         /* Create nodes for SceneGraph and initialize. */
         this->setupGeometry();
-        this->setupGeometryInstance(integrator);
+        this->setupGeometryInstance(this->m_integrator);
 
-        this->setMaterialIndex(materialIndex);
+        this->setMaterialIndex(this->m_materialIndex);
         this->updateMatrixParameter();
         this->m_geometryInstance["reverseOrientation"]->setInt(0);
         this->m_geometryInstance["quadLightIndex"]->setInt(this->m_isAreaLight ? this->m_quadLightIndex : -1);
     }
+public:
 
     /**
      * @brief Setter method for quad matrices.

@@ -16,7 +16,7 @@ public:
      * @param[in] context
      * @param[in] programsMap  map to store Programs
      */
-    static std::unique_ptr<Integrator> createIntegrator(const optix::Context context, const std::map<std::string, optix::Program> &programsMap)
+    static std::unique_ptr<DirectLighting> createIntegrator(const optix::Context context, const std::map<std::string, optix::Program> &programsMap)
     {
         std::unique_ptr<DirectLighting> directLighting = std::make_unique<DirectLighting>(context, programsMap);
         directLighting->initializeIntegratorMaterialNode();

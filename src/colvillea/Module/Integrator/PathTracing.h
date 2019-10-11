@@ -23,7 +23,7 @@ public:
      * tracing for current ray is end. Before that, Roussian Roulette
      * is applied if it's enabled after 3 bounces.
      */
-    static std::unique_ptr<Integrator> createIntegrator(optix::Context context, const std::map<std::string, optix::Program> &programsMap, bool enableRoussianRoulette, int maxDepth)
+    static std::unique_ptr<PathTracing> createIntegrator(optix::Context context, const std::map<std::string, optix::Program> &programsMap, bool enableRoussianRoulette, int maxDepth)
     {
         std::unique_ptr<PathTracing> pathTracing = std::make_unique<PathTracing>(context, programsMap, enableRoussianRoulette, maxDepth);
         pathTracing->initializeIntegratorMaterialNode();
