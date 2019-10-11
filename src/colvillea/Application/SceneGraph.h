@@ -11,9 +11,6 @@
 #include "../Module/Integrator/PathTracing.h"
 #include "../Module/Geometry/TriangleMesh.h"
 #include "../Module/Geometry/Quad.h"
-#include "../Module/Light/PointLight.h"
-#include "../Module/Light/HDRILight.h"
-#include "../Module/Light/QuadLight.h"
 #include "../Module/Sampler/HaltonSampler.h"
 #include "../Module/Sampler/SobolSampler.h"
 #include "../Module/Camera/Camera.h"
@@ -26,42 +23,24 @@ class Application;
 /**
  * @brief SceneGraph class gather integrator, shapes, materialPool,
  * sampler, lights information and provide helper utility to build 
- * up scene graph for OptiX.
+ * up scene graph for OptiX. 
+ * Light and Material is delegated to LightPool and MaterialPool
+ * respectively for better management.
  */
 class SceneGraph
 {
 public:
     SceneGraph(Application *application, const std::map<std::string, optix::Program> &programsMap, const optix::Context context, const unsigned int &filmWidth, const unsigned int &filmHeight) :
-        m_HDRILight(nullptr), m_programsMap(programsMap), m_context(context),
+        m_programsMap(programsMap), m_context(context),
         m_filmWidth(filmWidth), m_filmHeight(filmHeight), m_application(application)
 	{
 		this->initGraph();
-        this->initScene();
 	}
 
 private:
     /*******************************************************************/
     /*           Initialization functions called by constructor        */
     /*******************************************************************/
-
-    /**
-     * @brief Initialize context-wide information in scene aspects,
-     * such as light, sampler, etc. This function is invoked in ctor
-     * in SceneGraph and should never be called elsewhere anytime.
-     *
-     * @note This function is quite tricky and according to its description,
-     * it should initialize callable program group as well?
-     *
-     * @see SceneGraph::SceneGraph()
-     */
-    void initScene()
-    {
-        /* Light initialization work that should be done once for rendering,
-        independent of individual light. */
-        PointLight::initPointLight(this->m_context);
-        HDRILight::initHDRILight(this->m_context, this->m_programsMap);
-        QuadLight::initQuadLight(this->m_context);
-    }
 
     /**
      * @brief Initialize OptiX Graph nodes that should be set once.
@@ -175,87 +154,7 @@ public:
         return quad;
     }
 
-    /**
-     * @brief Create HDRILight object and add to SceneGraph.
-     * In current implmentation, only one instance to HDRILight
-     * is hold which means changing HDRI is permitted but it
-     * will destroy previous existing HDRILight. Recomputation
-     * for initialization of HDRILight needs to be done again.
-     * 
-     * @param HDRIFilename filename including path to HDRI.
-     */
-    void createHDRILight(const std::string & HDRIFilename, const optix::Matrix4x4 &lightToWorld)
-    {
-        this->m_HDRILight = std::make_shared<HDRILight>(this->m_application, this->m_context, this->m_programsMap, HDRIFilename, lightToWorld);
-
-        this->m_HDRILight->loadLight(); 
-    }
-
-    /**
-     * @brief Create a pointLight object and add to SceneGraph.
-     * 
-     * @param lightToWorld matrix representing position, only
-     * translation component is needed for an ideal point light.
-     * @param intensity representing both color and intensity,
-     * whose components could be larger than 1.f.
-     * 
-     * @note Only adding light is supported. //todo:use LightPool
-     */
-    void createPointLight(const optix::Matrix4x4 &lightToWorld, const optix::float3 &intensity)
-    {
-        std::shared_ptr<PointLight> pointLight = std::make_shared<PointLight>(this->m_context, this->m_programsMap, intensity, lightToWorld);
-        pointLight->loadLight();
-
-        this->m_pointLights.push_back(pointLight);
-
-
-        /* Setup pointLightBuffer for GPU Program */
-        auto pointLightBuffer = this->m_context->createBuffer(RT_BUFFER_INPUT, RT_FORMAT_USER, this->m_pointLights.size());
-        pointLightBuffer->setElementSize(sizeof(CommonStructs::PointLight));
-        auto pointLightArray = static_cast<CommonStructs::PointLight *>(pointLightBuffer->map());
-        for (auto itr = this->m_pointLights.cbegin(); itr != this->m_pointLights.cend();  ++itr)
-        {
-            pointLightArray[itr - this->m_pointLights.cbegin()] = (*itr)->getCommonStructsLight();
-        }
-        this->m_context["pointLightBuffer"]->setBuffer(pointLightBuffer);
-
-        pointLightBuffer->unmap();
-    }
-
-    /**
-     * @brief Create a quadLight object and add to SceneGraph.
-     *
-     * @param[in] lightToWorld  matrix representing position, only
-     * translation component is needed for an ideal point light.
-     * @param[in] intensity     representing both color and intensity,
-     * whose components could be larger than 1.f.
-     * @param[in] materialIndex index to materialBuffer, call 
-     * MaterialPool::createEmissiveMaterial() to create the material
-     * for quadlight.
-     * @param[in] flipNormal    flip light's geometry if necessary
-     *
-     * @note Only adding light is supported. //todo:use LightPool
-     * @see MaterialPool::createEmissiveMaterial()
-     */
-    void createQuadLight(const optix::Matrix4x4 &lightToWorld, const optix::float3 &intensity, const int materialIndex, bool flipNormal = false)
-    {
-        std::shared_ptr<QuadLight> quadLight = std::make_shared<QuadLight>(this->m_context, this->m_programsMap, intensity,
-            this->createQuad(materialIndex, lightToWorld, this->m_quadLights.size() /* size() is the index we want for the current creating quad */, flipNormal));
-        quadLight->loadLight();
-        this->m_quadLights.push_back(quadLight);
-
-        /* Setup quadLightBuffer for GPU Program */
-        auto quadLightBuffer = this->m_context->createBuffer(RT_BUFFER_INPUT, RT_FORMAT_USER, this->m_quadLights.size());
-        quadLightBuffer->setElementSize(sizeof(CommonStructs::QuadLight));
-        auto quadLightArray = static_cast<CommonStructs::QuadLight *>(quadLightBuffer->map());
-        for (auto itr = this->m_quadLights.cbegin(); itr != this->m_quadLights.cend(); ++itr)
-        {
-            quadLightArray[itr - this->m_quadLights.cbegin()] = (*itr)->getCommonStructsLight();
-        }
-        this->m_context["quadLightBuffer"]->setBuffer(quadLightBuffer);
-
-        quadLightBuffer->unmap();
-    }
+    
 
 
     /**
@@ -335,10 +234,6 @@ public:
     {
         return this->m_camera;
     }
-    std::shared_ptr<HDRILight> getHDRILight() const
-    {
-        return this->m_HDRILight;
-    }
 
 
 private:
@@ -348,11 +243,6 @@ private:
     unsigned int m_filmWidth, m_filmHeight;
 
 	std::vector<std::shared_ptr<Shape>>          m_shapes;
-
-	//adding sampler, materialPool, lights etc. here:
-    std::shared_ptr<HDRILight> m_HDRILight; // todo: We could only hold one instance of HDRILight
-    std::vector<std::shared_ptr<PointLight>>    m_pointLights;
-    std::vector<std::shared_ptr<QuadLight>>     m_quadLights; 
 
     std::unique_ptr<Integrator> m_integrator;
     std::unique_ptr<Sampler>    m_sampler;   // todo:We could only hold one instance

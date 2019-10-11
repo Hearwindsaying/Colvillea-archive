@@ -8,92 +8,61 @@
 #include "../../Device/Toolkit/Utility.h"
 #include "../../Application/GlobalDefs.h"
 
+class LightPool;
 
 /**
  * @brief HDRILight describing an infinite area
  * light illuminated by High-Dynamic-Range Image
  * (HDRI). It's also known as Image Based Lighting.
- * 
- * @note The creation for HDRILight should be performed
- * finally. See HDRILight::preprocess() for details.
- * 
- * @see HDRILight::preprocess()
  */
 class HDRILight : public Light 
 {
 public:
-    HDRILight(Application *application, optix::Context context, const std::map<std::string, optix::Program> &programsMap, const std::string & hdriFilename, const optix::Matrix4x4 &lightToWorld);
-
     /**
-     * @brief Initialize light for context, including
-     * setup light buffers and variables related to
-     * context. This function should be invoked internally
-     * in SceneGraph::initScene()
+     * @brief Factory method for creating a HDRILight instance.
      *
-     * @note Note that different from SceneGraph::loadLight()
-     * which is responsible for loading one individual light
-     * while this is a context-wide job and independent of
-     * one light.
-     *
-     * @see SceneGraph::initScene()
-     *
+     * @param[in] application
+     * @param[in] context
+     * @param[in] programsMap  map to store Programs
+     * @param[in] hdriFilename HDRI filename
+     * @param[in] lightToWorld
      */
-    static void initHDRILight(optix::Context context, const std::map<std::string, optix::Program> &programsMap)
+    static std::unique_ptr<HDRILight> createHDRILight(Application *application, optix::Context context, const std::map<std::string, optix::Program> &programsMap, const std::string & hdriFilename, const optix::Matrix4x4 &lightToWorld, /*std::shared_ptr<LightPool>*/LightPool * lightPool)
     {
-        //todo:move from HDRILight ctor to here:
-        if (!context->getRayGenerationProgram(toUnderlyingValue(RayGenerationEntryType::HDRI)))
-        {
-            auto programItr = programsMap.find("RayGeneration_PrefilterHDRILight");
-            TW_ASSERT(programItr != programsMap.end());
-            context->setRayGenerationProgram(toUnderlyingValue(RayGenerationEntryType::HDRI), programItr->second);
-        }
-
-        
-
-        optix::Buffer prefilteringLaunchBuffer = context->createBuffer(RT_BUFFER_OUTPUT, RT_FORMAT_FLOAT, 0, 0);
-        context["hdriEnvmapLuminance"]->setBuffer(prefilteringLaunchBuffer);
-
-        CommonStructs::HDRILight hdriLight;
-        context["hdriLight"]->setUserData(sizeof(CommonStructs::HDRILight), &hdriLight);
-
-        CommonStructs::Distribution2D dist2D;
-        context["hdriLightDistribution"]->setUserData(sizeof(CommonStructs::Distribution2D), &dist2D);
-
-        context["hdriEnvmap"]->setInt(RT_TEXTURE_ID_NULL);
+        std::unique_ptr<HDRILight> hdriLight = std::make_unique<HDRILight>(application, context, programsMap, hdriFilename, lightPool);
+        hdriLight->initializeLight(lightToWorld);
+        return hdriLight;
     }
 
-    //todo:bad design, light related parameters should be as loadLight?
-    void loadLight() override
+    HDRILight(Application *application, optix::Context context, const std::map<std::string, optix::Program> &programsMap, const std::string & hdriFilename, /*std::shared_ptr<LightPool>*/LightPool * lightPool);
+
+    void initializeLight(const optix::Matrix4x4 &lightToWorld) override
     {
-        /* Load HDRI texture and set |hdriEnvmap|, which is shared by spherical skybox (Miss program) and HDRILight program. */
+        /* Load HDRI texture. */
         auto context = this->m_context;
         this->m_HDRITextureSampler = ImageLoader::LoadImageTexture(context, this->m_HDRIFilename, optix::make_float4(0.f));
-        this->updateHDRIEnvmap();
 
         /* Create HDRILight Struct for GPU program. */
-        /*this->m_csHDRILight.lightToWorld = lightToWorld;
-        this->m_csHDRILight.worldToLight = lightToWorld.inverse();*/
+
+        /* Check whether transform matrix has scale. */
+        if (TwUtil::hasScale(lightToWorld))
+            std::cerr << "[Warning] HDRILight has scale, which could lead to undefined behavior!" << std::endl;
+        std::cout << "[Info] Scale component for HDRILight is: (" << TwUtil::getXScale(lightToWorld) << "," << TwUtil::getYScale(lightToWorld) << "," << TwUtil::getZScale(lightToWorld) << ")." << std::endl;
+
+        this->m_csHDRILight.lightToWorld = lightToWorld;
+        this->m_csHDRILight.worldToLight = lightToWorld.inverse();
         this->m_csHDRILight.hdriEnvmap   = this->m_HDRITextureSampler->getId();
         this->m_csHDRILight.lightType    = CommonStructs::LightType::HDRILight;
-        this->m_csHDRILight.nSamples     = 1; //todo:add support for nSamples
 
-        /* Setup HDRILight Struct. */
-        context["hdriLight"]->setUserData(sizeof(CommonStructs::HDRILight), &this->m_csHDRILight);
+        /* HDRILight Struct setup can't be done until finish HDRILight::preprocess(). */
+        /*context["hdriLight"]->setUserData(sizeof(CommonStructs::HDRILight), &this->m_csHDRILight);*/
     }
 
-private:
-
-    /**
-     * @brief Setup hdriEnvmap using |m_HDRITextureSampler|
-     * This is a part of HDRILight::loadLight() for updating 
-     * spherical environment map.
-     */
-    void updateHDRIEnvmap()
+    const CommonStructs::HDRILight &getCommonStructsLight() const
     {
-        auto context = this->m_context;
-        context["hdriEnvmap"]->setInt(this->m_HDRITextureSampler->getId());
+        return this->m_csHDRILight;
     }
-
+ 
 protected:
     /**
      * @brief Preprocessing for HDRILight. Besides fundamental
@@ -111,6 +80,11 @@ protected:
     void preprocess() override;
 
 private:
+    /// We use a weak_ptr to hold LightPool instance, note that
+    /// -- LightPool owns HDRILight while HDRILight needs to use
+    /// LightPool to update LightBuffers.
+    /*std::weak_ptr<LightPool>*/LightPool *m_lightPool;
+
     optix::TextureSampler m_HDRITextureSampler;
     std::string           m_HDRIFilename;
 

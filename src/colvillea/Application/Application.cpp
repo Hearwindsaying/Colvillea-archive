@@ -72,7 +72,7 @@ Application::~Application()
 }
 
 
-void Application::buildSceneGraph(std::unique_ptr<SceneGraph> &sceneGraph)
+void Application::buildSceneGraph(std::shared_ptr<SceneGraph> &sceneGraph)
 {
     this->m_sceneGraph = std::move(sceneGraph);
     this->m_cameraController = std::make_unique<CameraController>(this->m_sceneGraph->getCamera(), this->m_filmWidth, this->m_filmHeight);
@@ -601,6 +601,10 @@ void Application::initializeContext()
     programItr = this->m_programsMap.find("RayGeneration_Filter");
     TW_ASSERT(programItr != this->m_programsMap.end());
     this->m_context->setRayGenerationProgram(toUnderlyingValue(RayGenerationEntryType::Filter), programItr->second);
+
+    programItr = this->m_programsMap.find("RayGeneration_PrefilterHDRILight");
+    TW_ASSERT(programItr != this->m_programsMap.end());
+    this->m_context->setRayGenerationProgram(toUnderlyingValue(RayGenerationEntryType::HDRI), programItr->second);
 }
 
 void Application::initializeOutputBuffers()

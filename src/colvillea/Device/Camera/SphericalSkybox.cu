@@ -11,15 +11,17 @@ using namespace optix;
 //////////////////////////////////////////////////////////////////////////
 //Forward declarations:
 rtDeclareVariable(CommonStructs::PerRayData_radiance,  prdRadiance, rtPayload, );
-rtDeclareVariable(optix::Ray,           ray,         rtCurrentRay, );
+rtDeclareVariable(optix::Ray,                          ray,         rtCurrentRay, );
 
-rtDeclareVariable(int,                  hdriEnvmap, ,) = RT_TEXTURE_ID_NULL;
-rtDeclareVariable(CommonStructs::HDRILight,			hdriLight, , );
+#ifndef TWRT_DELCARE_LIGHTBUFFER
+#define TWRT_DELCARE_LIGHTBUFFER
+rtDeclareVariable(CommonStructs::LightBuffers, sysLightBuffers, , );
+#endif
 
 //////////////////////////////////////////////////////////////////////////
 //Program definitions:
 
 RT_PROGRAM void Miss_Default()
 {
-	prdRadiance.radiance = (hdriEnvmap == RT_TEXTURE_ID_NULL ? make_float4(0.f) : TwUtil::Le_HDRILight(ray.direction, hdriEnvmap, hdriLight.worldToLight));
+	prdRadiance.radiance = (sysLightBuffers.hdriLight.hdriEnvmap == RT_TEXTURE_ID_NULL ? make_float4(0.f) : TwUtil::Le_HDRILight(ray.direction, sysLightBuffers.hdriLight.hdriEnvmap, sysLightBuffers.hdriLight.worldToLight));
 }

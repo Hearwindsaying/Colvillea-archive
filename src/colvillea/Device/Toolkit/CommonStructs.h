@@ -53,13 +53,29 @@ namespace CommonStructs
         CountOfType
     };
 
+    struct Distribution1D
+    {
+        rtBufferId<float, 1> func;
+        rtBufferId<float, 1> cdf;
+        float funcIntegral;
+    };
+
+    struct Distribution2D
+    {
+        rtBufferId<float, 1> pConditionalV_funcIntegral;
+        rtBufferId<float, 2> pConditionalV_func;
+        rtBufferId<float, 2> pConditionalV_cdf;
+        Distribution1D pMarginal;
+    };
+
     struct HDRILight
     {
         optix::Matrix4x4 lightToWorld;
         optix::Matrix4x4 worldToLight;
 
+        Distribution2D distributionHDRI;
+
         int hdriEnvmap;
-        int nSamples;
         LightType lightType;
     };
 
@@ -89,22 +105,18 @@ namespace CommonStructs
         //optix::float2 scaleXY;
     };
 
-
-
-    struct Distribution1D
+    struct LightBuffers
     {
-        rtBufferId<float, 1> func;
-        rtBufferId<float, 1> cdf;
-        float funcIntegral;
+        rtBufferId<CommonStructs::PointLight> pointLightBuffer;
+        rtBufferId<CommonStructs::QuadLight>  quadLightBuffer;
+        CommonStructs::HDRILight              hdriLight;
     };
 
-    struct Distribution2D
+    struct HDRIEnvmapLuminanceBufferWrapper
     {
-        rtBufferId<float, 1> pConditionalV_funcIntegral;
-        rtBufferId<float, 2> pConditionalV_func;
-        rtBufferId<float, 2> pConditionalV_cdf;
-        Distribution1D pMarginal;
+        rtBufferId<float, 2> HDRIEnvmapLuminanceBuffer;
     };
+
 
     struct GlobalSobolSampler
     {

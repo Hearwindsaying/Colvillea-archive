@@ -9,34 +9,30 @@
 
 using namespace optix;
 using namespace TwUtil;
-using namespace CommonStructs;
 
 //////////////////////////////////////////////////////////////////////////
 //Forward declarations:
 // HDRILight:->Context
-#ifndef TWRT_DECLARE_HDRILIGHT
-#define TWRT_DECLARE_HDRILIGHT
-rtDeclareVariable(Distribution2D, hdriLightDistribution, , );
-rtDeclareVariable(HDRILight, hdriLight, , );
+#ifndef TWRT_DELCARE_LIGHTBUFFER
+#define TWRT_DELCARE_LIGHTBUFFER
+rtDeclareVariable(CommonStructs::LightBuffers, sysLightBuffers, , );
 #endif
 
 #ifndef TWRT_DECLARE_SYSLAUNCH
 #define TWRT_DECLARE_SYSLAUNCH
-rtDeclareVariable(uint2, sysLaunch_Dim, rtLaunchDim, );
+rtDeclareVariable(uint2, sysLaunch_Dim,   rtLaunchDim, );
 rtDeclareVariable(uint2, sysLaunch_index, rtLaunchIndex, );
 #endif
 
 //prefiltering HDRIMap:->Context
-rtDeclareVariable(int, hdriEnvmap, , );
-rtBuffer<float, 2> hdriEnvmapLuminance;             /*Note that this buffer no longer used after
-                                                      prefiltering HDRILight*/
+rtDeclareVariable(CommonStructs::HDRIEnvmapLuminanceBufferWrapper, sysHDRIEnvmapLuminanceBufferWrapper, , );     
 
 
 //////////////////////////////////////////////////////////////////////////
 //Util Functions:
 static __device__ __inline__ float SampleContinuous1D_pMarginal(float urand, float &outPdf, int &outOffsetpMarginal)
 {
-	Distribution1D &pMarginal = hdriLightDistribution.pMarginal;
+    CommonStructs::Distribution1D &pMarginal = sysLightBuffers.hdriLight.distributionHDRI.pMarginal;
 	rtBufferId<float, 1> &cdf = pMarginal.cdf;
 
 
@@ -60,9 +56,9 @@ static __device__ __inline__ float SampleContinuous1D_pMarginal(float urand, flo
 
 static __device__ __inline__ float SampleContinuous1D_pCondV(int rowInPCondV, float urand, float &outPdf)
 {
-	rtBufferId<float, 2> &pCondVcdf = hdriLightDistribution.pConditionalV_cdf;
-	rtBufferId<float, 2> &pCondVfunc = hdriLightDistribution.pConditionalV_func;
-	rtBufferId<float, 1> &pCondVfuncIntegral = hdriLightDistribution.pConditionalV_funcIntegral;
+	rtBufferId<float, 2> &pCondVcdf = sysLightBuffers.hdriLight.distributionHDRI.pConditionalV_cdf;
+	rtBufferId<float, 2> &pCondVfunc = sysLightBuffers.hdriLight.distributionHDRI.pConditionalV_func;
+	rtBufferId<float, 1> &pCondVfuncIntegral = sysLightBuffers.hdriLight.distributionHDRI.pConditionalV_funcIntegral;
 	size_t pCondVcdfSize = pCondVcdf.size().x;
 	size_t pCondVfuncSize = pCondVfunc.size().x;
 
@@ -103,12 +99,12 @@ static __device__ __inline__ float2 SampleContinuous2D(const float2 &urand, floa
 static __device__ __inline__ float SampleContinuous2D_Pdf(const float2 &p)
 {
 	//convert continuous coordinate p into corresponding discrete coordinate (u,v)
-	const int maxU = hdriLightDistribution.pConditionalV_func.size().x;
-	const int maxV = hdriLightDistribution.pMarginal.func.size();
+	const int maxU = sysLightBuffers.hdriLight.distributionHDRI.pConditionalV_func.size().x;
+	const int maxV = sysLightBuffers.hdriLight.distributionHDRI.pMarginal.func.size();
 	int iu = optix::clamp(static_cast<int>(p.x * maxU), 0, maxU - 1);
 	int iv = optix::clamp(static_cast<int>(p.y * maxV), 0, maxV - 1);
 
-	return hdriLightDistribution.pConditionalV_func[make_uint2(iu, iv)] / hdriLightDistribution.pMarginal.funcIntegral;
+	return sysLightBuffers.hdriLight.distributionHDRI.pConditionalV_func[make_uint2(iu, iv)] / sysLightBuffers.hdriLight.distributionHDRI.pMarginal.funcIntegral;
 }
 
 
@@ -127,21 +123,21 @@ RT_CALLABLE_PROGRAM float4 Sample_Ld_HDRI(const float3 &point, const float & ray
 	float cosTheta = cosf(theta);	float sinTheta = sinf(theta);
 	float cosPhi   = cosf(phi);		float sinPhi   = sinf(phi);
 
-	outwi = xfmVector(make_float3(sinTheta * cosPhi, sinTheta * sinPhi, cosTheta), hdriLight.lightToWorld);
+	outwi = xfmVector(make_float3(sinTheta * cosPhi, sinTheta * sinPhi, cosTheta), sysLightBuffers.hdriLight.lightToWorld);
 
 	outpdf = mapPdf / (2 * M_PIf * M_PIf * sinTheta);
 	if (sinTheta == 0.f)
 		outpdf = 0.f;
 
 	outShadowRay = MakeShadowRay(point, rayEpsilon, outwi);
-	return rtTex2D<float4>(hdriEnvmap, uv.x, uv.y);
+	return rtTex2D<float4>(sysLightBuffers.hdriLight.hdriEnvmap, uv.x, uv.y);
 }
 
 //Pdf function
 RT_CALLABLE_PROGRAM float LightPdf_HDRI(const float3 & p, const float3 & wi, const int lightId, Ray &shadowRay)//todo:add shadowray
 {
 	//ignore WorldToLight
-	float3 w_Light = xfmVector(wi, hdriLight.worldToLight);
+	float3 w_Light = xfmVector(wi, sysLightBuffers.hdriLight.worldToLight);
 	float theta = TwUtil::sphericalTheta(w_Light), phi = TwUtil::sphericalPhi(w_Light);
 	float sinTheta = sinf(theta);
 	if (sinTheta == 0.f)
@@ -157,7 +153,7 @@ RT_PROGRAM void RayGeneration_PrefilterHDRILight()
     float up = static_cast<float>(sysLaunch_index.x) / sysLaunch_Dim.x;
     float sinTheta = sinf(M_PIf * (vp + .5f) / sysLaunch_Dim.y);
 
-    hdriEnvmapLuminance[sysLaunch_index] =
-        TwUtil::luminance(make_float3(rtTex2D<float4>(hdriEnvmap, up, vp))) * sinTheta;
+    sysHDRIEnvmapLuminanceBufferWrapper.HDRIEnvmapLuminanceBuffer[sysLaunch_index] =
+        TwUtil::luminance(make_float3(rtTex2D<float4>(sysLightBuffers.hdriLight.hdriEnvmap, up, vp))) * sinTheta;
 
 }

@@ -56,7 +56,7 @@ public:
      * This should be called when scene is ready for rendering
      * before calling Application::render().
      */
-    void buildSceneGraph(std::unique_ptr<SceneGraph> &sceneGraph);
+    void buildSceneGraph(std::shared_ptr<SceneGraph> &sceneGraph);
     
     /**
      * @brief Use widgets from Dear ImGui to draw User Interface.
@@ -237,7 +237,7 @@ private:
 
     /// Scene related variables
     unsigned int                      m_sysIterationIndex;
-    std::unique_ptr<SceneGraph>       m_sceneGraph;
+    std::shared_ptr<SceneGraph>       m_sceneGraph;
     std::unique_ptr<CameraController> m_cameraController;
 
     /// Function object to store preprocessor using OptiX launch 

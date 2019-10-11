@@ -11,9 +11,9 @@
 using namespace optix;
 using namespace TwUtil;
 
-#ifndef TWRT_DELCARE_QUADLIGHT
-#define TWRT_DELCARE_QUADLIGHT
-rtBuffer<CommonStructs::QuadLight> quadLightBuffer;
+#ifndef TWRT_DELCARE_LIGHTBUFFER
+#define TWRT_DELCARE_LIGHTBUFFER
+rtDeclareVariable(CommonStructs::LightBuffers, sysLightBuffers, , );
 #endif
 
 rtDeclareVariable(float, sysSceneEpsilon, , );
@@ -40,7 +40,7 @@ rtDeclareVariable(float, sysSceneEpsilon, , );
  */
 RT_CALLABLE_PROGRAM float4 Sample_Ld_Quad(const float3 &point, const float & rayEpsilon, float3 & outwi, float & outpdf, float2 lightSample, uint lightBufferIndex, Ray & outShadowRay)
 {
-    const CommonStructs::QuadLight &quadLight = quadLightBuffer[lightBufferIndex];
+    const CommonStructs::QuadLight &quadLight = sysLightBuffers.quadLightBuffer[lightBufferIndex];
     float3 sampledPoint = Quad_Sample(quadLight, lightSample, &outpdf); /* outpdf for temporary storage, it's with respect to area now! */
     outwi = sampledPoint - point; /* outwi for temporary storage, it's unnormalized now! */
     if (dot(outwi, outwi) == 0.f) /* use dot to fetch sqrlength to avoid sqrt operation */
@@ -128,7 +128,7 @@ RT_CALLABLE_PROGRAM float4 Sample_Ld_Quad(const float3 &point, const float & ray
  */
 RT_CALLABLE_PROGRAM float LightPdf_Quad(const float3 & p, const float3 & wi, const int lightId, Ray &shadowRay)
 {
-    const CommonStructs::QuadLight &quadLight = quadLightBuffer[lightId];
+    const CommonStructs::QuadLight &quadLight = sysLightBuffers.quadLightBuffer[lightId];
 
     /* Spawn ray from reference point. */
     optix::Ray detectedRay = optix::make_Ray(p, wi, toUnderlyingValue(CommonStructs::RayType::Detection), 1e-3f, RT_DEFAULT_MAX); /* note that RayType::Detection is unnecessarily needed. */

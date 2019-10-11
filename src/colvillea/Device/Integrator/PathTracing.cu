@@ -9,9 +9,9 @@ using namespace optix;
 //////////////////////////////////////////////////////////////////////////
 //Forward declarations:
 // Light buffer:->Context
-#ifndef TWRT_DELCARE_QUADLIGHT
-#define TWRT_DELCARE_QUADLIGHT
-rtBuffer<CommonStructs::QuadLight> quadLightBuffer;
+#ifndef TWRT_DELCARE_LIGHTBUFFER
+#define TWRT_DELCARE_LIGHTBUFFER
+rtDeclareVariable(CommonStructs::LightBuffers, sysLightBuffers, , );
 #endif
 
 // Material buffer:->Context
@@ -51,7 +51,7 @@ RT_PROGRAM void ClosestHit_PTRay_PathTracing()
 	prdPT.bsdfType = shaderBuffer[materialIndex].bsdfType;
     if (prdPT.bsdfType == CommonStructs::BSDFType::Emissive)
     {
-        prdPT.emittedRadiance = TwUtil::Le_QuadLight(quadLightBuffer[quadLightIndex], -ray.direction);
+        prdPT.emittedRadiance = TwUtil::Le_QuadLight(sysLightBuffers.quadLightBuffer[quadLightIndex], -ray.direction);
     }
 }
 
@@ -80,7 +80,7 @@ RT_PROGRAM void ClosestHit_PathTracing()
 	             currentShaderParams.nGeometry = nGeometry;
 
     float4 emittedRadiance = (currentShaderParams.bsdfType == CommonStructs::BSDFType::Emissive ?
-        TwUtil::Le_QuadLight(quadLightBuffer[quadLightIndex], -ray.direction) : 
+        TwUtil::Le_QuadLight(sysLightBuffers.quadLightBuffer[quadLightIndex], -ray.direction) :
         make_float4(0.f)); /* Emitted radiance from area light. */
 
 	float3 isectP = ray.origin + tHit * ray.direction;
@@ -124,7 +124,7 @@ RT_PROGRAM void ClosestHit_PathTracing()
 			}
 			else /* Ray has escaped from scene, adding light contribution from HDRI envinronment. */
 			{
-				L += beta * TwUtil::Le_HDRILight(isectDir, hdriEnvmap, hdriLight.worldToLight);
+				L += beta * TwUtil::Le_HDRILight(isectDir, sysLightBuffers.hdriLight.hdriEnvmap, sysLightBuffers.hdriLight.worldToLight);
 
 				if (L.x >= 300.f || L.y >= 300.f || L.z >= 300.f)
 				{

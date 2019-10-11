@@ -32,27 +32,15 @@ rtDeclareVariable(int, sysSamplerType, , );         /* Sampler type chosen in GP
 #endif
 
 //lights:
-#ifndef TWRT_DELCARE_POINTLIGHT
-#define TWRT_DELCARE_POINTLIGHT
-rtBuffer<CommonStructs::PointLight> pointLightBuffer;
+#ifndef TWRT_DELCARE_LIGHTBUFFER
+#define TWRT_DELCARE_LIGHTBUFFER
+rtDeclareVariable(CommonStructs::LightBuffers, sysLightBuffers, , );
 #endif
-#ifndef TWRT_DELCARE_QUADLIGHT
-#define TWRT_DELCARE_QUADLIGHT
-rtBuffer<CommonStructs::QuadLight> quadLightBuffer;
-#endif
-
-rtDeclareVariable(int, 					hdriEnvmap, ,);
 
 rtDeclareVariable(CommonStructs::PerRayData_radiance,  prdRadiance,     rtPayload, );
 rtDeclareVariable(CommonStructs::PerRayData_shadow,	prdShadow,	     rtPayload, );
 rtDeclareVariable(Ray,					ray,		     rtCurrentRay, );
 rtDeclareVariable(float,				tHit,		     rtIntersectionDistance, );
-
-#ifndef TWRT_DECLARE_HDRILIGHT
-#define TWRT_DECLARE_HDRILIGHT
-rtDeclareVariable(Distribution2D, hdriLightDistribution, , );
-rtDeclareVariable(HDRILight, hdriLight, , );
-#endif
 
 #ifndef TWRT_DECLARE_SYS_ITERATION_INDEX
 #define TWRT_DECLARE_SYS_ITERATION_INDEX
@@ -201,7 +189,7 @@ static __device__ __inline__ float4 EstimateDirectLighting<CommonStructs::LightT
 
         if (!shadow_prd.blocked)
         {
-            Li = TwUtil::Le_HDRILight(outWi, hdriEnvmap, hdriLight.worldToLight);
+            Li = TwUtil::Le_HDRILight(outWi, sysLightBuffers.hdriLight.hdriEnvmap, sysLightBuffers.hdriLight.worldToLight);
             if(!isBlack(Li))
                 Ld += f * Li * fabsf(dot(outWi, shaderParams.dgShading.nn)) * weight / bsdfPdf;
 
@@ -344,7 +332,7 @@ static __device__ __inline__ float4 EstimateDirectLighting<CommonStructs::LightT
          * could lead to further optimization when tracing shadow ray. */
 		if (!shadow_prd.blocked)
 		{
-            Li = TwUtil::Le_QuadLight(quadLightBuffer[lightId], -outWi);
+            Li = TwUtil::Le_QuadLight(sysLightBuffers.quadLightBuffer[lightId], -outWi);
             if (!isBlack(Li))
                 Ld += f * Li * fabsf(dot(outWi, shaderParams.dgShading.nn)) * weight / bsdfPdf;
 		}
@@ -371,20 +359,27 @@ static __device__ __inline__ float4 SampleLightsAggregate(const CommonStructs::S
 {
 	float4 L = make_float4(0.f);
 
-     if (hdriEnvmap != RT_TEXTURE_ID_NULL)
-     {
-         L += EstimateDirectLighting<CommonStructs::LightType::HDRILight>(-1, shaderParams, isectP, isectDir, localSampler);
-     }
-        
-    for (int i = 0; i < pointLightBuffer.size(); ++i)//todo:use BufferId and RT_BUFFER_ID_NULL
+    if (sysLightBuffers.hdriLight.hdriEnvmap != RT_TEXTURE_ID_NULL)
     {
-        L += EstimateDirectLighting<CommonStructs::LightType::PointLight>(i, shaderParams, isectP, isectDir, localSampler);
+        L += EstimateDirectLighting<CommonStructs::LightType::HDRILight>(-1, shaderParams, isectP, isectDir, localSampler);
     }
-
-    for (int i = 0; i < quadLightBuffer.size(); ++i)
+    
+    if (sysLightBuffers.pointLightBuffer != RT_BUFFER_ID_NULL)
     {
-        L += EstimateDirectLighting<CommonStructs::LightType::QuadLight>(i, shaderParams, isectP, isectDir, localSampler);
+        for (int i = 0; i < sysLightBuffers.pointLightBuffer.size(); ++i)
+        {
+            L += EstimateDirectLighting<CommonStructs::LightType::PointLight>(i, shaderParams, isectP, isectDir, localSampler);
+        }
     }
+    
+    if (sysLightBuffers.quadLightBuffer != RT_BUFFER_ID_NULL)
+    {
+        for (int i = 0; i < sysLightBuffers.quadLightBuffer.size(); ++i)
+        {
+            L += EstimateDirectLighting<CommonStructs::LightType::QuadLight>(i, shaderParams, isectP, isectDir, localSampler);
+        }
+    }
+    
     
 
 	return L;

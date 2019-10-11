@@ -8,26 +8,16 @@
 #include "../../Application/GlobalDefs.h"
 #include "../../Application/Application.h"
 #include "../../Device/Toolkit/MCSampling.h"
+#include "LightPool.h"
 
 
 using namespace optix;
 
-HDRILight::HDRILight(Application *application, optix::Context context, const std::map<std::string, optix::Program> &programsMap, const std::string & hdriFilename, const optix::Matrix4x4 &lightToWorld) :Light(context, programsMap, "HDRI"/*fix name*/), m_HDRIFilename(hdriFilename)
+HDRILight::HDRILight(Application *application, optix::Context context, const std::map<std::string, optix::Program> &programsMap, const std::string & hdriFilename, /*std::shared_ptr<LightPool>*/LightPool * lightPool) : Light(context, programsMap, "HDRI"), m_HDRIFilename(hdriFilename), m_lightPool(lightPool)
 {
     TW_ASSERT(application);
+    TW_ASSERT(lightPool);
     application->setPreprocessFunc(std::bind(&HDRILight::preprocess, this));
-
-    auto programItr = this->m_programsMap.find("RayGeneration_PrefilterHDRILight");
-    TW_ASSERT(programItr != this->m_programsMap.end());
-    this->m_context->setRayGenerationProgram(toUnderlyingValue(RayGenerationEntryType::HDRI), programItr->second);
-
-    /* Check whether transform matrix has scale. */
-    if (TwUtil::hasScale(lightToWorld))
-        std::cerr << "[Warning] HDRILight has scale, which could lead to undefined behavior!" << std::endl;
-    std::cout << "[Info] Scale component for HDRILight is: (" << TwUtil::getXScale(lightToWorld) << "," << TwUtil::getYScale(lightToWorld) << "," << TwUtil::getZScale(lightToWorld) << ")." << std::endl;
-
-    this->m_csHDRILight.lightToWorld = lightToWorld;
-    this->m_csHDRILight.worldToLight = lightToWorld.inverse();
 }
 
 
@@ -40,8 +30,11 @@ void HDRILight::preprocess()
     this->m_HDRITextureSampler->getBuffer()->getSize(HDRIWidth, HDRIHeight);
     std::cout << "[Info]Getting HDRIWidth: " << HDRIWidth << " HDRIHeight:" << HDRIHeight << std::endl;
 
+    
     optix::Buffer prefilteringLaunchBuffer = context->createBuffer(RT_BUFFER_OUTPUT, RT_FORMAT_FLOAT, HDRIWidth, HDRIWidth);
-    context["hdriEnvmapLuminance"]->setBuffer(prefilteringLaunchBuffer);
+    CommonStructs::HDRIEnvmapLuminanceBufferWrapper hdriEnvmapLuminanceBufferWrapper;
+    hdriEnvmapLuminanceBufferWrapper.HDRIEnvmapLuminanceBuffer = prefilteringLaunchBuffer->getId();
+    context["sysHDRIEnvmapLuminanceBufferWrapper"]->setUserData(sizeof(CommonStructs::HDRIEnvmapLuminanceBufferWrapper), &hdriEnvmapLuminanceBufferWrapper);
 
     /* Launch prefiltering HDRI. */
     auto currentTime = std::chrono::system_clock::now();
@@ -84,7 +77,7 @@ void HDRILight::preprocess()
     pMarginal_FuncBuffer->unmap();
     pMarginal_cdfBuffer->unmap();
 
-    /* Assign BufferId for pMarginal:*/
+    /* Assign BufferId for pMarginal: */
     pMarginal.func = pMarginal_FuncBuffer->getId();
     pMarginal.cdf = pMarginal_cdfBuffer->getId();
 
@@ -116,14 +109,13 @@ void HDRILight::preprocess()
     hdriLightDistribution.pConditionalV_func = pCondV_funcBuffer->getId();
     hdriLightDistribution.pConditionalV_cdf = pCondV_cdfBuffer->getId();
 
-    context["hdriLightDistribution"]->setUserData(sizeof(CommonStructs::Distribution2D), &hdriLightDistribution);
+    this->m_csHDRILight.distributionHDRI = hdriLightDistribution;
+
+    /* Setup HDRILight Struct is done by LightPool. */
+//     auto lightPool = this->m_lightPool.lock();
+//     TW_ASSERT(lightPool);
+    this->m_lightPool->setCSHDRILight(this->m_csHDRILight);
 
     /* Do not forget unmapping prefiltering buffer we mapped before! */
     prefilteringLaunchBuffer->unmap();
-
-    /*todo:destroy the hdriEnvmapLuminanceBuffer
-          -- no longer needed after precomputation for hdriLightDistribution.
-          However, for changeable HDRILight, it should stay*/
-          //this->context->removeVariable(this->context->queryVariable("hdriEnvmapLuminance"));
-          //hdriEnvmapLuminanceBuffer->destroy();
 }

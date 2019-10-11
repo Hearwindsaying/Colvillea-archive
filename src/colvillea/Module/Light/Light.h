@@ -1,8 +1,5 @@
 #pragma once
-/* This file is host side only. */ //todo:use HOST_ONLY_START
-                                   //     #define HOST_ONLY_START #ifndef __CUDACC__
-                                   //     #define HOST_ONLY_END   #endif
-                                   //     
+/* This file is host side only. */ 
 
 #include <optix_world.h>
 #include <optix_host.h>
@@ -49,7 +46,7 @@ public:
         this->m_lightPdf = programItr->second;
     }
 
-    virtual void loadLight() = 0;
+    virtual void initializeLight(const optix::Matrix4x4 &lightToWorld) = 0;
 
     //virtual void getCommonStructsLight()
 

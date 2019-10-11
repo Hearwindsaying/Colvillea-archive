@@ -8,9 +8,9 @@ using namespace optix;
 //////////////////////////////////////////////////////////////////////////
 //Forward declarations:
 // Light buffer:->Context
-#ifndef TWRT_DELCARE_QUADLIGHT
-#define TWRT_DELCARE_QUADLIGHT
-rtBuffer<CommonStructs::QuadLight> quadLightBuffer;
+#ifndef TWRT_DELCARE_LIGHTBUFFER
+#define TWRT_DELCARE_LIGHTBUFFER
+rtDeclareVariable(CommonStructs::LightBuffers, sysLightBuffers, , );
 #endif
 
 // Material buffer:->Context
@@ -38,7 +38,7 @@ RT_PROGRAM void ClosestHit_DirectLighting(void)
     /* Include emitted radiance from surface. 
      * -- SampleLightsAggregate() does not account for that. */
     float4 Ld = (shaderParams.bsdfType == CommonStructs::BSDFType::Emissive ?
-        TwUtil::Le_QuadLight(quadLightBuffer[quadLightIndex], -ray.direction) :
+        TwUtil::Le_QuadLight(sysLightBuffers.quadLightBuffer[quadLightIndex], -ray.direction) :
         make_float4(0.f)); /* Emitted radiance from area light. */
 
 	Ld += SampleLightsAggregate(shaderParams, ray.origin + tHit * ray.direction, -ray.direction, localSampler);

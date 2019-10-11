@@ -14,13 +14,16 @@ using namespace TwUtil;
 //Forward declarations:
 
 //system variables:->Context
-rtBuffer<CommonStructs::PointLight> pointLightBuffer;
+#ifndef TWRT_DELCARE_LIGHTBUFFER
+#define TWRT_DELCARE_LIGHTBUFFER
+rtDeclareVariable(CommonStructs::LightBuffers, sysLightBuffers, , );
+#endif
 
 //////////////////////////////////////////////////////////////////////////
 //Pointlight Sample_Ld function:
 RT_CALLABLE_PROGRAM float4 Sample_Ld_Point(const float3 &point, const float & rayEpsilon, float3 & outwi, float & outpdf, float2 lightSample, uint lightBufferIndex, Ray & outShadowRay)
 {
-	float3 &lightPos = pointLightBuffer[lightBufferIndex].lightPos;
+	float3 &lightPos = sysLightBuffers.pointLightBuffer[lightBufferIndex].lightPos;
 	
 	outwi = safe_normalize(lightPos - point);
 	outpdf = 1.f;
@@ -28,7 +31,7 @@ RT_CALLABLE_PROGRAM float4 Sample_Ld_Point(const float3 &point, const float & ra
 	float distanceSqr = sqr_length(lightPos - point);
 	outShadowRay = MakeShadowRay(point, rayEpsilon, lightPos, 1e-3f);
 
-	return pointLightBuffer[lightBufferIndex].intensity / distanceSqr;
+	return sysLightBuffers.pointLightBuffer[lightBufferIndex].intensity / distanceSqr;
 }
 
 //Useless program:

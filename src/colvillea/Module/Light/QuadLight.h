@@ -3,6 +3,7 @@
 
 #include <cmath>
 
+#include "../Geometry/Quad.h"
 #include "../../Device/Toolkit/CommonStructs.h"
 #include "../../Device/Toolkit/Utility.h"
 
@@ -22,6 +23,25 @@
 class QuadLight : public Light
 {
 public:
+    /**
+     * @brief Factory method for creating a QuadLight instance.
+     *
+     * @param[in] context
+     * @param[in] programsMap  map to store Programs
+     * @param[in] intensity    light intensity
+     * @param[in] quadShape    underlying Quad shape
+     */
+    static std::unique_ptr<QuadLight> createQuadLight(optix::Context context, const std::map<std::string, optix::Program> &programsMap, const optix::float3 intensity, std::shared_ptr<Quad> quadShape)
+    {
+        std::unique_ptr<QuadLight> quadLight = std::make_unique<QuadLight>(context, programsMap, intensity, quadShape);
+
+        optix::Matrix4x4 lightToWorld, worldToLight;
+        quadShape->getMatrix(lightToWorld, worldToLight);
+
+        quadLight->initializeLight(lightToWorld);
+        return quadLight;
+    }
+
     QuadLight(optix::Context context, const std::map<std::string, optix::Program> &programsMap, const optix::float3 intensity, std::shared_ptr<Quad> quadShape) :
         Light(context, programsMap, "Quad"), m_quadShape(quadShape)
     {
@@ -29,9 +49,11 @@ public:
     }
 
     /**
-     * @note todo:Never use |lightToWorld| parameter!
+     * @param[in] lightToWorld the transform matrix 
+     * will have no effect on QuadLight, whose transform
+     * matrix is decided by its underlying Quad shape.
      */
-    void loadLight() override
+    void initializeLight(const optix::Matrix4x4 &lightToWorld) override
     {
         /* Create QuadLight Struct for GPU program. */
         this->m_csQuadLight.lightType = CommonStructs::LightType::QuadLight;
@@ -39,7 +61,6 @@ public:
         this->m_csQuadLight.reverseOrientation = this->m_quadShape->isFlippedGeometryNormal();
         this->m_csQuadLight.invSurfaceArea = 1.f / this->m_quadShape->getSurfaceArea();
 
-        //todo:deleteme assertions:
         optix::float3 nn = TwUtil::xfmNormal(
             optix::make_float3(0.f, 0.f, (this->m_csQuadLight.reverseOrientation ? -1.f : 1.f)), this->m_csQuadLight.lightToWorld);
         optix::float3 nn2 = TwUtil::xfmNormal(
@@ -49,27 +70,10 @@ public:
         TW_ASSERT(std::fabs(1.f - (TwUtil::sqr_length(nn))) <= 1e-6f);
     }
 
-    /**
-     * @brief Initialize light for context, including
-     * setup light buffers and variables related to
-     * context. This function should be invoked internally
-     * in SceneGraph::initScene()
-     *
-     * @note Note that different from SceneGraph::loadLight()
-     * which is responsible for loading one individual light
-     * while this is a context-wide job and independent of
-     * one light.
-     *
-     * @see SceneGraph::initScene()
-     *
-     */
-    static void initQuadLight(optix::Context context)
-    {
-        
-    }
+ 
 
     const CommonStructs::QuadLight &getCommonStructsLight() const
-    {//todo:review
+    {
         return this->m_csQuadLight;
     }
 
