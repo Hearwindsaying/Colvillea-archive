@@ -25,9 +25,8 @@ rtBuffer<float2> texcoordBuffer;
 rtBuffer<int3>   vertexIndexBuffer;
 rtBuffer<int3>   texcoordIndexBuffer;
 rtBuffer<int3>   normalIndexBuffer;
-rtDeclareVariable(int, alphaTexture, , )=0;
+
 rtDeclareVariable(int, reverseOrientation, , ) = 0;//use char for optimization
-//rtBuffer<int>    material_buffer;//TODO FIXME
 
 RT_PROGRAM void BoundingBox_TriangleMesh(int primIdx, float result[6])
 {

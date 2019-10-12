@@ -167,18 +167,15 @@ public:
         switch (samplerType)
         {
             case CommonStructs::SamplerType::HaltonQMCSampler:
-                this->m_sampler = std::make_unique<HaltonSampler>(this->m_context, filmResolution);
+                this->m_sampler = HaltonSampler::createHaltonSampler(this->m_context, filmResolution);
                 break;
             case CommonStructs::SamplerType::SobolQMCSampler:
-                this->m_sampler = std::make_unique<SobolSampler>(this->m_context, filmResolution);
+                this->m_sampler = SobolSampler::createSobolSampler(this->m_context, filmResolution);
                 break;
             default:
                 std::cerr << "[Error] Expected sampler is not supported." << std::endl;
                 break;
         }
-
-        /* Initialize sampler. */
-        this->m_sampler->initSampler();
 
         /* Setup sampler index for GPU program. */
         this->m_context["sysSamplerType"]->setInt(toUnderlyingValue(samplerType));

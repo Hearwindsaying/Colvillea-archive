@@ -14,6 +14,18 @@ class Application;
 class SobolSampler : public Sampler
 {
 public:
+    /**
+     * @brief Factory method for creating a SobolSampler instance.
+     *
+     * @param[in] context
+     */
+    static std::unique_ptr<SobolSampler> createSobolSampler(optix::Context context, optix::int2 filmResolution)
+    {
+        std::unique_ptr<SobolSampler> sobolSampler = std::make_unique<SobolSampler>(context, filmResolution);
+        sobolSampler->initSampler();
+        return sobolSampler;
+    }
+
     SobolSampler(optix::Context context, optix::int2 filmResolution) : Sampler(context), m_filmResolution(filmResolution)
     {
 
@@ -50,8 +62,7 @@ private:
     }
 
 private:
-    optix::int2                       m_filmResolution;    // note that this resolution is not the same as |m_globalSobolSampler.resolution|
+    /// Film resolution, not equal to the |m_globalSobolSampler.resolution|
+    optix::int2                       m_filmResolution;
     CommonStructs::GlobalSobolSampler m_globalSobolSampler;
-
-    
 };

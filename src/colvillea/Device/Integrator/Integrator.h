@@ -38,7 +38,7 @@ rtDeclareVariable(CommonStructs::LightBuffers, sysLightBuffers, , );
 #endif
 
 rtDeclareVariable(CommonStructs::PerRayData_radiance,  prdRadiance,     rtPayload, );
-rtDeclareVariable(CommonStructs::PerRayData_shadow,	prdShadow,	     rtPayload, );
+rtDeclareVariable(CommonStructs::PerRayData_shadow,	   prdShadow,	    rtPayload, );
 rtDeclareVariable(Ray,					ray,		     rtCurrentRay, );
 rtDeclareVariable(float,				tHit,		     rtIntersectionDistance, );
 

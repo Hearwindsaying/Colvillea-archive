@@ -16,6 +16,18 @@ class Application;
 class HaltonSampler : public Sampler
 {
 public:
+    /**
+     * @brief Factory method for creating a HaltonSampler instance.
+     *
+     * @param[in] context
+     */
+    static std::unique_ptr<HaltonSampler> createHaltonSampler(optix::Context context, optix::int2 filmResolution)
+    {
+        std::unique_ptr<HaltonSampler> haltonSampler = std::make_unique<HaltonSampler>(context, filmResolution);
+        haltonSampler->initSampler();
+        return haltonSampler;
+    }
+
     HaltonSampler(optix::Context context, optix::int2 filmResolution) : Sampler(context),
         m_filmResolution(filmResolution)
     {

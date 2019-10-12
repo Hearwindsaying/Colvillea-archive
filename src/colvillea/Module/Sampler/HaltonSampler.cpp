@@ -1,12 +1,13 @@
 #include "HaltonSampler.h"
 #include "../../Device/Sampler/HaltonSampler_Common.h"
 
-#include "../../Device/Toolkit/Serialize.h"
-
-#include <random>
 #include <algorithm>
-#include <fstream>
 #include <chrono>
+#include <fstream>
+#include <random>
+
+#include <src/sampleConfig.h>
+#include "../../Device/Toolkit/Serialize.h"
 
 using namespace optix;
 
@@ -97,7 +98,7 @@ void HaltonSampler::initSampler()
     std::mt19937 randomEngine(randomDevice());
 
     std::vector<uint32_t> permutationTable(permutationTableSize);
-    double time_writeVec = sutil::currentTime();
+    auto currentTimeCompute = std::chrono::system_clock::now();
     auto init_tables = [&permutationTable](const std::vector<std::vector<unsigned short> >& perms)
     {
         int j = 0;
@@ -2127,15 +2128,19 @@ void HaltonSampler::initSampler()
     std::ofstream ofs("fast_permutation_table.dat", std::ios::out | std::ofstream::binary);
     TW_ASSERT(serialize<uint32_t>(ofs, permutationTable));
 
-    std::cout << "\n[Debug]Ended serializing fastPermutationTable--" << sutil::currentTime() - time_writeVec << "s" << std::endl;
+    auto endCompute = std::chrono::system_clock::now();
+    std::chrono::duration<double> diffCompute = endCompute - currentTimeCompute;
+    std::cout << "\n[Debug]Ended serializing fastPermutationTable--" << diffCompute.count() << "s" << std::endl;
     exit(1);
 #endif
 
 #ifndef WRITE_VECTOR_TO_FILE
     std::vector<uint32_t> permutationTable = std::vector<uint32_t>();
 
-    std::ifstream ifs("fast_permutation_table.dat", std::ios::in | std::ifstream::binary);
+#define DATAPATH(param,libname)   param##libname
+    std::ifstream ifs(DATAPATH(SAMPLES_DIR, "\\data\\fast_permutation_table.dat"), std::ios::in | std::ifstream::binary);
     TW_ASSERT(deserialize<uint32_t>(ifs, permutationTable));
+#undef DATAPATH
 #endif
 
     /* Initialize fastPermutationTable for device. */
