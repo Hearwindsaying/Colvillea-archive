@@ -1,11 +1,11 @@
-#include "TriangleMesh.h"
-#include "../../Application/TWAssert.h"
-#include "../../Device/Toolkit/CommonStructs.h"
+#include "colvillea/Module/Geometry/TriangleMesh.h"
 
-#include <locale>
 #include <algorithm>
 #include <chrono>
+#include <locale>
 
+#include "colvillea/Application/TWAssert.h"
+#include "colvillea/Device/Toolkit/CommonStructs.h"
 
 
 

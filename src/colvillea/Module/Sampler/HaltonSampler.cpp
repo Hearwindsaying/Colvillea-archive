@@ -1,5 +1,4 @@
-#include "HaltonSampler.h"
-#include "../../Device/Sampler/HaltonSampler_Common.h"
+#include "colvillea/Module/Sampler/HaltonSampler.h"
 
 #include <algorithm>
 #include <chrono>
@@ -7,7 +6,8 @@
 #include <random>
 
 #include <src/sampleConfig.h>
-#include "../../Device/Toolkit/Serialize.h"
+#include "colvillea/Device/Toolkit/Serialize.h"
+#include "colvillea/Device/Sampler/HaltonSampler_Common.h"
 
 using namespace optix;
 

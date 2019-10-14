@@ -1,13 +1,13 @@
 #pragma once
 
-#include "Sampler.h"
+#include "colvillea/Module/Sampler/Sampler.h"
 
 #include <optix_world.h>
 #include <optix_host.h>
 #include <optixu_math_namespace.h>
 
-#include "../../Application/TWAssert.h"
-#include "../../Device/Toolkit/CommonStructs.h"
+#include "colvillea/Application/TWAssert.h"
+#include "colvillea/Device/Toolkit/CommonStructs.h"
 
 #include <vector>
 

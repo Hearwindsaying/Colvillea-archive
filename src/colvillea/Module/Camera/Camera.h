@@ -8,8 +8,8 @@
 #include <functional>
 #include <map>
 
-#include "../../Application/GlobalDefs.h"
-#include "../../Application/TWAssert.h"
+#include "colvillea/Application/GlobalDefs.h"
+#include "colvillea/Application/TWAssert.h"
 
 
 class Application;

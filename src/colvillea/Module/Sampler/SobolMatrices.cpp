@@ -1,4 +1,4 @@
-#include "SobolMatrices.h"
+#include "colvillea/Module/Sampler/SobolMatrices.h"
 
 const uint32_t SobolMatrix::SobolMatrices32[NumSobolDimensions * SobolMatrixSize] = 
 {

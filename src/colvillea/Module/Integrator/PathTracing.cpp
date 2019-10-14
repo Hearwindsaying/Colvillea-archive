@@ -1,8 +1,9 @@
 #include "PathTracing.h"
 
-#include "../../Application/TWAssert.h"
-#include "../../Device/Toolkit/CommonStructs.h"
-#include "../../Application/GlobalDefs.h"
+#include "colvillea/Application/TWAssert.h"
+#include "colvillea/Application/GlobalDefs.h"
+#include "colvillea/Device/Toolkit/CommonStructs.h"
+
 
 optix::Material PathTracing::initializeIntegratorMaterialNode()
 {

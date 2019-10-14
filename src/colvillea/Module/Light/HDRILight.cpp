@@ -1,14 +1,14 @@
-#include "HDRILight.h"
+#include "colvillea/Module/Light/HDRILight.h"
 
 #include <chrono>
 #include <functional>
 #include <memory>
 
 
-#include "../../Application/GlobalDefs.h"
-#include "../../Application/Application.h"
-#include "../../Device/Toolkit/MCSampling.h"
-#include "LightPool.h"
+#include "colvillea/Application/GlobalDefs.h"
+#include "colvillea/Application/Application.h"
+#include "colvillea/Device/Toolkit/MCSampling.h"
+#include "colvillea/Module/Light/LightPool.h"
 
 
 using namespace optix;

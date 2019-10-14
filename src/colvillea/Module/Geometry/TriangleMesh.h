@@ -5,8 +5,8 @@
 #include <optix_host.h>
 #include <optixu_math_namespace.h>
 
-#include "Shape.h"
-#include "../../../tinyobjloader/tiny_obj_loader.h"
+#include "colvillea/Module/Geometry/Shape.h"
+#include "tinyobjloader/tiny_obj_loader.h"
 
 class Application;
 

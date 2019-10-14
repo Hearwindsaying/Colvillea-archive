@@ -1,11 +1,11 @@
 #pragma once
-#include "Light.h"
+#include "colvillea/Module/Light/Light.h"
 
 #include <cmath>
 
-#include "../Geometry/Quad.h"
-#include "../../Device/Toolkit/CommonStructs.h"
-#include "../../Device/Toolkit/Utility.h"
+#include "colvillea/Module/Geometry/Quad.h"
+#include "colvillea/Device/Toolkit/CommonStructs.h"
+#include "colvillea/Device/Toolkit/Utility.h"
 
 /**
  * @brief QuadLight is the simplest area light 

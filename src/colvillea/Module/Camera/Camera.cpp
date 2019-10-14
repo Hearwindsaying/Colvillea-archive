@@ -1,7 +1,7 @@
-#include "Camera.h"
-#include "../../Device/Toolkit/Utility.h"
+#include "colvillea/Module/Camera/Camera.h"
+#include "colvillea/Device/Toolkit/Utility.h"
+#include "colvillea/Application/Application.h"
 
-#include "../../Application/Application.h"
 
 
 #include <iostream>

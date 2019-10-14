@@ -1,8 +1,8 @@
 #pragma once
 #include "Light.h"
 
-#include "../../Device/Toolkit/CommonStructs.h"
-#include "../../Device/Toolkit/Utility.h"
+#include "colvillea/Device/Toolkit/CommonStructs.h"
+#include "colvillea/Device/Toolkit/Utility.h"
 
 /**
  * @brief PointLight describes a infinitesimal

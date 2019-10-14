@@ -1,11 +1,12 @@
 #pragma once
-#include "../Camera/Camera.h"
-#include "../../Application/GlobalDefs.h"
-
-#include "../../Application/TWAssert.h"
-#include <optixu_math_namespace.h>
 
 #include <memory>
+
+#include "colvillea/Module/Camera/Camera.h"
+#include "colvillea/Application/GlobalDefs.h"
+#include "colvillea/Application/TWAssert.h"
+
+#include <optixu_math_namespace.h>
 
 
 /**

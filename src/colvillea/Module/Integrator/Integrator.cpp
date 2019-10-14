@@ -1,7 +1,7 @@
 #include "Integrator.h"
-#include "../../Application/TWAssert.h"
-#include "../../Application/GlobalDefs.h"
-#include "../../Device/Toolkit/CommonStructs.h"
+#include "colvillea/Application/TWAssert.h"
+#include "colvillea/Application/GlobalDefs.h"
+#include "colvillea/Device/Toolkit/CommonStructs.h"
 
 optix::Material Integrator::initializeIntegratorMaterialNode()
 {

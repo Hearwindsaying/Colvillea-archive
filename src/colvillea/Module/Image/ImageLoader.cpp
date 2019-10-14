@@ -1,6 +1,6 @@
 #include <locale>
-#include "../../Application/TWAssert.h"
-#include "ImageLoader.h"
+#include "colvillea/Application/TWAssert.h"
+#include "colvillea/Module/Image/ImageLoader.h"
 
 optix::TextureSampler ImageLoader::LoadImageTexture(optix::Context & context, const std::string filename, const optix::float4 defaultColor, bool isOpacityMap)
 {

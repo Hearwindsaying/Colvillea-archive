@@ -7,12 +7,12 @@
 #include <optix_host.h>
 #include <optixu_math_namespace.h>
 
-#include "PointLight.h"
-#include "HDRILight.h"
-#include "QuadLight.h"
-#include "../../Device/Toolkit/CommonStructs.h"
-#include "../../Application/TWAssert.h"
-#include "../../Application/SceneGraph.h"
+#include "colvillea/Module/Light/PointLight.h"
+#include "colvillea/Module/Light/HDRILight.h"
+#include "colvillea/Module/Light/QuadLight.h"
+#include "colvillea/Device/Toolkit/CommonStructs.h"
+#include "colvillea/Application/TWAssert.h"
+#include "colvillea/Application/SceneGraph.h"
 
 class Application;
 

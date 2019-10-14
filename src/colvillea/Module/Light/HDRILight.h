@@ -3,10 +3,10 @@
 
 #include <map>
 
-#include "../Image/ImageLoader.h"
-#include "../../Device/Toolkit/CommonStructs.h"
-#include "../../Device/Toolkit/Utility.h"
-#include "../../Application/GlobalDefs.h"
+#include "colvillea/Module/Image/ImageLoader.h"
+#include "colvillea/Device/Toolkit/CommonStructs.h"
+#include "colvillea/Device/Toolkit/Utility.h"
+#include "colvillea/Application/GlobalDefs.h"
 
 class LightPool;
 

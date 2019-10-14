@@ -9,11 +9,11 @@
 
 #include <GLFW/glfw3.h>
 
-#include "Application.h"
-#include "../Device/Toolkit/CommonStructs.h"
-#include "../Module/Material/MaterialPool.h"
-#include "../Module/Light/LightPool.h"
-#include "SceneGraph.h"
+#include "colvillea/Application/Application.h"
+#include "colvillea/Device/Toolkit/CommonStructs.h"
+#include "colvillea/Module/Material/MaterialPool.h"
+#include "colvillea/Module/Light/LightPool.h"
+#include "colvillea/Application/SceneGraph.h"
 
 #include <iostream>
 #include <locale>
@@ -105,6 +105,8 @@ void create_TestScene(std::shared_ptr<SceneGraph> &sceneGraph, std::unique_ptr<L
 
 int main(int argc, char *argv[])
 {
+    //_CrtSetBreakAlloc(3231);
+
     /* Setup GLFW/GLEW context. */
     auto glfwErrorFunc = [](int error, const char* description)
     {

@@ -1,6 +1,6 @@
 #include "Shape.h"
-#include "../../Application/TWAssert.h"
-#include "../../Device/Toolkit/CommonStructs.h"
+#include "colvillea/Application/TWAssert.h"
+#include "colvillea/Device/Toolkit/CommonStructs.h"
 
 void Shape::setupGeometry()
 {

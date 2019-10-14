@@ -1,8 +1,8 @@
-#include "SobolSampler.h"
+#include "colvillea/Module/Sampler/SobolSampler.h"
 
-#include "SobolMatrices.h"
-#include "../../Device/Toolkit/CommonStructs.h"
-#include "../../Application/TWAssert.h"
+#include "colvillea/Module/Sampler/SobolMatrices.h"
+#include "colvillea/Device/Toolkit/CommonStructs.h"
+#include "colvillea/Application/TWAssert.h"
 
 #include <algorithm>
 

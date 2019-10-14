@@ -1,4 +1,4 @@
-#include "CameraController.h"
+#include "colvillea/Module/Camera/CameraController.h"
 
 
 void CameraController::handleInputGUIEvent(const InputMouseActionType mouseAction, const optix::int2 screenPos)
