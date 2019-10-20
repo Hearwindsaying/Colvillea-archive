@@ -190,7 +190,6 @@ namespace CommonStructs
                              -- also use float4 for padding and sync with nGeometry 
                              to avoid make_float conversion	*/
         optix::float3 tn; /* tangent = cross(dpdu, nn) where dpdu,nn are both normalized */
-        float rayEpsilon;
 
         optix::float2 uv;
         optix::float3 dpdu; /* secondary tangent(i.e. sn), need to be normalized while initializing */

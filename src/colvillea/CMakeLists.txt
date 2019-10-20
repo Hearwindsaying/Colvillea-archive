@@ -79,6 +79,8 @@ set(SOURCE_LIST
 	"${CMAKE_CURRENT_SOURCE_DIR}/Module/Geometry/Quad.h"
 	"${CMAKE_CURRENT_SOURCE_DIR}/Module/Geometry/Shape.cpp"
 	"${CMAKE_CURRENT_SOURCE_DIR}/Module/Geometry/Shape.h"
+	"${CMAKE_CURRENT_SOURCE_DIR}/Module/Geometry/GeometryTrianglesShape.h"
+	"${CMAKE_CURRENT_SOURCE_DIR}/Module/Geometry/GeometryShape.h"
 	"${CMAKE_CURRENT_SOURCE_DIR}/Module/Geometry/TriangleMesh.cpp"
 	"${CMAKE_CURRENT_SOURCE_DIR}/Module/Geometry/TriangleMesh.h"
 	
@@ -195,6 +197,8 @@ OPTIX_add_sample_executable( colvillea
 	${CMAKE_CURRENT_SOURCE_DIR}/Module/Geometry/Quad.h
 	${CMAKE_CURRENT_SOURCE_DIR}/Module/Geometry/Shape.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/Module/Geometry/Shape.h
+	${CMAKE_CURRENT_SOURCE_DIR}/Module/Geometry/GeometryTrianglesShape.h
+	${CMAKE_CURRENT_SOURCE_DIR}/Module/Geometry/GeometryShape.h
 	${CMAKE_CURRENT_SOURCE_DIR}/Module/Geometry/TriangleMesh.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/Module/Geometry/TriangleMesh.h
 	

@@ -33,7 +33,7 @@ void create_CornellBoxScene(std::shared_ptr<SceneGraph> &sceneGraph, std::unique
     //sceneGraph->createPathTracingIntegrator(true, 5);
 
     /* Create sampler. */
-    sceneGraph->createSampler(CommonStructs::SamplerType::HaltonQMCSampler);// define USE_HALTON_SAMPLER to enable Halton
+    sceneGraph->createSampler(CommonStructs::SamplerType::SobolQMCSampler);// define USE_HALTON_SAMPLER to enable Halton
 
     /* Create triangle mesh. */
     sceneGraph->createTriangleMesh(

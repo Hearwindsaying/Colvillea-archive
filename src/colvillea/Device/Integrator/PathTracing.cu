@@ -97,7 +97,7 @@ RT_PROGRAM void ClosestHit_PathTracing()
 			PerRayData_pt prdPathTracing;
 			prdPathTracing.validPT = 0; /* Nothing is hit initially. */
 
-			rtTrace<PerRayData_pt>(sysTopObject, nextRay, prdPathTracing);
+			rtTrace<PerRayData_pt>(sysTopObject, nextRay, prdPathTracing, RT_VISIBILITY_ALL, RT_RAY_FLAG_DISABLE_ANYHIT);
 
 			/* Copy shaderParams and intersection data back. */
 			currentShaderParams           = prdPathTracing.shaderParams;

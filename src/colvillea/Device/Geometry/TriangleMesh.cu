@@ -26,8 +26,104 @@ rtBuffer<int3>   vertexIndexBuffer;
 rtBuffer<int3>   texcoordIndexBuffer;
 rtBuffer<int3>   normalIndexBuffer;
 
-rtDeclareVariable(int, reverseOrientation, , ) = 0;//use char for optimization
 
+RT_PROGRAM void Attributes_TriangleMesh()
+{
+    /* Get primitive index to |vertexIndexBuffer| . */
+    const int primIdx = rtGetPrimitiveIndex();
+    
+    /* Get vertex index to |vertexBuffer|. */
+    const int3 v_idx = vertexIndexBuffer[primIdx];
+
+    const float3 p0 = vertexBuffer[v_idx.x];
+    const float3 p1 = vertexBuffer[v_idx.y];
+    const float3 p2 = vertexBuffer[v_idx.z];
+
+    /* Fill in Differential Geometry |dgShading|. */
+
+    /* Default uv values, if there are no texcoords from obj available. */
+    float2 uv0 = make_float2(0.f, 0.f);
+    float2 uv1 = make_float2(1.f, 0.f);
+    float2 uv2 = make_float2(1.f, 1.f);
+    if (texcoordBuffer.size())
+    {
+        /* Get vertex index to |texcoordBuffer|. */
+        const int3 vt_idx = texcoordIndexBuffer[primIdx];
+        uv0 = texcoordBuffer[vt_idx.x];
+        uv1 = texcoordBuffer[vt_idx.y];
+        uv2 = texcoordBuffer[vt_idx.z];
+    }
+
+    /* Compute deltas for uvs. */
+    float du0_2 = uv0.x - uv2.x;
+    float du1_2 = uv1.x - uv2.x;
+    float dv0_2 = uv0.y - uv2.y;
+    float dv1_2 = uv1.y - uv2.y;
+
+    /* Compute deltas for position. */
+    float3 dp0_2 = p0 - p2, dp1_2 = p1 - p2;
+    float determinant = du0_2 * dv1_2 - dv0_2 * du1_2;
+    if (determinant == 0.0f)
+    {
+        TwUtil::CoordinateSystem(TwUtil::safe_normalize(cross(p2-p0, p1-p0)), dgShading.dpdu, dgShading.dpdv);
+    }
+    else
+    {
+        float invdet = 1.0f / determinant;
+        dgShading.dpdu = ( dv1_2 * dp0_2 - dv0_2 * dp1_2) * invdet;
+        dgShading.dpdv = (-du1_2 * dp0_2 + du0_2 * dp1_2) * invdet;
+    }
+
+    /* Interpolate parametric coordinates uv for triangle. */
+    float2 barycentrics = rtGetTriangleBarycentrics();
+    float b0 = 1.f - barycentrics.x - barycentrics.y;
+    dgShading.uv = b0 * uv0 + barycentrics.x * uv1 + barycentrics.y * uv2;
+
+    /* Compute normalized normal for triangle. 
+     * -- We use |dp0_2|,|dp1_2| to compute normal which relies on 
+     * the winding order of triangle rather than its parameterizations
+     * (texture coordinates). */
+    dgShading.nn = nGeometry = make_float4(TwUtil::safe_normalize(cross(dp0_2, dp1_2)));
+
+    /* Compute shading differential geometry for shading normal, . */
+    if (normalBuffer.size())
+    {
+        float3 ns = make_float3(0.f);
+        float3 &ss = dgShading.dpdu;
+        float3 ts = make_float3(0.f);
+
+        /* Get vertex index to |normalBuffer|. */
+        const int3 vn_idx = normalIndexBuffer[primIdx];
+
+        /* Interpolate shading normal. */
+        ns = b0 * normalBuffer[vn_idx.x] + barycentrics.x * normalBuffer[vn_idx.y] + barycentrics.y * normalBuffer[vn_idx.z];    
+        ns = TwUtil::safe_normalize(ns);
+
+        /* Compute shading bitangent. */
+        ts = cross(ss, ns);
+        if (TwUtil::sqr_length(ts) > 0.f)
+        {
+            ts = TwUtil::safe_normalize(ts);
+            ss = cross(ts, ns);
+        }
+        else
+            TwUtil::CoordinateSystem(ns, ss, ts);
+
+        /* ss is a reference to dgShading.dpdu.
+         * -- dgShading.dpdu = ss; */
+        dgShading.dpdv = ts;
+        dgShading.nn = make_float4(cross(dgShading.dpdu, dgShading.dpdv));
+    }
+
+    /* Keep geometric normal on the same side of shading normal. */
+    auto dot3f = [](const float4& a, const float4& b) { return a.x * b.x + a.y * b.y + a.z * b.z; };
+    nGeometry = (dot3f(nGeometry, dgShading.nn) < 0.f) ? -nGeometry : nGeometry;
+
+    dgShading.dpdu = TwUtil::safe_normalize(dgShading.dpdu);
+    dgShading.tn = cross(make_float3(dgShading.nn), dgShading.dpdu);
+}
+
+#ifdef OLDCODE_FOR_TRIANGLEMESH
 RT_PROGRAM void BoundingBox_TriangleMesh(int primIdx, float result[6])
 {
 	//note that bouding box program always consider that aabb is specified in object space.
@@ -198,5 +294,6 @@ RT_PROGRAM void Intersect_TriangleMesh(int primIdx)
 		rtReportIntersection(/*material_buffer[primIdx]*/0);
 	}
 }
+#endif // OLDCODE_FOR_TRIANGLEMESH
 
 

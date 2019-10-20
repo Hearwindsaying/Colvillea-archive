@@ -23,29 +23,21 @@ public:
 	 * @brief constructor for Shape class, collect all necessary
 	 * parameters to initialize and set up GeometryInstance.
 	 */
-	Shape(optix::Context context, const std::map<std::string, optix::Program> &programsMap, const std::string &shapeClassName, optix::Material integrator, const int materialIndex) : 
-        m_context(context), m_programsMap(programsMap), m_primitiveCount(-1), 
-        m_materialIndex(materialIndex), m_integrator(integrator)
+	Shape(optix::Context context, const std::map<std::string, optix::Program> &programsMap, optix::Material integrator, const int materialIndex) : 
+        m_context(context), m_programsMap(programsMap), 
+        m_materialIndex(materialIndex), m_integrator(integrator), m_primitiveCount(-1)
 	{
-		std::cout << "[Info] Derived class name from Shape is: " << shapeClassName << std::endl;
-
-		/* Load boundingbox and intersection program */
-        // todo:delegate to loadShape(), if not, it's not possible to construct Shape object at the moment!
-		auto programItr = this->m_programsMap.find("BoundingBox_" + shapeClassName);
-		TW_ASSERT(programItr != this->m_programsMap.end());
-		this->m_boundingBoxProgram = programItr->second;
-
-		programItr = this->m_programsMap.find("Intersect_" + shapeClassName);
-		TW_ASSERT(programItr != this->m_programsMap.end());
-		this->m_intersectionProgram = programItr->second;
+		
 	}
 
 	/**
 	 * @brief Setup shape properties and prepare for SceneGraph.
-	 * @param integrator material node for specifying an integrator
-	 * @param materialIndex index of material parameter stack
 	 */
     virtual void initializeShape() = 0;
+
+    /************************************************************************/
+    /*                         Getters & Setters                            */
+    /************************************************************************/
 
 	/**
 	 * @brief materialIndex setter
@@ -108,14 +100,23 @@ public:
 
 
 protected:
+    /************************************************************************/
+    /*              Helper functions for initialization                     */
+    /************************************************************************/
+
 	/**
 	 * @brief Setup geometry for the shape, including creating
 	 * geometry node, setting bounding box program and intersect
 	 * program, setting appropriate parameters, etc.
 	 *
-	 * This is a part of Shape::loadShape().
+	 * This is a part of Shape::initializeShape().
+	 * 
+	 * @note This is designed to be virtual (a interface) which
+	 * needs further information of the shape's underlying geometry
+	 * type (whether it is GeometryTriangles or Geometry) for
+	 * implementation.
 	 */
-	virtual void setupGeometry();
+    virtual void setupGeometry() = 0;
 
 	/**
 	 * @brief Setup geometryInstance for the shape, including
@@ -133,12 +134,19 @@ protected:
 	 *
 	 * Fetch |m_integrator| program from SceneGraph
 	 *
-	 * This is a part of Shape::loadShape().
+	 * This is a part of Shape::initializeShape().
+	 * 
+     * @note This is designed to be virtual (a interface) which
+     * needs further information of the shape's underlying geometry
+     * type (whether it is GeometryTriangles or Geometry) for
+     * implementation.
 	 */
-	virtual void setupGeometryInstance(optix::Material integrator);
+    virtual void setupGeometryInstance(optix::Material integrator) = 0;
 
 private:
-	
+    /************************************************************************/
+    /*                             Inner Setters                            */
+    /************************************************************************/
 
 	/**
 	 * @brief Setup material parameter by |m_materialIndex|.
@@ -146,7 +154,7 @@ private:
 	 * a variable setting to GeometryInstance node will be
 	 * used instead.
 	 *
-	 * This is a part of Shape::loadShape() and setter
+	 * This is a part of Shape::initializeShape() and setter
 	 * for updating material parameters as well.
 	 */
 	void updateMaterialParameter()
@@ -156,19 +164,19 @@ private:
 		this->m_geometryInstance["materialIndex"]->setInt(this->m_materialIndex);
 	}
 
-
-	
-
 protected:
     optix::Context m_context;
     const std::map<std::string, optix::Program> &m_programsMap;
 
+    /// The holding underlying geometry could be GeometryTriangles or Geometry.
 	optix::GeometryInstance m_geometryInstance;
-	optix::Geometry         m_geometry;
-	optix::Program          m_boundingBoxProgram;
-	optix::Program          m_intersectionProgram;
-	unsigned int            m_primitiveCount;
+	
+    /// Count of the shape.
+    unsigned int    m_primitiveCount;
 
+    /// Integrator for the shape.
     optix::Material m_integrator;
+
+    /// Material index to |materialBuffer|.
 	int             m_materialIndex;
 };

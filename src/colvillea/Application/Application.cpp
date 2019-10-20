@@ -1,4 +1,4 @@
-#include "Application.h"
+#include "colvillea/Application/Application.h"
 
 #include <algorithm>
 #include <chrono>
@@ -23,12 +23,12 @@
 //#endif
 #include <GLFW/glfw3.h>
 
-#include "TWAssert.h"
-#include "GlobalDefs.h"
-#include "../Device/Toolkit/CommonStructs.h"
-#include "../Module/Camera/CameraController.h"
-#include "../Module/Image/ImageLoader.h"
-#include "SceneGraph.h"
+#include "colvillea/Application/TWAssert.h"
+#include "colvillea/Application/GlobalDefs.h"
+#include "colvillea/Device/Toolkit/CommonStructs.h"
+#include "colvillea/Module/Camera/CameraController.h"
+#include "colvillea/Module/Image/ImageLoader.h"
+#include "colvillea/Application/SceneGraph.h"
 
 #include <src/sampleConfig.h>
 
@@ -422,13 +422,13 @@ void Application::createProgramsFromPTX()
 
     loadProgram("SphericalSkybox", { "Miss_Default" });
 
-    loadProgram("TriangleMesh", { "BoundingBox_TriangleMesh" , "Intersect_TriangleMesh" });
+    loadProgram("TriangleMesh", { "Attributes_TriangleMesh" });
     loadProgram("Quad",         { "BoundingBox_Quad", "Intersect_Quad" });
 
     loadProgram("DirectLighting", { "ClosestHit_DirectLighting" });
     loadProgram("PathTracing",    { "ClosestHit_PathTracing", "ClosestHit_PTRay_PathTracing" });
 
-    loadProgram("HitProgram", { "AnyHit_ShadowRay_Shape" });
+    loadProgram("HitProgram", { "ClosestHit_ShadowRay_GeometryTriangles" });
 
 
     /* Load Bindless Callable programs. */
@@ -557,7 +557,8 @@ void Application::initializeContext()
     this->m_context = Context::create();
 
     /* Setup context parameters. */
-    this->m_context->setStackSize(this->m_stackSize);
+    this->m_context->setMaxTraceDepth(5);
+    this->m_context->setMaxCallableProgramDepth(5);
     this->m_context->setPrintEnabled(true);
 
     if (this->m_optixReportLevel > 0)

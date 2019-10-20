@@ -34,7 +34,7 @@ public:
         m_programsMap(programsMap), m_context(context),
         m_filmWidth(filmWidth), m_filmHeight(filmHeight), m_application(application)
 	{
-		this->initGraph();
+		this->initializeGraph();
 	}
 
 private:
@@ -45,18 +45,39 @@ private:
     /**
      * @brief Initialize OptiX Graph nodes that should be set once.
      */
-    void initGraph()
+    void initializeGraph()
     {
-        /* Create top geometryGroup and top Acceleration structure. */
+        /* Create GeometryGroups, containing GeometryTriangles and Geometry, respectively. */
         auto& context = this->m_context;
-        this->m_topGeometryGroup = context->createGeometryGroup();
+        this->m_topGeometryGroup_GeometryTriangles = context->createGeometryGroup();
+        this->m_topGeometryGroup_Geometry          = context->createGeometryGroup();
 
-        this->m_topAcceleration = context->createAcceleration("Trbvh");//todo:use enum
-        this->m_topAcceleration->setProperty("chunk_size", "-1");
-        this->m_topAcceleration->setProperty("vertex_buffer_name", "vertexBuffer");
-        this->m_topAcceleration->setProperty("index_buffer_name", "indexBuffer");
+        /* Create Top Group containing GeometryGroups. */
+        this->m_topGroup = context->createGroup();
 
-        this->m_topGeometryGroup->setAcceleration(this->m_topAcceleration);
+        /* Disable anyhits for GeometryGroups. */
+        this->m_topGeometryGroup_GeometryTriangles->setFlags(RTinstanceflags::RT_INSTANCE_FLAG_DISABLE_ANYHIT);
+        this->m_topGeometryGroup_Geometry->setFlags(RTinstanceflags::RT_INSTANCE_FLAG_DISABLE_ANYHIT);
+
+
+        /* Create Accelerations for GeometryGroups and Top Group. */
+        optix::Acceleration geometryTrianglesAccel = context->createAcceleration("Trbvh");
+                            geometryTrianglesAccel->setProperty("chunk_size", "-1");
+                            geometryTrianglesAccel->setProperty("vertex_buffer_name", "vertexBuffer");
+                            geometryTrianglesAccel->setProperty("index_buffer_name",  "indexBuffer");
+        optix::Acceleration geometryAccel     = context->createAcceleration("Trbvh");
+        optix::Acceleration groupAccel = context->createAcceleration("Trbvh");
+        
+
+        /* Set accelerations. */
+        this->m_topGeometryGroup_GeometryTriangles->setAcceleration(geometryTrianglesAccel);
+        this->m_topGeometryGroup_Geometry->setAcceleration(geometryAccel);
+        this->m_topGroup->setAcceleration(groupAccel);
+
+
+        /* Add GeometryTriangles GeometryGroup and Geometry GeometryGroup to top Group. */
+        this->m_topGroup->addChild(this->m_topGeometryGroup_GeometryTriangles);
+        this->m_topGroup->addChild(this->m_topGeometryGroup_Geometry);
     }
 
 public:
@@ -100,7 +121,7 @@ public:
         /* Converting unique_ptr to shared_ptr. */
         std::shared_ptr<TriangleMesh> triMesh = TriangleMesh::createTriangleMesh(this->m_context, this->m_programsMap, meshFileName, this->m_integrator->getIntegratorMaterial(), materialIndex);
 
-		m_shapes.push_back(triMesh);
+        m_shapes_GeometryTriangles.push_back(triMesh);
 	}
 
     /**
@@ -123,7 +144,7 @@ public:
         std::shared_ptr<Quad> quad = Quad::createQuad(this->m_context, this->m_programsMap, objectToWorld, this->m_integrator->getIntegratorMaterial(), materialIndex);
         if(flipNormal)
             quad->flipGeometryNormal();
-        m_shapes.push_back(quad);
+        m_shapes_Geometry.push_back(quad);
 
         return quad;
     }
@@ -149,7 +170,7 @@ public:
         std::shared_ptr<Quad> quad = Quad::createQuad(this->m_context, this->m_programsMap, objectToWorld, quadLightIndex, this->m_integrator->getIntegratorMaterial(), materialIndex);
         if(flipNormal)
             quad->flipGeometryNormal();
-        m_shapes.push_back(quad);
+        m_shapes_Geometry.push_back(quad);
 
         return quad;
     }
@@ -212,14 +233,21 @@ public:
 	 */
 	void buildGraph()
 	{
-		/* Iterate all shapes for adding to geometryGroup. */
-		for (const auto& shape : this->m_shapes)
+		/* Iterate all GeometryTrianglesShape for adding to |m_topGeometryGroup_GeometryTriangles|. */
+		for (const auto& shape : this->m_shapes_GeometryTriangles)
 		{
-			this->m_topGeometryGroup->addChild(shape->getGeometryInstance());
+			this->m_topGeometryGroup_GeometryTriangles->addChild(shape->getGeometryInstance());
 		}
 
-        this->m_context["sysTopObject"]->set(this->m_topGeometryGroup);
-        this->m_context["sysTopShadower"]->set(this->m_topGeometryGroup);
+        /* Iterate all GeometryShape for adding to |m_topGeometryGroup_Geometry|. */
+        for (const auto& shape : this->m_shapes_Geometry)
+        {
+            this->m_topGeometryGroup_Geometry->addChild(shape->getGeometryInstance());
+        }
+
+
+        this->m_context["sysTopObject"]->set(this->m_topGroup);
+        this->m_context["sysTopShadower"]->set(this->m_topGroup);
 	}
 
 
@@ -239,12 +267,15 @@ private:
     optix::Context                               m_context;
     unsigned int m_filmWidth, m_filmHeight;
 
-	std::vector<std::shared_ptr<Shape>>          m_shapes;
-
     std::unique_ptr<Integrator> m_integrator;
     std::unique_ptr<Sampler>    m_sampler;   // todo:We could only hold one instance
     std::shared_ptr<Camera>     m_camera;    // todo:We could only hold one instance
 
-	optix::GeometryGroup  m_topGeometryGroup;
-	optix::Acceleration   m_topAcceleration;
+
+    std::vector<std::shared_ptr<GeometryTrianglesShape>> m_shapes_GeometryTriangles;
+    std::vector<std::shared_ptr<GeometryShape>>          m_shapes_Geometry;
+
+	optix::GeometryGroup  m_topGeometryGroup_GeometryTriangles;
+    optix::GeometryGroup  m_topGeometryGroup_Geometry;
+    optix::Group          m_topGroup;
 };

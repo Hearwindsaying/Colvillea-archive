@@ -171,13 +171,15 @@ RT_PROGRAM void RayGeneration_PinholeCamera()
 	float3 rayDir = rayOrg;
 	TwUtil::GenerateRay(pFilm, rayOrg, rayDir, RasterToCamera, CameraToWorld);
 
+//     rtPrintf("%d %d\n", sysLaunch_index.x, sysLaunch_index.y);
+
 	/* Make ray and trace, goint to next raytracing pipeline phase. */
 	Ray ray = make_Ray(rayOrg, rayDir, toUnderlyingValue(RayType::Radiance), sysSceneEpsilon, RT_DEFAULT_MAX);
 
     CommonStructs::PerRayData_radiance prdRadiance;
 	prdRadiance.radiance = make_float4(0.f);
 
-	rtTrace<CommonStructs::PerRayData_radiance>(sysTopObject, ray, prdRadiance);
+	rtTrace<CommonStructs::PerRayData_radiance>(sysTopObject, ray, prdRadiance, RT_VISIBILITY_ALL, RT_RAY_FLAG_DISABLE_ANYHIT);
 
 	/*--------------------------------------------------------------------------------*/
 	/*----Perform filtering and reconstruction so as to write to the output buffer----*/

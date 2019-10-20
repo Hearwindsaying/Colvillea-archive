@@ -3,7 +3,7 @@
 #include <optix_host.h>
 #include <optixu_math_namespace.h>
 
-#include "colvillea/Module/Geometry/Shape.h"
+#include "colvillea/Module/Geometry/GeometryShape.h"
 #include "colvillea/Device/Toolkit/Utility.h"
 #include "tinyobjloader/tiny_obj_loader.h"
 
@@ -19,7 +19,7 @@ class Application;
  * load a trianglemesh. It also helps to improve
  * performance while applying to quadlight.
  */
-class Quad : public Shape
+class Quad : public GeometryShape
 {
 public:
     /**
@@ -73,7 +73,7 @@ public:
      * @note |objectToWorld| matrix should have no scale component in z-axis.
      */
     Quad(optix::Context context, const std::map<std::string, optix::Program> &programsMap, const optix::Matrix4x4 &objectToWorld, optix::Material integrator, const int materialIndex)
-        : Shape(context, programsMap, "Quad", integrator, materialIndex), m_objectToWorld(objectToWorld), m_worldToObject(objectToWorld.inverse())
+        : GeometryShape(context, programsMap, "Quad", integrator, materialIndex), m_objectToWorld(objectToWorld), m_worldToObject(objectToWorld.inverse())
     {
         /* Check whether transform matrix has z-component scale. */
         if (TwUtil::hasZScale(objectToWorld))
@@ -88,7 +88,7 @@ public:
      * @note |objectToWorld| matrix should have no scale component in z-axis.
      */
     Quad(optix::Context context, const std::map<std::string, optix::Program> &programsMap, const optix::Matrix4x4 &objectToWorld, int quadLightIndex, optix::Material integrator, const int materialIndex)
-        : Shape(context, programsMap, "Quad", integrator, materialIndex),
+        : GeometryShape(context, programsMap, "Quad", integrator, materialIndex),
           m_objectToWorld(objectToWorld), m_worldToObject(objectToWorld.inverse()), m_quadLightIndex(quadLightIndex), m_isAreaLight(true)
     {
         TW_ASSERT(quadLightIndex >= 0);
@@ -105,7 +105,7 @@ public:
 
         /* Create nodes for SceneGraph and initialize. */
         this->setupGeometry();
-        this->setupGeometryInstance(this->m_integrator);
+        GeometryShape::setupGeometryInstance(this->m_integrator);
 
         this->setMaterialIndex(this->m_materialIndex);
         this->updateMatrixParameter();
@@ -151,14 +151,15 @@ public:
         return TwUtil::getXScale(this->m_objectToWorld) * TwUtil::getYScale(this->m_objectToWorld) * 4;
     }
 
-private:
-    void setupGeometry()
+protected:
+    void setupGeometry() override
     {
         /* Set primitive count and call Shape::setupGeometry(). */
         this->m_primitiveCount = 1;
-        Shape::setupGeometry();
+        GeometryShape::setupGeometry();
     }
 
+private:
     void updateMatrixParameter()
     {
         TW_ASSERT(this->m_geometryInstance);

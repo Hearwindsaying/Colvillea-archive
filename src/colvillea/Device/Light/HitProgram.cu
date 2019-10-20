@@ -17,12 +17,28 @@ rtDeclareVariable(PerRayData_shadow, prdShadow, rtPayload, );
 rtDeclareVariable(int, alphaTexture, , ) = RT_TEXTURE_ID_NULL;//todo:review the initialize value
 rtDeclareVariable(DifferentialGeometry, dgShading, attribute dgShading, );
 
-//////////////////////////////////////////////////////////////////////////
-//AnyHit program for shadow ray
-RT_PROGRAM void AnyHit_ShadowRay_Shape(void)
+//Deprecated since OptiX 6.0
+//RT_PROGRAM void AnyHit_ShadowRay_Geometry(void)
+//{
+//    prdShadow.blocked = 1;
+//    rtTerminateRay();
+//}
+
+/**
+ * @brief ClosestHit program for shadow ray. Starting
+ * from OptiX 6.0, it's recommended using 
+ * ClosestHit & rtTrace for shadow-like ray and built-in
+ * triangles. We can disable anyhit completely if there
+ * is no alpha texture for cutout material in scene.
+ * 
+ * @note When RTrayflags::RT_RAY_FLAG_TERMINATE_ON_FIRST_HIT
+ * is set, ray is terminated after first hit, which is reported
+ * as closest hit as well and call the corresponding ClosestHit
+ * program.
+ */
+RT_PROGRAM void ClosestHit_ShadowRay_GeometryTriangles()
 {
-	prdShadow.blocked = 1;
-	rtTerminateRay();
+    prdShadow.blocked = 1;
 }
 
 //////////////////////////////////////////////////////////////////////////
