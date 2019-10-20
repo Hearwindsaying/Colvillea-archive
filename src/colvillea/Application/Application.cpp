@@ -394,8 +394,19 @@ void Application::outputDeviceInfo()
 
         int cudaDeviceOrdinal = 0;
         RT_CHECK_ERROR_NO_CONTEXT(rtDeviceGetAttribute(i, RT_DEVICE_ATTRIBUTE_CUDA_DEVICE_ORDINAL, sizeof(cudaDeviceOrdinal), &cudaDeviceOrdinal));
-        std::cout << "  CUDA Device Ordinal: " << cudaDeviceOrdinal << std::endl << std::endl;
+        std::cout << "  CUDA Device Ordinal: " << cudaDeviceOrdinal << std::endl;
+
+        int rtcoreVersion = 0;
+        RT_CHECK_ERROR_NO_CONTEXT(rtDeviceGetAttribute(i, RT_DEVICE_ATTRIBUTE_RTCORE_VERSION, sizeof(rtcoreVersion), &rtcoreVersion));
+        std::cout << "  RTCore version: " << rtcoreVersion << std::endl;
     }
+
+    //todo: check for the issue that OptiX doesn't get correct RT_GLOBAL_ATTRIBUTE_ENABLE_RTX back to enableRTX.
+    int enableRTX = 1;
+    RT_CHECK_ERROR_NO_CONTEXT(rtGlobalSetAttribute(RT_GLOBAL_ATTRIBUTE_ENABLE_RTX, sizeof(enableRTX), &enableRTX));
+    RT_CHECK_ERROR_NO_CONTEXT(rtGlobalGetAttribute(RT_GLOBAL_ATTRIBUTE_ENABLE_RTX, sizeof(enableRTX), &enableRTX));
+
+    std::cout << " RTX Execution enabled: " << enableRTX << std::endl;
 }
 
 std::string Application::getPTXFilepath(const std::string & program)
