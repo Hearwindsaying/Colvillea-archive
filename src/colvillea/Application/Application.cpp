@@ -34,9 +34,9 @@
 
 using namespace optix;
 
-Application::Application(GLFWwindow* glfwWindow, const uint32_t filmWidth, const uint32_t filmHeight, const int optixReportLevel, const uint32_t optixStackSize) : 
+Application::Application(GLFWwindow* glfwWindow, const uint32_t filmWidth, const uint32_t filmHeight, const int optixReportLevel) : 
     m_filmWidth(filmWidth), m_filmHeight(filmHeight), 
-    m_optixReportLevel(optixReportLevel), m_stackSize(optixStackSize),
+    m_optixReportLevel(optixReportLevel),
     m_sysIterationIndex(0),m_resetRenderParamsNotification(true),
     m_sceneGraph(nullptr), m_cameraController(nullptr)
 {
@@ -557,8 +557,8 @@ void Application::initializeContext()
     this->m_context = Context::create();
 
     /* Setup context parameters. */
-    this->m_context->setMaxTraceDepth(5);
-    this->m_context->setMaxCallableProgramDepth(5);
+    this->m_context->setMaxTraceDepth(2);
+    this->m_context->setMaxCallableProgramDepth(1);
     this->m_context->setPrintEnabled(true);
 
     if (this->m_optixReportLevel > 0)

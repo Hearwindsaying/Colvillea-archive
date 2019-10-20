@@ -44,7 +44,7 @@ public:
      * 
      * @see Application::buildSceneGraph()
      */
-    Application(GLFWwindow* glfwWindow, const uint32_t filmWidth, const uint32_t filmHeight, const int optixReportLevel, const uint32_t optixStackSize);
+    Application(GLFWwindow* glfwWindow, const uint32_t filmWidth, const uint32_t filmHeight, const int optixReportLevel);
 
     /**
      * @brief Destroy context and release resouces.
@@ -220,7 +220,6 @@ private:
 private:
     /// OptiX environment settings
     optix::Context m_context;
-    RTsize         m_stackSize;
     int            m_optixReportLevel;
     OptixUsageReportLogger m_optixUsageReportLogger;
 

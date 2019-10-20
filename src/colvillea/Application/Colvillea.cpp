@@ -161,7 +161,7 @@ int main(int argc, char *argv[])
     const float fov = 60.f;
 
     /* Create application instance first.*/
-    std::unique_ptr<Application> application = std::make_unique<Application>(glfwWindow, filmWidth, filmHeight, 0, 1200);
+    std::unique_ptr<Application> application = std::make_unique<Application>(glfwWindow, filmWidth, filmHeight, 0);
 
     /* Create sceneGraph instance. */
     std::shared_ptr<SceneGraph> sceneGraph = std::make_unique<SceneGraph>(application.get(), application->getProgramsMap(), application->getContext(), filmWidth, filmHeight);
