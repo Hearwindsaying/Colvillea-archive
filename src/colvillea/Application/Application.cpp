@@ -137,8 +137,8 @@ void Application::drawWidget()
     {
         static const ImGuiWindowFlags window_flags = ImGuiWindowFlags_None;
 
-        ImGui::SetNextWindowPos(ImVec2(-1.0f, 826.0f));
-        ImGui::SetNextWindowSize(ImVec2(550, 200), ImGuiCond_FirstUseEver);
+        //ImGui::SetNextWindowPos(ImVec2(-1.0f, 826.0f));
+        //ImGui::SetNextWindowSize(ImVec2(550, 200), ImGuiCond_FirstUseEver);
         if (!ImGui::Begin("System", NULL, window_flags))
         {
             // Early out if the window is collapsed, as an optimization.
@@ -310,7 +310,7 @@ void Application::drawRenderView()
     static const ImGuiWindowFlags window_flags = ImGuiWindowFlags_NoCollapse;
     //ImGui::SetNextWindowPos(ImVec2(733.0f, 58.0f));
     //ImGui::SetNextWindowSize(ImVec2(1489.0f, 810.0f));
-    bool showWindow = true;
+    static bool showWindow = true;
     if (!ImGui::Begin("RenderView", &showWindow, window_flags))
     {
         // Early out if the window is collapsed, as an optimization.
@@ -318,8 +318,12 @@ void Application::drawRenderView()
         return;
     }
 
-    /* Handle mouse input event for RenderView. */
-    this->handleInputEvent(ImGui::IsWindowHovered());
+    /* Handle mouse input event for RenderView.
+     * -- Note that there is a bug when there are multiple windows inside
+     * -- RenderView window (dragging titlebar will also lead to camera changing. 
+     * todo: fix this setting |isTitleBarHovering| to true for other windows. */
+    if(!ImGui::IsItemHovered())
+        this->handleInputEvent(ImGui::IsWindowHovered());
 
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, this->m_renderViewTexture);
@@ -490,6 +494,9 @@ void Application::initializeImGui(GLFWwindow *glfwWindow)
     //io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;         // Enable Multi-Viewport / Platform Windows
     //io.ConfigViewportsNoAutoMerge = true;
     //io.ConfigViewportsNoTaskBarIcon = true;
+    
+    /* ImGui window could be moved only while dragging titlebar. */
+    io.ConfigWindowsMoveFromTitleBarOnly = true;
 
     /* Setup Platform/Renderer bindings. */
     ImGui_ImplGlfw_InitForOpenGL(glfwWindow, true);
