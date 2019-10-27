@@ -114,18 +114,11 @@ set(SOURCE_LIST
 )
 
 set(SOURCE_LIST_LIB
-    "${CMAKE_CURRENT_SOURCE_DIR}/../gl/glew.c"
-	"${CMAKE_CURRENT_SOURCE_DIR}/../gl/glew.h"
-	"${CMAKE_CURRENT_SOURCE_DIR}/../gl/wglew.h"
-	
 	"${CMAKE_CURRENT_SOURCE_DIR}/../freeImage/FreeImage.h"
 	"${CMAKE_CURRENT_SOURCE_DIR}/../freeImage/FreeImagePlus.h"
 	
 	"${CMAKE_CURRENT_SOURCE_DIR}/../tinyobjloader/tiny_obj_loader.cc"
 	"${CMAKE_CURRENT_SOURCE_DIR}/../tinyobjloader/tiny_obj_loader.h"
-	
-	"${CMAKE_CURRENT_SOURCE_DIR}/../glfw/glfw3.h"
-	"${CMAKE_CURRENT_SOURCE_DIR}/../glfw/glfw3native.h"
 )
 
 if(OPENGL_FOUND)
@@ -233,17 +226,11 @@ OPTIX_add_sample_executable( colvillea
 	${CMAKE_CURRENT_SOURCE_DIR}/Module/Sampler/SobolSampler.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/Module/Sampler/SobolSampler.h
 
-	${CMAKE_CURRENT_SOURCE_DIR}/../gl/glew.c
-	${CMAKE_CURRENT_SOURCE_DIR}/../gl/glew.h
-	${CMAKE_CURRENT_SOURCE_DIR}/../gl/wglew.h
-	
 	${CMAKE_CURRENT_SOURCE_DIR}/../freeImage/FreeImage.h
 	${CMAKE_CURRENT_SOURCE_DIR}/../freeImage/FreeImagePlus.h
 	
 	${CMAKE_CURRENT_SOURCE_DIR}/../tinyobjloader/tiny_obj_loader.cc
 	${CMAKE_CURRENT_SOURCE_DIR}/../tinyobjloader/tiny_obj_loader.h
-	
-	${CMAKE_CURRENT_SOURCE_DIR}/../glfw/glfw3.h
-	${CMAKE_CURRENT_SOURCE_DIR}/../glfw/glfw3native.h
+
     )
 

@@ -1,15 +1,11 @@
 #pragma once
 
-#if !defined(NDEBUG)
-#if defined(_WIN32) // Windows 32/64-bit
-#include <windows.h>
-#define DBGBREAK() DebugBreak();
-#else
-#define DBGBREAK() __builtin_trap();
-#endif
-#define TW_ASSERT(expr) if (!(expr)) DBGBREAK()
+#ifndef NDEBUG
+#if defined(_MSC_VER) 
+#define TW_ASSERT(expr) if (!(expr)) __debugbreak();
 #else
 #define TW_ASSERT(expr)
+#endif
 #endif
 
 #define RT_CHECK_ERROR_NO_CONTEXT( func ) \

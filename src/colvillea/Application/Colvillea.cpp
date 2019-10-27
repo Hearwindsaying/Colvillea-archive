@@ -1,6 +1,16 @@
+#include <iostream>
+#include <locale>
+#include <string>
+
 #include <imgui/imgui.h>
 #include <imgui/imgui_impl_glfw.h>
 #include <imgui/imgui_impl_opengl3.h>
+
+#include "colvillea/Application/Application.h"
+#include "colvillea/Device/Toolkit/CommonStructs.h"
+#include "colvillea/Module/Material/MaterialPool.h"
+#include "colvillea/Module/Light/LightPool.h"
+#include "colvillea/Application/SceneGraph.h"
 
 // About Desktop OpenGL function loaders:
 //  Modern desktop OpenGL doesn't have a standard portable header file to load OpenGL function pointers.
@@ -12,16 +22,6 @@
 #include <GLFW/glfw3.h>
 
 
-
-#include "colvillea/Application/Application.h"
-#include "colvillea/Device/Toolkit/CommonStructs.h"
-#include "colvillea/Module/Material/MaterialPool.h"
-#include "colvillea/Module/Light/LightPool.h"
-#include "colvillea/Application/SceneGraph.h"
-
-#include <iostream>
-#include <locale>
-#include <string>
 
 using namespace optix;
 

@@ -2,6 +2,8 @@
 #include "colvillea/Application/TWAssert.h"
 #include "colvillea/Module/Image/ImageLoader.h"
 
+#include "FreeImage/FreeImagePlus.h"
+
 optix::TextureSampler ImageLoader::LoadImageTexture(optix::Context & context, const std::string filename, const optix::float4 defaultColor, bool isOpacityMap)
 {
 	if (isOpacityMap)
