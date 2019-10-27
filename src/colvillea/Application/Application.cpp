@@ -74,9 +74,11 @@ Application::~Application()
     this->m_context->destroy();
     std::cout << "[Info] Context has been destroyed." << std::endl;
 
-    ImGui_ImplOpenGL3_Shutdown();
+    /* Don't destroy OpenGL objects inside a destructor.
+     * -- See also: https://sourceforge.net/p/glfw/discussion/247562/thread/95ae0d7a/. */
+    /*ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplGlfw_Shutdown();
-    ImGui::DestroyContext();
+    ImGui::DestroyContext();*/
 }
 
 
@@ -305,9 +307,10 @@ void Application::drawRenderView()
 
     /* Draw RenderView widget. */
     static const ImGuiWindowFlags window_flags = ImGuiWindowFlags_NoCollapse;
-    ImGui::SetNextWindowPos(ImVec2(733.0f, 58.0f));
-    ImGui::SetNextWindowSize(ImVec2(1489.0f, 810.0f));
-    if (!ImGui::Begin("RenderView", NULL, window_flags))
+    //ImGui::SetNextWindowPos(ImVec2(733.0f, 58.0f));
+    //ImGui::SetNextWindowSize(ImVec2(1489.0f, 810.0f));
+    bool showWindow = true;
+    if (!ImGui::Begin("RenderView", &showWindow, window_flags))
     {
         // Early out if the window is collapsed, as an optimization.
         ImGui::End();
@@ -483,7 +486,7 @@ void Application::initializeImGui(GLFWwindow *glfwWindow)
     ImGuiIO& io = ImGui::GetIO(); (void)io;
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;       // Enable Keyboard Controls
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;           // Enable Docking
-    io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;         // Enable Multi-Viewport / Platform Windows
+    //io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;         // Enable Multi-Viewport / Platform Windows
     //io.ConfigViewportsNoAutoMerge = true;
     //io.ConfigViewportsNoTaskBarIcon = true;
 
