@@ -248,7 +248,7 @@ add_subdirectory( src/glfw )
 #add_subdirectory( src/tinyobjloader )
 
 ##################################################################
-# FREEIMAGE compilation
+# FREEIMAGE compilation #note:use target_link_libraries instead
 #include_directories( ${CMAKE_CURRENT_SOURCE_DIR}/src )
 #add_subdirectory( src/freeimage )
 
@@ -290,11 +290,18 @@ function(OPTIX_add_sample_executable target_name)
   # rule that specifies this linkage.
   target_link_libraries( ${target_name}
     optix
-    glfw
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../dependencies/glfw3.lib
     imgui
     ${OPENGL_gl_LIBRARY}
     ${optix_rpath}
     )
+	#target_link_libraries( ${target_name}
+    #optix
+    #${CMAKE_CURRENT_SOURCE_DIR}/dependencies/glfw3.lib #hack for finding glfw3.lib
+    #imgui
+    #${OPENGL_gl_LIBRARY}
+    #${optix_rpath}
+    #)
   if(USING_GNU_CXX)
     target_link_libraries( ${target_name} m ) # Explicitly link against math library (C samples don't do that by default)
   endif()

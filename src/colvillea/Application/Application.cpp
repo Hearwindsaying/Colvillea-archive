@@ -11,17 +11,24 @@
 #include <string>
 
 #include <imgui/imgui.h>
+#include <imgui/imgui_impl_glfw.h>
+#include <imgui/imgui_impl_opengl3.h>
 
-//#define IMGUI_DEFINE_MATH_OPERATORS 1
-//#include <imgui/imgui_internal.h>
+// About Desktop OpenGL function loaders:
+//  Modern desktop OpenGL doesn't have a standard portable header file to load OpenGL function pointers.
+//  Helper libraries are often used for this purpose! We use glew here.
 
-#include <imgui/imgui_impl_glfw_gl2.h> //legacy
+#include <gl/glew.h>
 
-#include <GL/glew.h>
-//#if defined( _WIN32 )
-//#include <GL/wglew.h> //"HGPUNV" redefinition
-//#endif
+// Include glfw3.h after our OpenGL definitions
 #include <GLFW/glfw3.h>
+
+// [Win32] Our example includes a copy of glfw3.lib pre-compiled with VS2010 to maximize ease of testing and compatibility with old VS compilers.
+// To link with VS2010-era libraries, VS2015+ requires linking with legacy_stdio_definitions.lib, which we do using this pragma.
+// Your own project should not be affected, as you are likely to link with a newer binary of GLFW that is adequate for your version of Visual Studio.
+#if defined(_MSC_VER) && (_MSC_VER >= 1900) && !defined(IMGUI_DISABLE_WIN32_FUNCTIONS)
+#pragma comment(lib, "legacy_stdio_definitions")
+#endif
 
 #include "colvillea/Application/TWAssert.h"
 #include "colvillea/Application/GlobalDefs.h"
@@ -67,7 +74,8 @@ Application::~Application()
     this->m_context->destroy();
     std::cout << "[Info] Context has been destroyed." << std::endl;
 
-    ImGui_ImplGlfwGL2_Shutdown();
+    ImGui_ImplOpenGL3_Shutdown();
+    ImGui_ImplGlfw_Shutdown();
     ImGui::DestroyContext();
 }
 
@@ -124,7 +132,7 @@ void Application::drawWidget()
     //}
 
     {
-        static const ImGuiWindowFlags window_flags = 0;
+        static const ImGuiWindowFlags window_flags = ImGuiWindowFlags_None;
 
         ImGui::SetNextWindowPos(ImVec2(-1.0f, 826.0f));
         ImGui::SetNextWindowSize(ImVec2(550, 200), ImGuiCond_FirstUseEver);
@@ -296,7 +304,7 @@ void Application::drawRenderView()
     TW_ASSERT(pboId);
 
     /* Draw RenderView widget. */
-    static const ImGuiWindowFlags window_flags = ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoMove;
+    static const ImGuiWindowFlags window_flags = ImGuiWindowFlags_NoCollapse;
     ImGui::SetNextWindowPos(ImVec2(733.0f, 58.0f));
     ImGui::SetNextWindowSize(ImVec2(1489.0f, 810.0f));
     if (!ImGui::Begin("RenderView", NULL, window_flags))
@@ -469,10 +477,19 @@ void Application::createProgramsFromPTX()
 void Application::initializeImGui(GLFWwindow *glfwWindow)
 {
     /* Create ImGui context. */
+    IMGUI_CHECKVERSION();
     ImGui::CreateContext();
-    ImGui_ImplGlfwGL2_Init(glfwWindow, true);
-    ImGui_ImplGlfwGL2_NewFrame();
-    ImGui::EndFrame();
+
+    ImGuiIO& io = ImGui::GetIO(); (void)io;
+    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;       // Enable Keyboard Controls
+    io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;           // Enable Docking
+    io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;         // Enable Multi-Viewport / Platform Windows
+    //io.ConfigViewportsNoAutoMerge = true;
+    //io.ConfigViewportsNoTaskBarIcon = true;
+
+    /* Setup Platform/Renderer bindings. */
+    ImGui_ImplGlfw_InitForOpenGL(glfwWindow, true);
+    ImGui_ImplOpenGL3_Init(nullptr);
 
 #pragma region ImGui_Style_Region
     ImGuiStyle& style = ImGui::GetStyle();
@@ -508,15 +525,15 @@ void Application::initializeImGui(GLFWwindow *glfwWindow)
     style.Colors[ImGuiCol_Header] = ImVec4(r * 0.4f, g * 0.4f, b * 0.4f, 0.4f);
     style.Colors[ImGuiCol_HeaderHovered] = ImVec4(r * 0.6f, g * 0.6f, b * 0.6f, 0.6f);
     style.Colors[ImGuiCol_HeaderActive] = ImVec4(r * 0.8f, g * 0.8f, b * 0.8f, 0.8f);
-    style.Colors[ImGuiCol_Column] = ImVec4(r * 0.4f, g * 0.4f, b * 0.4f, 0.4f);
+    /*style.Colors[ImGuiCol_Column] = ImVec4(r * 0.4f, g * 0.4f, b * 0.4f, 0.4f);
     style.Colors[ImGuiCol_ColumnHovered] = ImVec4(r * 0.6f, g * 0.6f, b * 0.6f, 0.6f);
-    style.Colors[ImGuiCol_ColumnActive] = ImVec4(r * 0.8f, g * 0.8f, b * 0.8f, 0.8f);
+    style.Colors[ImGuiCol_ColumnActive] = ImVec4(r * 0.8f, g * 0.8f, b * 0.8f, 0.8f);*/
     style.Colors[ImGuiCol_ResizeGrip] = ImVec4(r * 0.6f, g * 0.6f, b * 0.6f, 0.6f);
     style.Colors[ImGuiCol_ResizeGripHovered] = ImVec4(r * 0.8f, g * 0.8f, b * 0.8f, 0.8f);
     style.Colors[ImGuiCol_ResizeGripActive] = ImVec4(r * 1.0f, g * 1.0f, b * 1.0f, 1.0f);
-    style.Colors[ImGuiCol_CloseButton] = ImVec4(r * 0.4f, g * 0.4f, b * 0.4f, 0.4f);
+    /*style.Colors[ImGuiCol_CloseButton] = ImVec4(r * 0.4f, g * 0.4f, b * 0.4f, 0.4f);
     style.Colors[ImGuiCol_CloseButtonHovered] = ImVec4(r * 0.6f, g * 0.6f, b * 0.6f, 0.6f);
-    style.Colors[ImGuiCol_CloseButtonActive] = ImVec4(r * 0.8f, g * 0.8f, b * 0.8f, 0.8f);
+    style.Colors[ImGuiCol_CloseButtonActive] = ImVec4(r * 0.8f, g * 0.8f, b * 0.8f, 0.8f);*/
     style.Colors[ImGuiCol_PlotLines] = ImVec4(r * 0.8f, g * 0.8f, b * 0.8f, 1.0f);
     style.Colors[ImGuiCol_PlotLinesHovered] = ImVec4(r * 1.0f, g * 1.0f, b * 1.0f, 1.0f);
     style.Colors[ImGuiCol_PlotHistogram] = ImVec4(r * 0.8f, g * 0.8f, b * 0.8f, 1.0f);

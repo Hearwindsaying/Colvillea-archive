@@ -1,13 +1,17 @@
 #include <imgui/imgui.h>
-#include <imgui/imgui_impl_glfw_gl2.h> 
+#include <imgui/imgui_impl_glfw.h>
+#include <imgui/imgui_impl_opengl3.h>
 
+// About Desktop OpenGL function loaders:
+//  Modern desktop OpenGL doesn't have a standard portable header file to load OpenGL function pointers.
+//  Helper libraries are often used for this purpose! We use glew here.
 
-#include <GL/glew.h>
-#if defined( _WIN32 )
-#include <GL/wglew.h>
-#endif
+#include <gl/glew.h>
 
+// Include glfw3.h after our OpenGL definitions
 #include <GLFW/glfw3.h>
+
+
 
 #include "colvillea/Application/Application.h"
 #include "colvillea/Device/Toolkit/CommonStructs.h"
@@ -45,6 +49,9 @@ void create_CornellBoxScene(std::shared_ptr<SceneGraph> &sceneGraph, std::unique
     sceneGraph->createTriangleMesh(
         basePath + "Cornell\\grey.obj",
         materialPool->createLambertMaterial(optix::make_float4(0.725f, 0.71f, 0.68f, 1.f)));
+    /*sceneGraph->createTriangleMesh(
+        basePath + "Cornell\\lucy.obj",
+        materialPool->createLambertMaterial(optix::make_float4(0.725f, 0.71f, 0.68f, 1.f)));*/
 
     /* Create light. */
     lightPool->createQuadLight(
@@ -131,6 +138,8 @@ int main(int argc, char *argv[])
     }
 
     glfwMakeContextCurrent(glfwWindow);
+    /* Disable vsync. */
+    glfwSwapInterval(0);
 
     if (glewInit() != GL_NO_ERROR)
     {
@@ -181,21 +190,45 @@ int main(int argc, char *argv[])
     application->buildSceneGraph(sceneGraph);
 
     /* Main loop for Colvillea. */
+    ImGuiIO& io = ImGui::GetIO();
     while (!glfwWindowShouldClose(glfwWindow))
     {
+        // Poll and handle events (inputs, window resize, etc.)
         glfwPollEvents();
 
-        ImGui_ImplGlfwGL2_NewFrame();
+        // Start the Dear ImGui frame
+        ImGui_ImplOpenGL3_NewFrame();
+        ImGui_ImplGlfw_NewFrame();
+        ImGui::NewFrame();
 
+        /* Draw ImGui widgets. */
         application->drawWidget();
+
+        /* Launch renderer. */
         application->render();
 
+        /* Launch ImGui rendering. */
         ImGui::Render();
-        ImGui_ImplGlfwGL2_RenderDrawData(ImGui::GetDrawData());
+        int display_w, display_h;
+        glfwGetFramebufferSize(glfwWindow, &display_w, &display_h);
+        glViewport(0, 0, display_w, display_h);
+        glClearColor(0.45f, 0.55f, 0.60f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT);
+        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+
+        /* Update and Render additional Platform Windows. */
+        if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
+        {
+            GLFWwindow* backup_current_context = glfwGetCurrentContext();
+            ImGui::UpdatePlatformWindows();
+            ImGui::RenderPlatformWindowsDefault();
+            glfwMakeContextCurrent(backup_current_context);
+        }
 
         glfwSwapBuffers(glfwWindow);
     }
 
+    glfwDestroyWindow(glfwWindow);
     glfwTerminate();
 
     _CrtDumpMemoryLeaks();

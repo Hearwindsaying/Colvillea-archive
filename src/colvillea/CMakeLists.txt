@@ -28,6 +28,8 @@
 
 include_directories(${SAMPLES_INCLUDE_DIR})
 
+SET( CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /NODEFAULTLIB:\"msvcrt.lib\"" )
+
 set(SOURCE_LIST
     "${CMAKE_CURRENT_SOURCE_DIR}/Application/Application.cpp"
 	"${CMAKE_CURRENT_SOURCE_DIR}/Application/Application.h"
@@ -121,6 +123,9 @@ set(SOURCE_LIST_LIB
 	
 	"${CMAKE_CURRENT_SOURCE_DIR}/../tinyobjloader/tiny_obj_loader.cc"
 	"${CMAKE_CURRENT_SOURCE_DIR}/../tinyobjloader/tiny_obj_loader.h"
+	
+	"${CMAKE_CURRENT_SOURCE_DIR}/../glfw/glfw3.h"
+	"${CMAKE_CURRENT_SOURCE_DIR}/../glfw/glfw3native.h"
 )
 
 if(OPENGL_FOUND)
@@ -237,5 +242,8 @@ OPTIX_add_sample_executable( colvillea
 	
 	${CMAKE_CURRENT_SOURCE_DIR}/../tinyobjloader/tiny_obj_loader.cc
 	${CMAKE_CURRENT_SOURCE_DIR}/../tinyobjloader/tiny_obj_loader.h
+	
+	${CMAKE_CURRENT_SOURCE_DIR}/../glfw/glfw3.h
+	${CMAKE_CURRENT_SOURCE_DIR}/../glfw/glfw3native.h
     )
 
