@@ -113,6 +113,8 @@ void Application::buildSceneGraph(std::shared_ptr<SceneGraph> &sceneGraph)
 
 void Application::drawWidget()
 {
+    drawSettings();
+
     static uint32_t frame_count = 0; // todo:use iteration index
 
 
@@ -290,12 +292,6 @@ void Application::handleInputEvent(bool dispatchMouseInput)
             this->m_cameraController->handleInputGUIEvent(mouseAction, make_int2(mousePosition.x, mousePosition.y));
         }
     }
-
-
-
-
-
-
 }
 
 void Application::drawRenderView()
@@ -339,6 +335,43 @@ void Application::drawRenderView()
     ImGui::End();
 }
 
+void Application::drawSettings()
+{
+    static const ImGuiWindowFlags window_flags = ImGuiWindowFlags_None;
+
+    if (!ImGui::Begin("Settings", NULL, window_flags))
+    {
+        // Early out if the window is collapsed, as an optimization.
+        ImGui::End();
+        return;
+    }
+
+    auto cInfo = this->m_cameraController->getCameraInfo();
+
+    if (ImGui::DragFloat("##Value eyex", &cInfo.eye.x, 0.1f, 0.0f, 0.0f))
+    {
+        this->m_cameraController->setCameraInfo(cInfo);
+    }
+    if (ImGui::DragFloat("##Value eyey", &cInfo.eye.y, 0.1f, 0.0f, 0.0f)) {
+        this->m_cameraController->setCameraInfo(cInfo);
+    }
+    if (ImGui::DragFloat("##Value eyez", &cInfo.eye.z, 0.1f, 0.0f, 0.0f)) {
+        this->m_cameraController->setCameraInfo(cInfo);
+    }
+
+    if (ImGui::DragFloat("##Value lookatx", &cInfo.lookAtDestination.x, 0.1f, 0.0f, 0.0f)) {
+        this->m_cameraController->setCameraInfo(cInfo);
+    }
+    if (ImGui::DragFloat("##Value lookaty", &cInfo.lookAtDestination.y, 0.1f, 0.0f, 0.0f)) {
+        this->m_cameraController->setCameraInfo(cInfo);
+    }
+    if (ImGui::DragFloat("##Value lookatz", &cInfo.lookAtDestination.z, 0.1f, 0.0f, 0.0f)) {
+        this->m_cameraController->setCameraInfo(cInfo);
+    }
+
+
+    ImGui::End();
+}
 
 
 /************************************************************************/

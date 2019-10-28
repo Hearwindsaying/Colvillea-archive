@@ -31,7 +31,7 @@ void create_CornellBoxScene(std::shared_ptr<SceneGraph> &sceneGraph, std::unique
     /* Create integator. */
 
     /* For finding a better position to look at CornellBox. */
-    //lightPool->createHDRILight(basePath + "HDRI\\uffizi-large.hdr", Matrix4x4::identity());
+    lightPool->createHDRILight(basePath + "HDRI\\uffizi-large.hdr", Matrix4x4::identity());
 
     sceneGraph->createDirectLightingIntegrator();
     //sceneGraph->createPathTracingIntegrator(true, 5);
@@ -54,10 +54,10 @@ void create_CornellBoxScene(std::shared_ptr<SceneGraph> &sceneGraph, std::unique
         materialPool->createLambertMaterial(optix::make_float4(0.725f, 0.71f, 0.68f, 1.f)));*/
 
     /* Create light. */
-    lightPool->createQuadLight(
-         Matrix4x4::translate(make_float3(0.f, 0.f, 11.7f)) * 
-         Matrix4x4::scale(make_float3(3.25f, 2.625f, 1.f)),
-        make_float3(17.f, 12.f, 4.f), materialPool->createEmissiveMaterial(), true);
+    //lightPool->createQuadLight(
+    //     Matrix4x4::translate(make_float3(0.f, 0.f, 11.7f)) * 
+    //     Matrix4x4::scale(make_float3(3.25f, 2.625f, 1.f)),
+    //    make_float3(17.f, 12.f, 4.f), materialPool->createEmissiveMaterial(), true);
 }
 
 /* Create test scene. */

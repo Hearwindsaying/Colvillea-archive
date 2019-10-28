@@ -83,6 +83,11 @@ private:
      */
     void drawRenderView();
 
+    /**
+     * @brief Draw Settings window.
+     */
+    void drawSettings();
+
 
 public:
     /**
