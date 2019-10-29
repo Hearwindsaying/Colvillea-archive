@@ -346,28 +346,96 @@ void Application::drawSettings()
         return;
     }
 
-    auto cInfo = this->m_cameraController->getCameraInfo();
-
-    if (ImGui::DragFloat("##Value eyex", &cInfo.eye.x, 0.1f, 0.0f, 0.0f))
+    if (ImGui::CollapsingHeader("Camera", ImGuiTreeNodeFlags_CollapsingHeader))
     {
-        this->m_cameraController->setCameraInfo(cInfo);
-    }
-    if (ImGui::DragFloat("##Value eyey", &cInfo.eye.y, 0.1f, 0.0f, 0.0f)) {
-        this->m_cameraController->setCameraInfo(cInfo);
-    }
-    if (ImGui::DragFloat("##Value eyez", &cInfo.eye.z, 0.1f, 0.0f, 0.0f)) {
-        this->m_cameraController->setCameraInfo(cInfo);
-    }
+        if (ImGui::BeginPopupContextItem())
+        {
+            if (ImGui::MenuItem("Save Transform"))
+            {
+                this->m_cameraController->cameraInfoToFile();
+            }
+            if (ImGui::MenuItem("Load Transform"))
+            {
+                this->m_cameraController->cameraInfoFromFile();
+            }
 
-    if (ImGui::DragFloat("##Value lookatx", &cInfo.lookAtDestination.x, 0.1f, 0.0f, 0.0f)) {
-        this->m_cameraController->setCameraInfo(cInfo);
+            /* End of CollapsingHeader. */
+            ImGui::EndPopup();
+        }
+
+        auto cInfo = this->m_cameraController->getCameraInfo();
+
+        ImGui::AlignTextToFramePadding();
+        ImGui::Text("        Eye Location X");
+        ImGui::SameLine();
+        ImGui::SetNextItemWidth(85);
+        if (ImGui::DragFloat("##Eye Location X", &cInfo.eye.x, 1.0f, -100.0f, 100.0f))
+        {
+            this->m_cameraController->setCameraInfo(cInfo);
+        }
+
+        ImGui::AlignTextToFramePadding();
+        ImGui::Text("                     Y");
+        ImGui::SameLine();
+        ImGui::SetNextItemWidth(85);
+        if (ImGui::DragFloat("##Eye Location Y", &cInfo.eye.y, 1.0f, -100.0f, 100.0f))
+        {
+            this->m_cameraController->setCameraInfo(cInfo);
+        }
+
+        ImGui::AlignTextToFramePadding();
+        ImGui::Text("                     Z");
+        ImGui::SameLine();
+        ImGui::SetNextItemWidth(85);
+        if (ImGui::DragFloat("##Eye Location Z", &cInfo.eye.z, 1.0f, -100.0f, 100.0f))
+        {
+            this->m_cameraController->setCameraInfo(cInfo);
+        }
+
+        ImGui::AlignTextToFramePadding();
+        ImGui::Text("Destination Location X");
+        ImGui::SameLine();
+        ImGui::SetNextItemWidth(85);
+        if (ImGui::DragFloat("##Destination Location X", &cInfo.lookAtDestination.x, 1.0f, -100.0f, 100.0f))
+        {
+            this->m_cameraController->setCameraInfo(cInfo);
+        }
+
+        ImGui::AlignTextToFramePadding();
+        ImGui::Text("                     Y");
+        ImGui::SameLine();
+        ImGui::SetNextItemWidth(85);
+        if (ImGui::DragFloat("##Destination Location Y", &cInfo.lookAtDestination.y, 1.0f, -100.0f, 100.0f))
+        {
+            this->m_cameraController->setCameraInfo(cInfo);
+        }
+
+        ImGui::AlignTextToFramePadding();
+        ImGui::Text("                     Z");
+        ImGui::SameLine();
+        ImGui::SetNextItemWidth(85);
+        if (ImGui::DragFloat("##Destination Location Z", &cInfo.lookAtDestination.z, 1.0f, -100.0f, 100.0f))
+        {
+            this->m_cameraController->setCameraInfo(cInfo);
+        }
+
     }
-    if (ImGui::DragFloat("##Value lookaty", &cInfo.lookAtDestination.y, 0.1f, 0.0f, 0.0f)) {
-        this->m_cameraController->setCameraInfo(cInfo);
+    /* Enable popup menu even if the Camera module is collapsed. */
+    if (ImGui::BeginPopupContextItem())
+    {
+        if (ImGui::MenuItem("Save Transform"))
+        {
+            this->m_cameraController->cameraInfoToFile();
+        }
+        if (ImGui::MenuItem("Load Transform"))
+        {
+            this->m_cameraController->cameraInfoFromFile();
+        }
+
+        /* End of CollapsingHeader. */
+        ImGui::EndPopup();
     }
-    if (ImGui::DragFloat("##Value lookatz", &cInfo.lookAtDestination.z, 0.1f, 0.0f, 0.0f)) {
-        this->m_cameraController->setCameraInfo(cInfo);
-    }
+    
 
 
     ImGui::End();

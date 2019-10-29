@@ -104,26 +104,9 @@ public:
 
         /* Compute the corresponding |phi|, |theta| and |radialDistance| from |eye| and |lookAtDestination|. */
         this->m_cameraInfo.radialDistance = TwUtil::distance(this->m_cameraInfo.eye, this->m_cameraInfo.lookAtDestination);
-        this->m_cameraInfo.phi = TwUtil::sphericalPhi(TwUtil::safe_normalize(this->m_cameraInfo.eye - this->m_cameraInfo.lookAtDestination));
-        this->m_cameraInfo.theta = TwUtil::sphericalTheta(TwUtil::safe_normalize(this->m_cameraInfo.eye - this->m_cameraInfo.lookAtDestination));
-
-
-        //--
-        const float cosPhi = cosf(this->m_cameraInfo.phi);
-        const float sinPhi = sinf(this->m_cameraInfo.phi);
-        const float cosTheta = cosf(this->m_cameraInfo.theta);
-        const float sinTheta = sinf(this->m_cameraInfo.theta);
-
-        this->m_cameraInfo.phi   /= 2.0f * M_PIf;
-        this->m_cameraInfo.theta /= M_PIf;
-
-        optix::float3 normal = optix::make_float3(sinTheta * cosPhi, sinTheta * sinPhi, cosTheta);
-        auto lenNormal = length(normal);
-        //optix::float3 normal = optix::make_float3(cosPhi * sinTheta, cosTheta, sinPhi * sinTheta); // "normal", unit vector from origin to spherical coordinates (phi, theta)
-        this->m_cameraInfo.eye = this->m_cameraInfo.lookAtDestination + this->m_cameraInfo.radialDistance * normal;
-        TW_ASSERT(fabsf(this->m_cameraInfo.eye.x - cameraInfo.eye.x) < 1e-3f);
-        //-- 
-        //auto xx = this->m_cameraInfo.lookAtDestination + this->m_cameraInfo.radialDistance * TwUtil::safe_normalize(this->m_cameraInfo.eye - this->m_cameraInfo.lookAtDestination);
+        /* We need to map |phi| and |theta| fro radians to linear [0,1] to be compatible with mouse interaction. */
+        this->m_cameraInfo.phi   = TwUtil::sphericalPhi(TwUtil::safe_normalize(this->m_cameraInfo.eye - this->m_cameraInfo.lookAtDestination)) / (2.0f * M_PIf);
+        this->m_cameraInfo.theta = TwUtil::sphericalTheta(TwUtil::safe_normalize(this->m_cameraInfo.eye - this->m_cameraInfo.lookAtDestination)) / M_PIf;
 
         /* Update camera transformation using |eye| and |lookAtDestination|. */
         this->m_camera->setCameraToWorld(this->m_cameraInfo.eye, this->m_cameraInfo.lookAtDestination);
@@ -132,6 +115,17 @@ public:
         this->m_cameraInfo.left = this->m_camera->GetLeftVector();
         this->m_cameraInfo.up = this->m_camera->GetUpVector();
     }
+
+    /**
+     * @brief Save cameraInfo to file.
+     * @return True if succeeded, false if failed.
+     */
+    bool cameraInfoToFile() const;
+    /**
+     * @brief Load cameraInfo from file.
+     * @return True if succeeded, false if failed.
+     */
+    bool cameraInfoFromFile();
     
 
     /**
@@ -160,12 +154,11 @@ private:
 
     inline void updateCameraInfo();
 
-private:
-    CameraInfo m_cameraInfo;
-    CameraMotionType m_cameraMotionType;
-    std::shared_ptr<Camera> m_camera;
 
-    
+private:
+    CameraInfo              m_cameraInfo;
+    CameraMotionType        m_cameraMotionType;
+    std::shared_ptr<Camera> m_camera;
 
     // todo:get a pointer to Application and fetch film resolution from it
     int m_filmWidth, m_filmHeight;
