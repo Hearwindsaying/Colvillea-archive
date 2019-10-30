@@ -59,6 +59,11 @@ rtDeclareVariable(int, sysSamplerType, , );         /* Sampler type chosen in GP
                                                        --need to fetch underlying value from
                                                          CommonStructs::SamplerType. */
 #endif
+#ifndef TWRT_DECLARE_SYSLAUNCH
+#define TWRT_DECLARE_SYSLAUNCH
+rtDeclareVariable(uint2, sysLaunch_Dim, rtLaunchDim, );
+rtDeclareVariable(uint2, sysLaunch_index, rtLaunchIndex, );
+#endif
 
 //#define USE_HALTON_SAMPLER
 
@@ -138,6 +143,21 @@ static __device__ __inline__ void makeSampler(CommonStructs::RayTracingPipelineP
         }
         break;
 
+        case CommonStructs::SamplerType::IndependentSampler:
+        {
+            /* Hack: it's assumed that exactly two rng() is invoked in ray_generation program. 
+             *  -- we need to synchronize seed variable in ray_generation with that one in closest_hit program. 
+             *  However, if we add seed to per_ray_data, it would be break our abstract design for Sampler interface.
+             *  Todo: add localSampler to per_ray_data structure. */
+            localSampler.independentSampler.seed = tea<64>(sysLaunch_Dim.x*sysLaunch_index.y + sysLaunch_index.x, sysIterationIndex);
+            if (phase != RayTracingPipelinePhase::RayGeneration)
+            {
+                rnd(localSampler.independentSampler.seed);
+                rnd(localSampler.independentSampler.seed);
+            }
+        }
+        break;
+
         default:
         {
             rtPrintf("error in makeSampler\n");
@@ -159,6 +179,10 @@ static __device__ __inline__ optix::float2 Get2D(GPUSampler *localSampler)
         case CommonStructs::SamplerType::SobolQMCSampler:
         {
             return Get2D_Sobol(localSampler->sobolSampler); 
+        }
+        case CommonStructs::SamplerType::IndependentSampler:
+        {
+            return make_float2(rnd(localSampler->independentSampler.seed), rnd(localSampler->independentSampler.seed));
         }
 
         default:
@@ -183,6 +207,11 @@ static __device__ __inline__ float Get1D(GPUSampler *localSampler)
         case CommonStructs::SamplerType::SobolQMCSampler:
         {
             return Get1D_Sobol(localSampler->sobolSampler); 
+        }
+
+        case CommonStructs::SamplerType::IndependentSampler:
+        {
+            return rnd(localSampler->independentSampler.seed);
         }
 
         default:

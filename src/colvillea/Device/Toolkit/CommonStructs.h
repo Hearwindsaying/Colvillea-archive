@@ -151,10 +151,16 @@ namespace CommonStructs
 									      --offset(of the i_th sample for current pixel) in global sequence */
     };
 
+    struct IndependentSampler
+    {
+        uint32_t seed;           /* Random Sampler seed. */
+    };
+
     union GPUSampler
     {
-        SobolSampler  sobolSampler;
-        HaltonSampler haltonSampler;
+        SobolSampler       sobolSampler;
+        HaltonSampler      haltonSampler;
+        IndependentSampler independentSampler; 
     };
 
 
@@ -162,6 +168,7 @@ namespace CommonStructs
     {
         HaltonQMCSampler,  // low discrepancy sampler: Halton sequence
         SobolQMCSampler,   // low discrepancy sampler: Sobol sequence
+        IndependentSampler,// independent random sampler
 
         CountOfType
     };

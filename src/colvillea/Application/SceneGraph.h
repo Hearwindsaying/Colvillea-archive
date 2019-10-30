@@ -7,14 +7,15 @@
 #include <map>
 #include <memory>
 
-#include "../Module/Integrator/DirectLighting.h"
-#include "../Module/Integrator/PathTracing.h"
-#include "../Module/Geometry/TriangleMesh.h"
-#include "../Module/Geometry/Quad.h"
-#include "../Module/Sampler/HaltonSampler.h"
-#include "../Module/Sampler/SobolSampler.h"
-#include "../Module/Camera/Camera.h"
-#include "GlobalDefs.h"
+#include "colvillea/Module/Integrator/DirectLighting.h"
+#include "colvillea/Module/Integrator/PathTracing.h"
+#include "colvillea/Module/Geometry/TriangleMesh.h"
+#include "colvillea/Module/Geometry/Quad.h"
+#include "colvillea/Module/Sampler/HaltonSampler.h"
+#include "colvillea/Module/Sampler/SobolSampler.h"
+#include "colvillea/Module/Sampler/IndependentSampler.h"
+#include "colvillea/Module/Camera/Camera.h"
+#include "colvillea/Application/GlobalDefs.h"
 
 class Application;
 
@@ -193,6 +194,8 @@ public:
             case CommonStructs::SamplerType::SobolQMCSampler:
                 this->m_sampler = SobolSampler::createSobolSampler(this->m_context, filmResolution);
                 break;
+            case CommonStructs::SamplerType::IndependentSampler:
+                this->m_sampler = IndependentSampler::createIndependentSampler(this->m_context);
             default:
                 std::cerr << "[Error] Expected sampler is not supported." << std::endl;
                 break;

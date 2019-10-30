@@ -111,6 +111,7 @@ set(SOURCE_LIST
 	"${CMAKE_CURRENT_SOURCE_DIR}/Module/Sampler/SobolMatrices.h"
 	"${CMAKE_CURRENT_SOURCE_DIR}/Module/Sampler/SobolSampler.cpp"
 	"${CMAKE_CURRENT_SOURCE_DIR}/Module/Sampler/SobolSampler.h"
+	"${CMAKE_CURRENT_SOURCE_DIR}/Module/Sampler/IndependentSampler.h"
 )
 
 set(SOURCE_LIST_LIB
@@ -225,6 +226,7 @@ OPTIX_add_sample_executable( colvillea
 	${CMAKE_CURRENT_SOURCE_DIR}/Module/Sampler/SobolMatrices.h
 	${CMAKE_CURRENT_SOURCE_DIR}/Module/Sampler/SobolSampler.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/Module/Sampler/SobolSampler.h
+	${CMAKE_CURRENT_SOURCE_DIR}/Module/Sampler/IndependentSampler.h
 
 	${CMAKE_CURRENT_SOURCE_DIR}/../freeImage/FreeImage.h
 	${CMAKE_CURRENT_SOURCE_DIR}/../freeImage/FreeImagePlus.h
