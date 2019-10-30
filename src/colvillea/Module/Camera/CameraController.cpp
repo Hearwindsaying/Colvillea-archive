@@ -135,15 +135,15 @@ bool CameraController::cameraInfoFromFile()
             {
                 lastCameraInfo.eye.z = std::stof(value);
             }
-            else if (name == "lookat destination.x")
+            else if (name == "lookatdestination.x") /* we removed space between "lookat" and "destination" */
             {
                 lastCameraInfo.lookAtDestination.x = std::stof(value);
             }
-            else if (name == "lookat destination.y")
+            else if (name == "lookatdestination.y")
             {
                 lastCameraInfo.lookAtDestination.y = std::stof(value);
             }
-            else if (name == "lookat destination.z")
+            else if (name == "lookatdestination.z")
             {
                 lastCameraInfo.lookAtDestination.z = std::stof(value);
             }

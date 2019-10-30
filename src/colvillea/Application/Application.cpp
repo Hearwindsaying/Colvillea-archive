@@ -364,18 +364,22 @@ void Application::drawSettings()
         }
 
         auto cInfo = this->m_cameraController->getCameraInfo();
+        ImGui::Indent();
 
-        ImGui::AlignTextToFramePadding();
-        ImGui::Text("        Eye Location X");
+        /* Eye Location Group: */
+        ImGui::Text("            Eye Location");
+        ImGui::SameLine(178.f);
+        ImGui::Text(" X\n");
         ImGui::SameLine();
         ImGui::SetNextItemWidth(85);
         if (ImGui::DragFloat("##Eye Location X", &cInfo.eye.x, 1.0f, -100.0f, 100.0f))
         {
             this->m_cameraController->setCameraInfo(cInfo);
         }
-
-        ImGui::AlignTextToFramePadding();
-        ImGui::Text("                     Y");
+        
+        ImGui::Text("            ");
+        ImGui::SameLine(178.f);
+        ImGui::Text(" Y\n");
         ImGui::SameLine();
         ImGui::SetNextItemWidth(85);
         if (ImGui::DragFloat("##Eye Location Y", &cInfo.eye.y, 1.0f, -100.0f, 100.0f))
@@ -383,8 +387,9 @@ void Application::drawSettings()
             this->m_cameraController->setCameraInfo(cInfo);
         }
 
-        ImGui::AlignTextToFramePadding();
-        ImGui::Text("                     Z");
+        ImGui::Text("            ");
+        ImGui::SameLine(178.f);
+        ImGui::Text(" Z\n");
         ImGui::SameLine();
         ImGui::SetNextItemWidth(85);
         if (ImGui::DragFloat("##Eye Location Z", &cInfo.eye.z, 1.0f, -100.0f, 100.0f))
@@ -392,8 +397,10 @@ void Application::drawSettings()
             this->m_cameraController->setCameraInfo(cInfo);
         }
 
-        ImGui::AlignTextToFramePadding();
-        ImGui::Text("Destination Location X");
+        /* LookAt Destination Group: */
+        ImGui::Text("Destination Location ");
+        ImGui::SameLine();
+        ImGui::Text("X\n");
         ImGui::SameLine();
         ImGui::SetNextItemWidth(85);
         if (ImGui::DragFloat("##Destination Location X", &cInfo.lookAtDestination.x, 1.0f, -100.0f, 100.0f))
@@ -401,8 +408,9 @@ void Application::drawSettings()
             this->m_cameraController->setCameraInfo(cInfo);
         }
 
-        ImGui::AlignTextToFramePadding();
-        ImGui::Text("                     Y");
+        ImGui::Text("            ");
+        ImGui::SameLine(178.f);
+        ImGui::Text(" Y\n");
         ImGui::SameLine();
         ImGui::SetNextItemWidth(85);
         if (ImGui::DragFloat("##Destination Location Y", &cInfo.lookAtDestination.y, 1.0f, -100.0f, 100.0f))
@@ -410,14 +418,16 @@ void Application::drawSettings()
             this->m_cameraController->setCameraInfo(cInfo);
         }
 
-        ImGui::AlignTextToFramePadding();
-        ImGui::Text("                     Z");
+        ImGui::Text("            ");
+        ImGui::SameLine(178.f);
+        ImGui::Text(" Z\n");
         ImGui::SameLine();
         ImGui::SetNextItemWidth(85);
         if (ImGui::DragFloat("##Destination Location Z", &cInfo.lookAtDestination.z, 1.0f, -100.0f, 100.0f))
         {
             this->m_cameraController->setCameraInfo(cInfo);
         }
+        ImGui::Unindent();
 
     }
     /* Enable popup menu even if the Camera module is collapsed. */
@@ -598,6 +608,10 @@ void Application::initializeImGui(GLFWwindow *glfwWindow)
     
     /* ImGui window could be moved only while dragging titlebar. */
     io.ConfigWindowsMoveFromTitleBarOnly = true;
+
+    /* Load font. */
+    ImFont *imfont = io.Fonts->AddFontFromFileTTF("../../../data/droidsans.ttf", 16.0f);
+    TW_ASSERT(imfont);
 
     /* Setup Platform/Renderer bindings. */
     ImGui_ImplGlfw_InitForOpenGL(glfwWindow, true);
