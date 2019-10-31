@@ -180,16 +180,32 @@ public:
 
 
     /**
-     * @brief Create a sampler object and use in rendering. Only
-     * one instance of smapler object is permitted currently.
+     * @brief Create a sampler object and use in rendering.
+     * |m_samplersMap| stores all types of samplers supported in renderer.
+     * 
+     * @note This method could be used for changing sampler type in Colvillea.
+     * If the expected sampler is not created, it's created and added to the
+     * |m_samplersMap| for later use. Otherwise, the sampler will be got from
+     * |m_samplersMap|. In either case, |m_sampler| will be updated to store
+     * current used sampler.
+     * 
+     * @param[in] samplerType  the expected sampler type for rendering
      */
     void createSampler(const CommonStructs::SamplerType &samplerType)
     {
-        optix::int2 filmResolution = optix::make_int2(this->m_filmWidth, this->m_filmHeight);
-        switch (samplerType)
+        /* Search |m_samplersMap| for the sampler we want. */
+        auto samplerItr = this->m_samplersMap.find(samplerType);
+        if (samplerItr == this->m_samplersMap.end())
         {
+            optix::int2 filmResolution = optix::make_int2(this->m_filmWidth, this->m_filmHeight);
+            switch (samplerType)
+            {
             case CommonStructs::SamplerType::HaltonQMCSampler:
-                this->m_sampler = HaltonSampler::createHaltonSampler(this->m_context, filmResolution);
+            {
+                //this->m_sampler = HaltonSampler::createHaltonSampler(this->m_context, filmResolution);
+                std::cout << "[Info] An issue is found when using OptiX 6.5 to implement Halton QMC sampler using fast permuation table. Currently this sampler will fallback to Sobol QMC Sampler" << std::endl;
+                this->m_sampler = SobolSampler::createSobolSampler(this->m_context, filmResolution);
+            } 
                 break;
             case CommonStructs::SamplerType::SobolQMCSampler:
                 this->m_sampler = SobolSampler::createSobolSampler(this->m_context, filmResolution);
@@ -199,10 +215,26 @@ public:
             default:
                 std::cerr << "[Error] Expected sampler is not supported." << std::endl;
                 break;
+            }
+            /* Insert newly created sampler type into samplers map. */
+            TW_ASSERT(this->m_samplersMap.insert({ samplerType, this->m_sampler }).second);
+        }
+        else
+        {
+            /* Update current sampler. */
+            this->m_sampler = samplerItr->second;
         }
 
         /* Setup sampler index for GPU program. */
         this->m_context["sysSamplerType"]->setInt(toUnderlyingValue(samplerType));
+    }
+
+    /**
+     * @brief Getter for currently used sampler.
+     */
+    std::shared_ptr<Sampler> getSampler() const 
+    {
+        return this->m_sampler;
     }
 
     /**
@@ -270,8 +302,10 @@ private:
     optix::Context                               m_context;
     unsigned int m_filmWidth, m_filmHeight;
 
+    std::map<CommonStructs::SamplerType, std::shared_ptr<Sampler>> m_samplersMap;
+
     std::unique_ptr<Integrator> m_integrator;
-    std::unique_ptr<Sampler>    m_sampler;   // todo:We could only hold one instance
+    std::shared_ptr<Sampler>    m_sampler;   // holding current used sampler
     std::shared_ptr<Camera>     m_camera;    // todo:We could only hold one instance
 
 

@@ -34,7 +34,7 @@ public:
         return independentSampler;
     }
 
-    IndependentSampler(optix::Context context) : Sampler(context)
+    IndependentSampler(optix::Context context) : Sampler(context, CommonStructs::SamplerType::IndependentSampler)
     {
 
     }

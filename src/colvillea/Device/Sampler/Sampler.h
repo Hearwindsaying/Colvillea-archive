@@ -65,7 +65,7 @@ rtDeclareVariable(uint2, sysLaunch_Dim, rtLaunchDim, );
 rtDeclareVariable(uint2, sysLaunch_index, rtLaunchIndex, );
 #endif
 
-//#define USE_HALTON_SAMPLER
+#define USE_HALTON_SAMPLER
 
 /************************************************
  *               Sampler Interface              *
@@ -126,13 +126,14 @@ static __device__ __inline__ void makeSampler(CommonStructs::RayTracingPipelineP
     switch (static_cast<CommonStructs::SamplerType>(sysSamplerType))
     { 
 #ifdef USE_HALTON_SAMPLER /* disable Halton sampler for faster JIT compilation. */
-        case CommonStructs::SamplerType::HaltonQMCSampler:
+        /*case CommonStructs::SamplerType::HaltonQMCSampler:
         {
             (phase == RayTracingPipelinePhase::RayGeneration) ? 
                 (StartSamplingPreprocess_RayGen(localSampler.haltonSampler)) :
                 (StartSamplingPreprocess_CHit(localSampler.haltonSampler));  
         }
-        break;
+        break;*/
+        case CommonStructs::SamplerType::HaltonQMCSampler:
 #endif
         case CommonStructs::SamplerType::SobolQMCSampler:
         {
@@ -171,10 +172,11 @@ static __device__ __inline__ optix::float2 Get2D(GPUSampler *localSampler)
     switch (static_cast<CommonStructs::SamplerType>(sysSamplerType))
     {
 #ifdef USE_HALTON_SAMPLER
-        case CommonStructs::SamplerType::HaltonQMCSampler:
+        /*case CommonStructs::SamplerType::HaltonQMCSampler:
         {
             return Get2D_Halton(localSampler->haltonSampler);
-        }
+        }*/
+        case CommonStructs::SamplerType::HaltonQMCSampler:
 #endif        
         case CommonStructs::SamplerType::SobolQMCSampler:
         {
@@ -199,10 +201,11 @@ static __device__ __inline__ float Get1D(GPUSampler *localSampler)
     switch (static_cast<CommonStructs::SamplerType>(sysSamplerType))
     {
 #ifdef USE_HALTON_SAMPLER
-        case CommonStructs::SamplerType::HaltonQMCSampler:
+        /*case CommonStructs::SamplerType::HaltonQMCSampler:
         {
             return Get1D_Halton(localSampler->haltonSampler);
-        }
+        }*/
+        case CommonStructs::SamplerType::HaltonQMCSampler:
 #endif
         case CommonStructs::SamplerType::SobolQMCSampler:
         {

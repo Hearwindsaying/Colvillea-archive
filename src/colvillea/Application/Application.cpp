@@ -447,6 +447,46 @@ void Application::drawSettings()
     }
     
 
+    /* Draw Sampler setting. */
+    if (ImGui::CollapsingHeader("Sampling", ImGuiTreeNodeFlags_CollapsingHeader))
+    {
+        int currentSamplerIdx = toUnderlyingValue(this->m_sceneGraph->getSampler()->getSamplerType());
+        static int item_current_3 = 0;
+
+        ImGui::AlignTextToFramePadding();
+        ImGui::Text("                             Sampler"); ImGui::SameLine();
+        ImGui::SetNextItemWidth(165);
+        if (ImGui::Combo("##Sampler", &currentSamplerIdx, "Halton QMC\0Sobol QMC\0Independent\0\0"))
+        {
+            this->m_sceneGraph->createSampler(static_cast<CommonStructs::SamplerType>(currentSamplerIdx));
+        }
+
+        ImGui::AlignTextToFramePadding();
+        ImGui::Text("                          Integrator"); ImGui::SameLine();
+        ImGui::SetNextItemWidth(165);
+        ImGui::Combo("##Integrator", &item_current_3, "Direct Lighting\0Path Tracing\0\0");
+
+
+        static int f0 = 1;
+        static bool enableRR = true;
+        if (item_current_3 == 1)
+        {
+            ImGui::AlignTextToFramePadding();
+            ImGui::Text("            Max Light Bounces"); ImGui::SameLine();
+            ImGui::SetNextItemWidth(165);
+            if (ImGui::InputInt("##Max Light Bounces", &f0, 1, 1))
+            {
+                if (f0 <= 0)
+                    f0 = 1;
+            }
+
+            ImGui::AlignTextToFramePadding();
+            ImGui::Text("             Roussian Roulette"); ImGui::SameLine();
+            ImGui::Checkbox("##RoussianRoulette", &enableRR);
+        }
+
+    }
+
 
     ImGui::End();
 }
