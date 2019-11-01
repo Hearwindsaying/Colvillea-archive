@@ -451,7 +451,6 @@ void Application::drawSettings()
     if (ImGui::CollapsingHeader("Sampling", ImGuiTreeNodeFlags_CollapsingHeader))
     {
         int currentSamplerIdx = toUnderlyingValue(this->m_sceneGraph->getSampler()->getSamplerType());
-        static int item_current_3 = 0;
 
         ImGui::AlignTextToFramePadding();
         ImGui::Text("                             Sampler"); ImGui::SameLine();
@@ -459,30 +458,44 @@ void Application::drawSettings()
         if (ImGui::Combo("##Sampler", &currentSamplerIdx, "Halton QMC\0Sobol QMC\0Independent\0\0"))
         {
             this->m_sceneGraph->createSampler(static_cast<CommonStructs::SamplerType>(currentSamplerIdx));
+            this->resetRenderParams();
         }
 
+        int currentIntegratorIdx = toUnderlyingValue(this->m_sceneGraph->getIntegrator()->getIntegratorType());
         ImGui::AlignTextToFramePadding();
         ImGui::Text("                          Integrator"); ImGui::SameLine();
         ImGui::SetNextItemWidth(165);
-        ImGui::Combo("##Integrator", &item_current_3, "Direct Lighting\0Path Tracing\0\0");
-
-
-        static int f0 = 1;
-        static bool enableRR = true;
-        if (item_current_3 == 1)
+        if (ImGui::Combo("##Integrator", &currentIntegratorIdx, "Direct Lighting\0Path Tracing\0\0"))
         {
+            /* Change to PathTracing integrator. */
+            this->m_sceneGraph->changeIntegrator(static_cast<IntegratorType>(currentIntegratorIdx));
+            this->resetRenderParams();
+        }
+
+        if (currentIntegratorIdx == toUnderlyingValue(IntegratorType::PathTracing))
+        {
+            std::shared_ptr<PathTracing> ptIntegrator = this->m_sceneGraph->getPathTracing();
+            int  maxDepth               = ptIntegrator->getMaxDepth();
+            bool enableRoussianRoulette = ptIntegrator->getEnableRoussianRoulette();
+
             ImGui::AlignTextToFramePadding();
             ImGui::Text("            Max Light Bounces"); ImGui::SameLine();
             ImGui::SetNextItemWidth(165);
-            if (ImGui::InputInt("##Max Light Bounces", &f0, 1, 1))
+            if (ImGui::InputInt("##Max Light Bounces", &maxDepth, 1, 1))
             {
-                if (f0 <= 0)
-                    f0 = 1;
+                if (maxDepth <= 0)
+                    maxDepth = 1;
+                ptIntegrator->setMaxDepth(maxDepth);
+                this->resetRenderParams();
             }
 
             ImGui::AlignTextToFramePadding();
             ImGui::Text("             Roussian Roulette"); ImGui::SameLine();
-            ImGui::Checkbox("##RoussianRoulette", &enableRR);
+            if (ImGui::Checkbox("##RoussianRoulette", &enableRoussianRoulette))
+            {
+                ptIntegrator->setEnableRoussianRoulette(enableRoussianRoulette);
+                this->resetRenderParams();
+            }
         }
 
     }

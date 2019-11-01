@@ -30,7 +30,7 @@ public:
         return pathTracing;
     }
 
-	PathTracing(optix::Context context, const std::map<std::string, optix::Program> &programsMap, bool enableRoussianRoulette, int maxDepth) : Integrator(context, programsMap, "PathTracing")
+	PathTracing(optix::Context context, const std::map<std::string, optix::Program> &programsMap, bool enableRoussianRoulette, int maxDepth) : Integrator(context, programsMap, "PathTracing", IntegratorType::PathTracing)
 	{
 		TW_ASSERT(maxDepth > 0);
         this->setEnableRoussianRoulette(enableRoussianRoulette);

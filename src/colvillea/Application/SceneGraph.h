@@ -36,6 +36,8 @@ public:
         m_filmWidth(filmWidth), m_filmHeight(filmHeight), m_application(application)
 	{
 		this->initializeGraph();
+        this->initializeLoadingIntegrators();
+        this->initializeLoadingDefaultSampler();
 	}
 
 private:
@@ -81,29 +83,95 @@ private:
         this->m_topGroup->addChild(this->m_topGeometryGroup_Geometry);
     }
 
+    /**
+     * @brief Creating integrators and add to integrators map for later use.
+     * It is slightly different from Samplers that we load all integrators
+     * initially. 
+     * @note Default behavior: If no integrator is specified in hard code, 
+     * DirectLighting integrator will be used.
+     * @todo The default parameters for creating integrators should be done with 
+     * config file.
+     */
+    void initializeLoadingIntegrators()
+    {
+        std::shared_ptr<Integrator> integrator = DirectLighting::createIntegrator(this->m_context, this->m_programsMap);
+        TW_ASSERT(this->m_integratorsMap.insert({ IntegratorType::DirectLighting, integrator }).second);
+        this->m_integrator = integrator;
+
+        /* Default values. */
+        constexpr bool enableRoussianRoulette = true;
+        constexpr int  maxDepth = 5;
+        integrator = PathTracing::createIntegrator(this->m_context, this->m_programsMap, enableRoussianRoulette, maxDepth);
+        TW_ASSERT(this->m_integratorsMap.insert({ IntegratorType::PathTracing, integrator }).second);
+    }
+
+    /**
+     * @brief Load a default sampler which could be overrided in hard code.
+     * @note Default behavior: If no sampler is specified in hard code,
+     * IndependentSampler will be used.
+     * @todo The default parameters for creating integrators should be done with
+     * config file.
+     */
+    void initializeLoadingDefaultSampler()
+    {
+        /* SceneGraph::createSampler() create corresponding sampler and apply to
+         * |m_sampler|. */
+        this->createSampler(CommonStructs::SamplerType::IndependentSampler);
+    }
+
 public:
     /************************************************************************/
     /*                 Scene configuration creating functions               */
     /************************************************************************/ 
 
     /**
-     * @brief Create an integrator and add to sceneGraph.
-     * 
-     * @see DirectLighting::Integrator()
+     * @brief Return currently used integrator.
      */
-    void createDirectLightingIntegrator()
+    std::shared_ptr<Integrator> getIntegrator() const
     {
-        this->m_integrator = DirectLighting::createIntegrator(this->m_context, this->m_programsMap);
+        return this->m_integrator;
     }
 
     /**
-     * @brief Create an integrator and add to sceneGraph.
-     *
-     * @see PathTracing::Integrator()
+     * @brief Get DirectLighting Integrator from integrators map.
      */
-    void createPathTracingIntegrator(bool enableRoussianRoulette, int maxDepth)
+    std::shared_ptr<DirectLighting> getDirectLighting() const
     {
-        this->m_integrator = PathTracing::createIntegrator(this->m_context, this->m_programsMap, enableRoussianRoulette, maxDepth);
+        auto integratorItr = this->m_integratorsMap.find(IntegratorType::DirectLighting);
+        TW_ASSERT(integratorItr != this->m_integratorsMap.end());
+        return std::static_pointer_cast<DirectLighting>(integratorItr->second);
+    }
+
+    /**
+     * @brief Get DirectLighting Integrator from integrators map.
+     */
+    std::shared_ptr<PathTracing> getPathTracing() const
+    {
+        auto integratorItr = this->m_integratorsMap.find(IntegratorType::PathTracing);
+        TW_ASSERT(integratorItr != this->m_integratorsMap.end());
+        return std::static_pointer_cast<PathTracing>(integratorItr->second);
+    }
+
+    /**
+     * @brief Change current used integrator.
+     * @param[in]  Expected integrator type to use
+     */
+    void changeIntegrator(IntegratorType integratorType)
+    {
+        auto integratorItr = this->m_integratorsMap.find(integratorType);
+        TW_ASSERT(integratorItr != this->m_integratorsMap.end());
+        this->m_integrator = integratorItr->second;
+
+        for (const auto& shape : this->m_shapes_GeometryTriangles)
+        {
+            shape->changeIntegrator(this->m_integrator->getIntegratorMaterial());
+        }
+
+        /* Iterate all GeometryShape for adding to |m_topGeometryGroup_Geometry|. */
+        for (const auto& shape : this->m_shapes_Geometry)
+        {
+            shape->changeIntegrator(this->m_integrator->getIntegratorMaterial());
+        }
     }
 
 	/**
@@ -303,10 +371,14 @@ private:
     unsigned int m_filmWidth, m_filmHeight;
 
     std::map<CommonStructs::SamplerType, std::shared_ptr<Sampler>> m_samplersMap;
+    std::map<IntegratorType, std::shared_ptr<Integrator>>          m_integratorsMap;
 
-    std::unique_ptr<Integrator> m_integrator;
-    std::shared_ptr<Sampler>    m_sampler;   // holding current used sampler
-    std::shared_ptr<Camera>     m_camera;    // todo:We could only hold one instance
+    /// Current used integrator
+    std::shared_ptr<Integrator> m_integrator;
+    /// Current used sampler
+    std::shared_ptr<Sampler>    m_sampler;  
+    /// Current camera (only one camera instance is supported)
+    std::shared_ptr<Camera>     m_camera;   
 
 
     std::vector<std::shared_ptr<GeometryTrianglesShape>> m_shapes_GeometryTriangles;

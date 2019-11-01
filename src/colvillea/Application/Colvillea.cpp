@@ -33,11 +33,11 @@ void create_CornellBoxScene(std::shared_ptr<SceneGraph> &sceneGraph, std::unique
     /* For finding a better position to look at CornellBox. */
     lightPool->createHDRILight(basePath + "HDRI\\uffizi-large.hdr", Matrix4x4::identity());
 
-    sceneGraph->createDirectLightingIntegrator();
+    //sceneGraph->createDirectLightingIntegrator();
     //sceneGraph->createPathTracingIntegrator(true, 5);
 
     /* Create sampler. */
-    sceneGraph->createSampler(CommonStructs::SamplerType::IndependentSampler);// define USE_HALTON_SAMPLER to enable Halton
+    //sceneGraph->createSampler(CommonStructs::SamplerType::IndependentSampler);// define USE_HALTON_SAMPLER to enable Halton
 
     /* Create triangle mesh. */
     sceneGraph->createTriangleMesh(
@@ -63,7 +63,7 @@ void create_CornellBoxScene(std::shared_ptr<SceneGraph> &sceneGraph, std::unique
 /* Create test scene. */
 void create_TestScene(std::shared_ptr<SceneGraph> &sceneGraph, std::unique_ptr<LightPool> &lightPool, std::unique_ptr<Application> &application, std::unique_ptr<MaterialPool> &materialPool, const std::string & basePath)
 {
-    sceneGraph->createDirectLightingIntegrator();
+    //sceneGraph->createDirectLightingIntegrator();
     //sceneGraph->createPathTracingIntegrator(true, 5);
     lightPool->createHDRILight(basePath + "HDRI\\uffizi-large.hdr", Matrix4x4::identity());
     sceneGraph->createSampler(CommonStructs::SamplerType::SobolQMCSampler);// todo:ifdef USE_HALTON_SAMPLER to enable Halton

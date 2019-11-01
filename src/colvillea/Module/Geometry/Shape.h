@@ -98,6 +98,19 @@ public:
         return this->m_geometryInstance["reverseOrientation"]->getInt();
     }
 
+    /**
+     * @brief Change Integrator type after setting up GeometryInstance.
+     * @note It's named as "change" prefix because it should not be used
+     * during initialization.
+     * @param[in] integratorMaterial  Expected integrator to use
+     * @todo change "change" prefix to "set" which supports both initialization
+     * and later GUI interaction.
+     */
+    void changeIntegrator(optix::Material integratorMaterial)
+    {
+        this->m_integrator = integratorMaterial;
+        this->m_geometryInstance->setMaterial(0, this->m_integrator);
+    }
 
 protected:
     /************************************************************************/

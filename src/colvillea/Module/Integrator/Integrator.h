@@ -28,7 +28,8 @@ public:
      * For this reason, you should not call the constructor directly
      * and use factory method Integrator::createIntegrator()
      */
-	Integrator(const optix::Context context, const std::map<std::string, optix::Program> &programsMap, const std::string &integratorClassName):m_context(context), m_programsMap(programsMap)
+	Integrator(const optix::Context context, const std::map<std::string, optix::Program> &programsMap, const std::string &integratorClassName, IntegratorType integratorType) : 
+        m_context(context), m_programsMap(programsMap),m_integratorType(integratorType)
 	{
 		std::cout << "[Info] Derived class name from Integrator is: " << integratorClassName << std::endl;
 
@@ -76,9 +77,16 @@ public:
         return this->m_integratorMaterial;
     }
 
+    IntegratorType getIntegratorType() const
+    {
+        return this->m_integratorType;
+    }
+
 protected:
     optix::Context m_context;
     const std::map<std::string, optix::Program> &m_programsMap;
+
+    IntegratorType m_integratorType;
 
 	optix::Program m_closestHitProgram;
 	//optix::Program m_anyHitShadowRayProgram;
