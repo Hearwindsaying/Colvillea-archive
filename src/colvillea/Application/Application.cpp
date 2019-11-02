@@ -369,8 +369,9 @@ void Application::drawSettings()
         /* Eye Location Group: */
         ImGui::Text("            Eye Location");
         ImGui::SameLine(178.f);
+        ImGui::AlignTextToFramePadding();
         ImGui::Text(" X\n");
-        ImGui::SameLine();
+        ImGui::SameLine(200.f);
         ImGui::SetNextItemWidth(85);
         if (ImGui::DragFloat("##Eye Location X", &cInfo.eye.x, 1.0f, -100.0f, 100.0f))
         {
@@ -379,8 +380,9 @@ void Application::drawSettings()
         
         ImGui::Text("            ");
         ImGui::SameLine(178.f);
+        ImGui::AlignTextToFramePadding();
         ImGui::Text(" Y\n");
-        ImGui::SameLine();
+        ImGui::SameLine(200.f);
         ImGui::SetNextItemWidth(85);
         if (ImGui::DragFloat("##Eye Location Y", &cInfo.eye.y, 1.0f, -100.0f, 100.0f))
         {
@@ -389,8 +391,9 @@ void Application::drawSettings()
 
         ImGui::Text("            ");
         ImGui::SameLine(178.f);
+        ImGui::AlignTextToFramePadding();
         ImGui::Text(" Z\n");
-        ImGui::SameLine();
+        ImGui::SameLine(200.f);
         ImGui::SetNextItemWidth(85);
         if (ImGui::DragFloat("##Eye Location Z", &cInfo.eye.z, 1.0f, -100.0f, 100.0f))
         {
@@ -400,8 +403,9 @@ void Application::drawSettings()
         /* LookAt Destination Group: */
         ImGui::Text("Destination Location ");
         ImGui::SameLine();
+        ImGui::AlignTextToFramePadding();
         ImGui::Text("X\n");
-        ImGui::SameLine();
+        ImGui::SameLine(200.f);
         ImGui::SetNextItemWidth(85);
         if (ImGui::DragFloat("##Destination Location X", &cInfo.lookAtDestination.x, 1.0f, -100.0f, 100.0f))
         {
@@ -410,8 +414,9 @@ void Application::drawSettings()
 
         ImGui::Text("            ");
         ImGui::SameLine(178.f);
+        ImGui::AlignTextToFramePadding();
         ImGui::Text(" Y\n");
-        ImGui::SameLine();
+        ImGui::SameLine(200.f);
         ImGui::SetNextItemWidth(85);
         if (ImGui::DragFloat("##Destination Location Y", &cInfo.lookAtDestination.y, 1.0f, -100.0f, 100.0f))
         {
@@ -420,8 +425,9 @@ void Application::drawSettings()
 
         ImGui::Text("            ");
         ImGui::SameLine(178.f);
+        ImGui::AlignTextToFramePadding();
         ImGui::Text(" Z\n");
-        ImGui::SameLine();
+        ImGui::SameLine(200.f);
         ImGui::SetNextItemWidth(85);
         if (ImGui::DragFloat("##Destination Location Z", &cInfo.lookAtDestination.z, 1.0f, -100.0f, 100.0f))
         {
@@ -453,7 +459,7 @@ void Application::drawSettings()
         int currentSamplerIdx = toUnderlyingValue(this->m_sceneGraph->getSampler()->getSamplerType());
 
         ImGui::AlignTextToFramePadding();
-        ImGui::Text("                             Sampler"); ImGui::SameLine();
+        ImGui::Text("                             Sampler"); ImGui::SameLine(200.f);
         ImGui::SetNextItemWidth(165);
         if (ImGui::Combo("##Sampler", &currentSamplerIdx, "Halton QMC\0Sobol QMC\0Independent\0\0"))
         {
@@ -463,7 +469,7 @@ void Application::drawSettings()
 
         int currentIntegratorIdx = toUnderlyingValue(this->m_sceneGraph->getIntegrator()->getIntegratorType());
         ImGui::AlignTextToFramePadding();
-        ImGui::Text("                          Integrator"); ImGui::SameLine();
+        ImGui::Text("                          Integrator"); ImGui::SameLine(200.f);
         ImGui::SetNextItemWidth(165);
         if (ImGui::Combo("##Integrator", &currentIntegratorIdx, "Direct Lighting\0Path Tracing\0\0"))
         {
@@ -479,7 +485,7 @@ void Application::drawSettings()
             bool enableRoussianRoulette = ptIntegrator->getEnableRoussianRoulette();
 
             ImGui::AlignTextToFramePadding();
-            ImGui::Text("            Max Light Bounces"); ImGui::SameLine();
+            ImGui::Text("            Max Light Bounces"); ImGui::SameLine(200.f);
             ImGui::SetNextItemWidth(165);
             if (ImGui::InputInt("##Max Light Bounces", &maxDepth, 1, 1))
             {
@@ -490,7 +496,7 @@ void Application::drawSettings()
             }
 
             ImGui::AlignTextToFramePadding();
-            ImGui::Text("             Roussian Roulette"); ImGui::SameLine();
+            ImGui::Text("             Roussian Roulette"); ImGui::SameLine(200.f);
             if (ImGui::Checkbox("##RoussianRoulette", &enableRoussianRoulette))
             {
                 ptIntegrator->setEnableRoussianRoulette(enableRoussianRoulette);
