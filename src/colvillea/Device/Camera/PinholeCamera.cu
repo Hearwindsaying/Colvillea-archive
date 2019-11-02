@@ -24,7 +24,7 @@ rtBuffer<float, 2>          sysCurrWeightedSumBuffer;/*weightedSum buffer with r
 												       iteration*/
 
 rtDeclareVariable(float,    sysFilterGaussianAlpha, ,) = 0.25f;//Gaussian filter alpha paramter
-rtDeclareVariable(float,    sysFilterWidth, ,) = 1.f;//Gaussian filter width
+rtDeclareVariable(float,    sysFilterWidth, ,) = 1.f;//Gaussian filter width>=1.f
 
 rtDeclareVariable(float,    sysSceneEpsilon, , );
 rtDeclareVariable(rtObject, sysTopObject, , );
@@ -171,8 +171,6 @@ RT_PROGRAM void RayGeneration_PinholeCamera()
 	float3 rayDir = rayOrg;
 	TwUtil::GenerateRay(pFilm, rayOrg, rayDir, RasterToCamera, CameraToWorld);
 
-//     rtPrintf("%d %d\n", sysLaunch_index.x, sysLaunch_index.y);
-
 	/* Make ray and trace, goint to next raytracing pipeline phase. */
 	Ray ray = make_Ray(rayOrg, rayDir, toUnderlyingValue(RayType::Radiance), sysSceneEpsilon, RT_DEFAULT_MAX);
 
@@ -184,46 +182,59 @@ RT_PROGRAM void RayGeneration_PinholeCamera()
 	/*--------------------------------------------------------------------------------*/
 	/*----Perform filtering and reconstruction so as to write to the output buffer----*/
 	/*--------------------------------------------------------------------------------*/
-	// todo: use faster filtering technique without atomic ops when width<.5f
 
-	/*compute pFilm's raster extent
-	 *--1.get film sample's discrete coordinates*/
-	float2 dCoordsSample = pFilm - .5f;
+    /* If filter width <= 1.f, one sample could only contribute to one pixel
+       -- and there is no chance that two samples not in the same pixel will
+       -- contribute to the same pixel. So atomic operation could be saved for
+       -- efficenciy. */
+    if (sysFilterWidth <= 1.f)
+    {
+        float currentWeight = TwUtil::evaluateFilter(qmcSamples.x - .5f, qmcSamples.y - .5f);
 
-	/*--2.search around the filterWidth for raster pixel boundary*/
-	int2 pMin = TwUtil::ceilf2i(dCoordsSample - sysFilterWidth);
-	int2 pMax = TwUtil::floorf2i(dCoordsSample + sysFilterWidth);
+        float4 &currLi = prdRadiance.radiance;
+        /*ignore alpha channel*/
+        sysCurrResultBuffer[sysLaunch_index].x    += currLi.x * currentWeight;
+        sysCurrResultBuffer[sysLaunch_index].y    += currLi.y * currentWeight;
+        sysCurrResultBuffer[sysLaunch_index].z    += currLi.z * currentWeight;
+        sysCurrWeightedSumBuffer[sysLaunch_index] += currentWeight;
+    }
+    else
+    {
+        /* Compute pFilm's raster extent
+         * --1.get film sample's discrete coordinates. */
+        float2 dCoordsSample = pFilm - .5f;
 
-	/*--3.check for film extent*/
-	pMin.x = max(pMin.x, 0);                   pMin.y = max(pMin.y, 0);
-	pMax.x = min(pMax.x, sysLaunch_Dim.x - 1); pMax.y = min(pMax.y, sysLaunch_Dim.y - 1);
-	
-	/*note that assert() only supports in NVRTC*/
-	if (pMax.x - pMin.x < 0 || pMax.y - pMin.y < 0)
-		rtPrintf("[ERROR]Assert failed at \"filtering\" \n");
+        /*--2.search around the filterWidth for raster pixel boundary*/
+        int2 pMin = TwUtil::ceilf2i(dCoordsSample - sysFilterWidth);
+        int2 pMax = TwUtil::floorf2i(dCoordsSample + sysFilterWidth);
 
-	/*loop over raster pixel and add sample with filtering operation*/
-	for (int y = pMin.y; y <= pMax.y; ++y)
-	{
-		for (int x = pMin.x; x <= pMax.x; ++x)
-		{
-			/*not necessary to distinguish first iteration, because one sample
-			 *could possibly contribute to multiple pixels so the 0th iteration doesn't
-			 *have a specialized meaning. Instead, we use the modified version of progressive
-			 *weighted average formula.*/
+        /*--3.check for film extent*/
+        pMin.x = max(pMin.x, 0);                   pMin.y = max(pMin.y, 0);
+        pMax.x = min(pMax.x, sysLaunch_Dim.x - 1); pMax.y = min(pMax.y, sysLaunch_Dim.y - 1);
 
-			/*Pass 1:accumulate sysCurrResultBuffer with f(dx,dy)*Li and sysCurrWeightedSumBuffer with f(dx,dy)*/
-			uint2 pixelIndex = make_uint2(x, y);
-			float currentWeight = TwUtil::evaluateFilter(x - dCoordsSample.x, y - dCoordsSample.y);
+        /*loop over raster pixel and add sample with filtering operation*/
+        for (int y = pMin.y; y < pMax.y; ++y)
+        {
+            for (int x = pMin.x; x < pMax.x; ++x)
+            {
+                /*not necessary to distinguish first iteration, because one sample
+                 *could possibly contribute to multiple pixels so the 0th iteration doesn't
+                 *have a specialized meaning. Instead, we use the modified version of progressive
+                 *weighted average formula.*/
 
-			float4 &currLi = prdRadiance.radiance;
-			/*ignore alpha channel*/
-			atomicAdd(&sysCurrResultBuffer[pixelIndex].x, currLi.x * currentWeight);
-			atomicAdd(&sysCurrResultBuffer[pixelIndex].y, currLi.y * currentWeight);
-			atomicAdd(&sysCurrResultBuffer[pixelIndex].z, currLi.z * currentWeight);
-			atomicAdd(&sysCurrWeightedSumBuffer[pixelIndex], currentWeight);
-		}
-	}
+                 /*Pass 1:accumulate sysCurrResultBuffer with f(dx,dy)*Li and sysCurrWeightedSumBuffer with f(dx,dy)*/
+                uint2 pixelIndex = make_uint2(x, y);
+                float currentWeight = TwUtil::evaluateFilter(x - dCoordsSample.x, y - dCoordsSample.y);
+
+                float4 &currLi = prdRadiance.radiance;
+                /*ignore alpha channel*/
+                atomicAdd(&sysCurrResultBuffer[pixelIndex].x, currLi.x * currentWeight);
+                atomicAdd(&sysCurrResultBuffer[pixelIndex].y, currLi.y * currentWeight);
+                atomicAdd(&sysCurrResultBuffer[pixelIndex].z, currLi.z * currentWeight);
+                atomicAdd(&sysCurrWeightedSumBuffer[pixelIndex], currentWeight);
+            }
+        }
+    }
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -244,6 +255,16 @@ RT_PROGRAM void RayGeneration_Filter()
 	sysOutputBuffer[sysLaunch_index] = (sysOutputBuffer[sysLaunch_index] * sysSampleWeightedSum[sysLaunch_index] + sysCurrResultBuffer[sysLaunch_index]) / (sysSampleWeightedSum[sysLaunch_index] + sysCurrWeightedSumBuffer[sysLaunch_index]);
     sysHDRBuffer[sysLaunch_index]    = (sysHDRBuffer[sysLaunch_index] * sysSampleWeightedSum[sysLaunch_index] + sysCurrResultBuffer[sysLaunch_index]) / (sysSampleWeightedSum[sysLaunch_index] + sysCurrWeightedSumBuffer[sysLaunch_index]);
 	sysSampleWeightedSum[sysLaunch_index] += sysCurrWeightedSumBuffer[sysLaunch_index];
+
+    if (isnan(sysOutputBuffer[sysLaunch_index].x) || isnan(sysOutputBuffer[sysLaunch_index].y) || isnan(sysOutputBuffer[sysLaunch_index].z))
+    {
+        rtPrintf("%f=%f %f/ %f %f\n", 
+            sysOutputBuffer[sysLaunch_index].x, 
+            sysSampleWeightedSum[sysLaunch_index], 
+            sysCurrResultBuffer[sysLaunch_index].x, 
+            sysSampleWeightedSum[sysLaunch_index], 
+            sysCurrWeightedSumBuffer[sysLaunch_index]);
+    }
 
 	/*clear current buffer for next iteration*/
 	sysCurrResultBuffer[sysLaunch_index] = make_float4(0.0f, 0.0f, 0.0f, 1.0f);

@@ -13,46 +13,6 @@
 #include "HaltonSampler.h"
 #include "SobolSampler.h"
 
-#if 0
-//todo:use template parameterize [phase] parameter to reduce branch
-enum class Phases :unsigned int
-{
-    RayGeneration,
-    ClosestHit,
-
-    CountOfType
-};
-
-template<typename T>
-static __device__ __inline__ T makeGPUSampler(const CommonStructs::SamplerType &samplerType)
-{
-    switch (samplerType)
-    {
-    case CommonStructs::SamplerType::HaltonQMCSampler:
-        return 
-    default:
-        break;
-    }
-}
-
-template<Phases phase>
-static __device__ __inline__ void makeSampler(const CommonStructs::SamplerType &samplerType);
-
-template<Phases phase=Phases::ClosestHit>
-static __device__ __inline__ Sampler makeSampler(const CommonStructs::SamplerType &samplerType)
-{
-    Sampler localSampler;
-    StartSamplingPreprocess_CHit(localSampler);
-}
-
-template<Phases phase = Phases::RayGeneration>
-static __device__ __inline__ void makeSampler()
-{
-    Sampler localSampler;
-    StartSamplingPreprocess_RayGen(localSampler);
-}
-#endif // 0
-
 #ifndef TWRT_DELCARE_SAMPLERTYPE
 #define TWRT_DELCARE_SAMPLERTYPE
 rtDeclareVariable(int, sysSamplerType, , );         /* Sampler type chosen in GPU program.

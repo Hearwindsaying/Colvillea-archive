@@ -174,6 +174,15 @@ namespace CommonStructs
     };
 
 
+    enum class FilterType : unsigned int
+    {
+        BoxFilter,
+        GaussianFilter,
+
+        CountOfType
+    };
+
+
 
     enum BSDFType : unsigned int
     {
