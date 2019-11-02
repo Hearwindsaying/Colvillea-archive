@@ -10,10 +10,7 @@
  * @brief Sampler is a base class for all supported
  * sampler including Quasi Monte-Carlo sampler, 
  * random sampler, etc. It helps initialize sampling
- * method used in GPU program. Unlike other fundamental
- * parts of a rendering system, we don't create but 
- * initialize sampler. todo: Consequently, changing sampler
- * is not permitted.
+ * method used in GPU program.
  */
 class Sampler
 {

@@ -14,6 +14,10 @@
 #include "colvillea/Module/Sampler/HaltonSampler.h"
 #include "colvillea/Module/Sampler/SobolSampler.h"
 #include "colvillea/Module/Sampler/IndependentSampler.h"
+
+#include "colvillea/Module/Filter/BoxFilter.h"
+#include "colvillea/Module/Filter/GaussianFilter.h"
+
 #include "colvillea/Module/Camera/Camera.h"
 #include "colvillea/Application/GlobalDefs.h"
 
@@ -38,6 +42,7 @@ public:
 		this->initializeGraph();
         this->initializeLoadingIntegrators();
         this->initializeLoadingDefaultSampler();
+        this->initializeLoadingFilters();
 	}
 
 private:
@@ -117,6 +122,28 @@ private:
         /* SceneGraph::createSampler() create corresponding sampler and apply to
          * |m_sampler|. */
         this->createSampler(CommonStructs::SamplerType::IndependentSampler);
+    }
+
+    /**
+     * @brief Creating filters and add to filters map for later use.
+     * It is slightly different from Samplers that we load all filters
+     * initially.
+     * @note Default behavior: If no filter is specified in hard code,
+     * BoxFilter with radius = 1.0f will be used.
+     * @todo The default parameters for creating integrators should be done with
+     * config file.
+     */
+    void initializeLoadingFilters()
+    {
+        /* Default values. */
+        constexpr float radius = 1.f;
+        std::shared_ptr<Filter> filter = BoxFilter::createBoxFilter(this->m_context);
+        TW_ASSERT(this->m_filtersMap.insert({ CommonStructs::FilterType::BoxFilter, filter }).second);
+        this->updateCurrentFilter(filter);
+
+        constexpr float gaussianAlpha = 0.25f;
+        filter = GaussianFilter::createGaussianFilter(this->m_context, radius);
+        TW_ASSERT(this->m_filtersMap.insert({ CommonStructs::FilterType::GaussianFilter, filter }).second);
     }
 
 public:
@@ -363,6 +390,19 @@ public:
         return this->m_camera;
     }
 
+private:
+    /************************************************************************/
+    /*                             Update functions                         */
+    /************************************************************************/
+    void updateCurrentFilter(const std::shared_ptr<Filter> &filter)
+    {
+        this->m_filter = filter;
+
+        /* Activate filter: update Context variables. */
+        this->m_context["sysFilterType"]->setInt(toUnderlyingValue(filter->getFilterType()));
+        CommonStructs::GPUFilter gpuFilter = this->m_filter->getCommonStructsGPUFilter();
+        this->m_context["sysGPUFilter"]->setUserData(sizeof(CommonStructs::GPUFilter), &gpuFilter);
+    }
 
 private:
     Application *m_application;
@@ -372,11 +412,14 @@ private:
 
     std::map<CommonStructs::SamplerType, std::shared_ptr<Sampler>> m_samplersMap;
     std::map<IntegratorType, std::shared_ptr<Integrator>>          m_integratorsMap;
+    std::map<CommonStructs::FilterType, std::shared_ptr<Filter>>   m_filtersMap;
 
     /// Current used integrator
     std::shared_ptr<Integrator> m_integrator;
     /// Current used sampler
     std::shared_ptr<Sampler>    m_sampler;  
+    /// Current used filter
+    std::shared_ptr<Filter>     m_filter;
     /// Current camera (only one camera instance is supported)
     std::shared_ptr<Camera>     m_camera;   
 

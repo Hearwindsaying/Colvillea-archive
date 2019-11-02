@@ -174,6 +174,10 @@ namespace CommonStructs
     };
 
 
+
+    /**
+    * @brief Supported filter types.
+    */
     enum class FilterType : unsigned int
     {
         BoxFilter,
@@ -182,8 +186,49 @@ namespace CommonStructs
         CountOfType
     };
 
+    /**
+    * @brief Common properties for all GPUFilter types.
+    */
+    struct GPUFilterBase
+    {
+        /// Filter radius >= 1.0f
+        float      radius;
+    };
+
+    /**
+     * @brief A simple box filter.
+     */
+    struct BoxFilter : public GPUFilterBase
+    {
+
+    };
+
+    /**
+     * @brief Gaussian filter.
+     */
+    struct GaussianFilter : public GPUFilterBase
+    {
+        /// Gaussian parameter alpha
+        float alpha;
+
+        /// exp(-alpha*radius*radius)
+        float gaussianExp;
+    };
+
+    /**
+     * @brief Union to store one specific GPUFilter.
+     * @note Virtual functions are not supported by OptiX so
+     * union type is employed here for containing "base" filter
+     * struct.
+     */
+    union GPUFilter
+    {
+        BoxFilter      boxFilter;
+        GaussianFilter gaussianFilter;
+    };
 
 
+    
     enum BSDFType : unsigned int
     {
         Lambert         = 0,

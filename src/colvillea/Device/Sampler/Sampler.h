@@ -150,6 +150,7 @@ static __device__ __inline__ optix::float2 Get2D(GPUSampler *localSampler)
         default:
         {
             rtPrintf("error in Get2D\n");
+            return make_float2(0.f);
         }
         break;
     }
@@ -180,6 +181,7 @@ static __device__ __inline__ float Get1D(GPUSampler *localSampler)
         default:
         {
             rtPrintf("error in Get1D\n");
+            return 0.f;
         }
         break;
     }
