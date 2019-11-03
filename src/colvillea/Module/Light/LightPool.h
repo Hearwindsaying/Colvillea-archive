@@ -20,7 +20,7 @@ class Application;
 /**
  * @brief A simple pool used for creating, containing and
  * managing lights. This is analogous to MaterialPool.
- * todo: add a pool interface?
+ * @todo: add a pool interface.
  * 
  */
 class LightPool
@@ -30,12 +30,20 @@ public:
         : m_programsMap(programsMap), m_context(context), m_application(application), m_sceneGraph(sceneGraph)
     {
         /* Initial values for |sysLightBuffers|. */
-        this->m_csLightBuffers.hdriLight.hdriEnvmap = RT_TEXTURE_ID_NULL;
+        this->initializeLoadingDefaultHDRILight();
         this->m_csLightBuffers.pointLightBuffer     = RT_BUFFER_ID_NULL;
         this->m_csLightBuffers.quadLightBuffer      = RT_BUFFER_ID_NULL;
 
         this->updateLightBuffers();
     }
+
+private:
+    void initializeLoadingDefaultHDRILight()
+    {
+        /* Create a dummy HDRILight. */
+        this->m_HDRILight = HDRILight::createHDRILight(this->m_application, this->m_context, this->m_programsMap, this);
+    }
+public:
 
     /**
      * @brief Create HDRILight object and add to SceneGraph.
@@ -43,14 +51,22 @@ public:
      * is hold which means changing HDRI is permitted but it
      * will destroy previous existing HDRILight. Recomputation
      * for initialization of HDRILight needs to be done again.
+     * 
+     * 
+     * @note Note that this is for hard code creating HDRILight
+     * usage. For default behavior (no HDRILight is specified in
+     * hard code), a dummy disabled HDRILight will be created.
      *
-     * @param HDRIFilename filename including path to HDRI.
+     * @param[in] HDRIFilename filename including path to HDRI.
      */
     void createHDRILight(const std::string & HDRIFilename, const optix::Matrix4x4 &lightToWorld)
     {
+        TW_ASSERT(this->m_HDRILight);
+
+        /* Replace m_HDRILight directly. */
         this->m_HDRILight = HDRILight::createHDRILight(this->m_application, this->m_context, this->m_programsMap, HDRIFilename, lightToWorld, this);
 
-        /* Note that after HDRILight::preprocess() we need to update LightBuffers again. 
+        /* Note that after HDRILight::preprocess() we need to update LightBuffers again.
          * -- We can't fetch a complete CommonStructs::HDRILight now. */
         this->m_csLightBuffers.hdriLight = this->m_HDRILight->getCommonStructsLight();
         this->updateLightBuffers();
@@ -100,7 +116,7 @@ public:
      * for quadlight.
      * @param[in] flipNormal    flip light's geometry if necessary
      *
-     * @note Only adding light is supported. //todo:use LightPool
+     * @note Only adding light is supported.
      * @see MaterialPool::createEmissiveMaterial()
      */
     void createQuadLight(const optix::Matrix4x4 &lightToWorld, const optix::float3 &intensity, const int materialIndex, bool flipNormal = false)
@@ -125,20 +141,37 @@ public:
         quadLightBuffer->unmap();
     }
 
+
+    /************************************************************************/
+    /*                         Getters & Setters                            */
+    /************************************************************************/
 public:
     /**
-     * @brief Set CommonStructs::HDRILight for |m_csLightBuffers|.
-     * 
-     * @todo HDRILight class should have a friend of LightPool and
-     * set this method to private.
+     * @brief Getter for |m_HDRILight|.
      */
-    void setCSHDRILight(const CommonStructs::HDRILight &hdriLight)
+    std::shared_ptr<HDRILight> getHDRILight() const
     {
-        this->m_csLightBuffers.hdriLight = hdriLight;
+        return this->m_HDRILight;
+    }
+
+
+private:
+    /************************************************************************/
+    /*                             Update functions                         */
+    /************************************************************************/
+
+    /**
+     * @brief Update CommonStructs::HDRILight for |m_csLightBuffers|.
+     * 
+     * @note There is only one instance available all the time but we
+     * still name it as "Current" in consistence with SceneGraph::updateCurrentFilter().
+     */
+    void updateCurrentHDRILight()
+    {
+        this->m_csLightBuffers.hdriLight = this->m_HDRILight->getCommonStructsLight();
         updateLightBuffers();
     }
 
-private:
     void updateLightBuffers()
     {
         this->m_context["sysLightBuffers"]->setUserData(sizeof(CommonStructs::LightBuffers), &this->m_csLightBuffers);
@@ -156,4 +189,6 @@ private:
     std::vector<std::shared_ptr<QuadLight>>     m_quadLights;
 
     CommonStructs::LightBuffers m_csLightBuffers;
+
+    friend class HDRILight;
 };

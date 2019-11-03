@@ -113,7 +113,8 @@ void Application::buildSceneGraph(std::shared_ptr<SceneGraph> &sceneGraph)
 
 void Application::drawWidget()
 {
-    drawSettings();
+    this->drawSettings();
+    this->drawInspector();
 
     static uint32_t frame_count = 0; // todo:use iteration index
 
@@ -573,6 +574,76 @@ void Application::drawSettings()
         }
 
     }
+
+    ImGui::End();
+}
+
+void Application::drawInspector()
+{
+    static const ImGuiWindowFlags window_flags_inspector = ImGuiWindowFlags_None;
+    if (!ImGui::Begin("Inspector", NULL, window_flags_inspector))
+    {
+        ImGui::End();
+        return;
+    }
+
+    static char str0[128] = "HDRI Probe 1";
+    ImGui::InputText("##Object Name", str0, IM_ARRAYSIZE(str0));
+
+    ImGui::Separator();
+
+    /*if (ImGui::CollapsingHeader("General", ImGuiTreeNodeFlags_CollapsingHeader))
+    {
+        static bool enableHDRIProbe = false;
+        static std::string HDRIFilename{ "uffizi-large.exr" };
+        ImGui::AlignTextToFramePadding();
+        ImGui::Text("                               Enable"); ImGui::SameLine(200.f);
+        ImGui::Checkbox("##Enable HDRIProbe", &enableHDRIProbe);
+
+        ImGui::AlignTextToFramePadding();
+        ImGui::Text("                        HDR Image"); ImGui::SameLine(200.f);
+        ImGui::SetNextItemWidth(165);
+        ImGui::Button(HDRIFilename.c_str(), ImVec2(165.f, 0.0f));
+        ImGui::SameLine();
+        ImGui::Button("M");
+    }*/
+
+    /*if (ImGui::CollapsingHeader("Transform", ImGuiTreeNodeFlags_CollapsingHeader))
+    {
+        ImGui::AlignTextToFramePadding();
+        ImGui::Text("                         Rotation");
+        ImGui::SameLine(178.f);
+        ImGui::AlignTextToFramePadding();
+        ImGui::Text(" X\n");
+        ImGui::SameLine(200.f);
+        ImGui::SetNextItemWidth(85);
+        if (ImGui::DragFloat("##HDRI Rotation X", &cInfo.x, 1.0f, -100.0f, 100.0f))
+        {
+
+        }
+
+        ImGui::Text("            ");
+        ImGui::SameLine(178.f);
+        ImGui::AlignTextToFramePadding();
+        ImGui::Text(" Y\n");
+        ImGui::SameLine(200.f);
+        ImGui::SetNextItemWidth(85);
+        if (ImGui::DragFloat("##HDRI Rotation Y", &cInfo.y, 1.0f, -100.0f, 100.0f))
+        {
+
+        }
+
+        ImGui::Text("            ");
+        ImGui::SameLine(178.f);
+        ImGui::AlignTextToFramePadding();
+        ImGui::Text(" Z\n");
+        ImGui::SameLine(200.f);
+        ImGui::SetNextItemWidth(85);
+        if (ImGui::DragFloat("##HDRI Rotation Z", &cInfo.z, 1.0f, -100.0f, 100.0f))
+        {
+
+        }
+    }*/
 
     ImGui::End();
 }

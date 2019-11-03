@@ -34,7 +34,26 @@ public:
         return hdriLight;
     }
 
+    /**
+     * @brief Factory method for creating a dummy HDRILight instance.
+     */
+    static std::unique_ptr<HDRILight> createHDRILight(Application *application, optix::Context context, const std::map<std::string, optix::Program> &programsMap, LightPool * lightPool)
+    {
+       return std::make_unique<HDRILight>(application, context, programsMap, lightPool);
+    }
+
     HDRILight(Application *application, optix::Context context, const std::map<std::string, optix::Program> &programsMap, const std::string & hdriFilename, /*std::shared_ptr<LightPool>*/LightPool * lightPool);
+
+    HDRILight(Application *application, optix::Context context, const std::map<std::string, optix::Program> &programsMap, LightPool * lightPool) : Light(context, programsMap, "HDRI"), m_HDRIFilename(""), m_lightPool(lightPool), m_enable(false)
+    {
+        TW_ASSERT(application);
+        TW_ASSERT(lightPool);
+
+        this->m_csHDRILight.lightToWorld = optix::Matrix4x4::identity();
+        this->m_csHDRILight.worldToLight = optix::Matrix4x4::identity();
+        this->m_csHDRILight.hdriEnvmap = RT_TEXTURE_ID_NULL;
+        this->m_csHDRILight.lightType = CommonStructs::LightType::HDRILight;
+    }
 
     void initializeLight(const optix::Matrix4x4 &lightToWorld) override
     {
@@ -62,6 +81,64 @@ public:
     {
         return this->m_csHDRILight;
     }
+
+    /**
+     * @brief Set status of Enable/Disable HDRILight.
+     * @param[in]  enable Enable/Disable HDRILight
+     */
+    void setEnableHDRILight(bool enable);
+    
+    
+    /**
+     * @brief Get status of Enable/Disable HDRILight.
+     * @return enable/disable status
+     */
+    bool getEnableHDRILight() const
+    {
+        return this->m_enable;
+    }
+
+    /**
+     * @brief Setter for |m_csHDRILight.lightToWorld|.
+     */
+    void setLightTransform(const optix::Matrix4x4 &lightToWorld);
+
+    /**
+     * @brief Getter for |m_csHDRILight.lightToWorld|.
+     */
+    optix::Matrix4x4 getTransform() const
+    {
+        return this->m_csHDRILight.lightToWorld;
+    }
+
+    /**
+     * @brief Getter for |m_HDRIFilename|.
+     */
+    std::string getHDRIFilename() const
+    {
+        return this->m_HDRIFilename;
+    }
+
+    /**
+     * @brief Setter for change a HDRIFile.
+     */
+    void setHDRIFilename(const std::string &HDRIFilename)
+    {
+        /* Load HDRI texture. */
+        this->m_HDRIFilename = HDRIFilename;
+        /* todo: Note that this could lead to memory leaking because it's creating rtBuffer 
+         * -- each time we want to change a HDRI file but never call *rtRemove... like function
+         * -- to destroy device buffers (Optixpp might not a RAII-style wrapper...). */
+        this->m_HDRITextureSampler = ImageLoader::LoadImageTexture(this->m_context, HDRIFilename, optix::make_float4(0.f), false);
+
+        this->m_csHDRILight.hdriEnvmap = this->m_HDRITextureSampler->getId();
+
+        /* HDRILight Struct setup can't be done until finish HDRILight::preprocess(). */
+        this->preprocess();
+
+        std::cout << "[Info] " << "Update HDRI file to " << HDRIFilename << std::endl;
+    }
+    
  
 protected:
     /**
@@ -86,7 +163,12 @@ private:
     /*std::weak_ptr<LightPool>*/LightPool *m_lightPool;
 
     optix::TextureSampler m_HDRITextureSampler;
+    /// HDRI Filename (host only)
     std::string           m_HDRIFilename;
 
-    CommonStructs::HDRILight m_csHDRILight;    // storage for struct data used in GPU programs
+    /// Storage for struct data used in GPU programs
+    CommonStructs::HDRILight m_csHDRILight;    
+
+    /// Record status of Enable/Disable HDRILight (host only)
+    bool m_enable;
 };

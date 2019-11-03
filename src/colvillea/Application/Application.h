@@ -88,6 +88,10 @@ private:
      */
     void drawSettings();
 
+    /**
+     * @brief Draw Inspector window.
+     */
+    void drawInspector();
 
 public:
     /**

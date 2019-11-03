@@ -13,11 +13,44 @@
 
 using namespace optix;
 
-HDRILight::HDRILight(Application *application, optix::Context context, const std::map<std::string, optix::Program> &programsMap, const std::string & hdriFilename, /*std::shared_ptr<LightPool>*/LightPool * lightPool) : Light(context, programsMap, "HDRI"), m_HDRIFilename(hdriFilename), m_lightPool(lightPool)
+HDRILight::HDRILight(Application *application, optix::Context context, const std::map<std::string, optix::Program> &programsMap, const std::string & hdriFilename, /*std::shared_ptr<LightPool>*/LightPool * lightPool) : Light(context, programsMap, "HDRI"), m_HDRIFilename(hdriFilename), m_lightPool(lightPool), m_enable(true)
 {
     TW_ASSERT(application);
     TW_ASSERT(lightPool);
     application->setPreprocessFunc(std::bind(&HDRILight::preprocess, this));
+}
+
+void HDRILight::setEnableHDRILight(bool enable)
+{
+    this->m_enable = enable;
+
+    if (!this->m_HDRITextureSampler)
+    {
+        /* This is a dummy HDRILight.*/
+        TW_ASSERT(this->m_csHDRILight.hdriEnvmap == RT_TEXTURE_ID_NULL);
+        std::cout << "[Info] " << (enable ? "Enable" : "Disable") << " HDRI Light." << std::endl;
+        return;
+    }
+
+    /* Setup device variable to enable/disable HDRILight rendering. */
+    this->m_csHDRILight.hdriEnvmap = enable ? this->m_HDRITextureSampler->getId() : RT_TEXTURE_ID_NULL;
+    this->m_lightPool->updateCurrentHDRILight();
+
+    std::cout << "[Info] " << (enable ? "Enable" : "Disable") << " HDRI Light." << std::endl;
+}
+
+void HDRILight::setLightTransform(const optix::Matrix4x4 & lightToWorld)
+{
+    /* Check whether transform matrix has scale. */
+    if (TwUtil::hasScale(lightToWorld))
+        std::cerr << "[Warning] HDRILight has scale, which could lead to undefined behavior!" << std::endl;
+    std::cout << "[Info] Scale component for HDRILight is: (" << TwUtil::getXScale(lightToWorld) << "," << TwUtil::getYScale(lightToWorld) << "," << TwUtil::getZScale(lightToWorld) << ")." << std::endl;
+
+    this->m_csHDRILight.lightToWorld = lightToWorld;
+    this->m_csHDRILight.worldToLight = lightToWorld.inverse();
+    this->m_lightPool->updateCurrentHDRILight();
+
+    std::cout << "[Info] " << "Updated HDRILight Transform successfully." << std::endl;
 }
 
 
@@ -28,7 +61,7 @@ void HDRILight::preprocess()
     /* Setup buffer for prefiltering launch. */
     RTsize HDRIWidth, HDRIHeight;
     this->m_HDRITextureSampler->getBuffer()->getSize(HDRIWidth, HDRIHeight);
-    std::cout << "[Info]Getting HDRIWidth: " << HDRIWidth << " HDRIHeight:" << HDRIHeight << std::endl;
+    std::cout << "[Info] Getting HDRIWidth: " << HDRIWidth << " HDRIHeight:" << HDRIHeight << std::endl;
 
     
     optix::Buffer prefilteringLaunchBuffer = context->createBuffer(RT_BUFFER_OUTPUT, RT_FORMAT_FLOAT, HDRIWidth, HDRIWidth);
@@ -114,7 +147,7 @@ void HDRILight::preprocess()
     /* Setup HDRILight Struct is done by LightPool. */
 //     auto lightPool = this->m_lightPool.lock();
 //     TW_ASSERT(lightPool);
-    this->m_lightPool->setCSHDRILight(this->m_csHDRILight);
+    this->m_lightPool->updateCurrentHDRILight();
 
     /* Do not forget unmapping prefiltering buffer we mapped before! */
     prefilteringLaunchBuffer->unmap();
