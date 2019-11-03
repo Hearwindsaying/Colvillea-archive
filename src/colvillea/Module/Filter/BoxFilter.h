@@ -18,7 +18,7 @@ public:
      * @brief Factory method for creating a BoxFilter instance.
      *
      * @param[in] context
-     * @param[in] radius Filter radius >= 1.0f. One sample contributes to only one pixel if radius == 1.0f
+     * @param[in] radius Filter radius >= 0.5f. One sample contributes to only one pixel if radius == 0.5f
      */
     static std::unique_ptr<BoxFilter> createBoxFilter(float radius)
     {
@@ -49,15 +49,20 @@ public:
 
     void setRadius(float radius)
     {
-        if (radius < 1.f)
+        if (radius < 0.5f)
         {
-            std::cout << "[Warning] Filter radius >= 1.f is not satisfied. Setting radius to 1.f instead." << std::endl;
-            this->m_csBoxFilter.radius = 1.f;
+            std::cout << "[Warning] Filter radius >= 0.5f is not satisfied. Setting radius to 0.5f instead." << std::endl;
+            this->m_csBoxFilter.radius = 0.5f;
         }
         else
         {
             this->m_csBoxFilter.radius = radius;
         }
+    }
+
+    float getRadius() const noexcept
+    {
+        return this->m_csBoxFilter.radius;
     }
 
 private:

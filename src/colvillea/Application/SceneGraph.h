@@ -129,20 +129,20 @@ private:
      * It is slightly different from Samplers that we load all filters
      * initially.
      * @note Default behavior: If no filter is specified in hard code,
-     * BoxFilter with radius = 1.0f will be used.
+     * BoxFilter with radius = 0.5f will be used.
      * @todo The default parameters for creating integrators should be done with
      * config file.
      */
     void initializeLoadingFilters()
     {
         /* Default values. */
-        constexpr float radius = 1.f;
-        std::shared_ptr<Filter> filter = BoxFilter::createBoxFilter(this->m_context);
+        constexpr float radius = 0.5f;
+        std::shared_ptr<Filter> filter = BoxFilter::createBoxFilter(radius); 
         TW_ASSERT(this->m_filtersMap.insert({ CommonStructs::FilterType::BoxFilter, filter }).second);
         this->updateCurrentFilter(filter);
 
-        constexpr float gaussianAlpha = 0.25f;
-        filter = GaussianFilter::createGaussianFilter(this->m_context, radius);
+        constexpr float gaussianAlpha = 2.0f;
+        filter = GaussianFilter::createGaussianFilter(radius, gaussianAlpha);
         TW_ASSERT(this->m_filtersMap.insert({ CommonStructs::FilterType::GaussianFilter, filter }).second);
     }
 
@@ -150,56 +150,6 @@ public:
     /************************************************************************/
     /*                 Scene configuration creating functions               */
     /************************************************************************/ 
-
-    /**
-     * @brief Return currently used integrator.
-     */
-    std::shared_ptr<Integrator> getIntegrator() const
-    {
-        return this->m_integrator;
-    }
-
-    /**
-     * @brief Get DirectLighting Integrator from integrators map.
-     */
-    std::shared_ptr<DirectLighting> getDirectLighting() const
-    {
-        auto integratorItr = this->m_integratorsMap.find(IntegratorType::DirectLighting);
-        TW_ASSERT(integratorItr != this->m_integratorsMap.end());
-        return std::static_pointer_cast<DirectLighting>(integratorItr->second);
-    }
-
-    /**
-     * @brief Get DirectLighting Integrator from integrators map.
-     */
-    std::shared_ptr<PathTracing> getPathTracing() const
-    {
-        auto integratorItr = this->m_integratorsMap.find(IntegratorType::PathTracing);
-        TW_ASSERT(integratorItr != this->m_integratorsMap.end());
-        return std::static_pointer_cast<PathTracing>(integratorItr->second);
-    }
-
-    /**
-     * @brief Change current used integrator.
-     * @param[in]  Expected integrator type to use
-     */
-    void changeIntegrator(IntegratorType integratorType)
-    {
-        auto integratorItr = this->m_integratorsMap.find(integratorType);
-        TW_ASSERT(integratorItr != this->m_integratorsMap.end());
-        this->m_integrator = integratorItr->second;
-
-        for (const auto& shape : this->m_shapes_GeometryTriangles)
-        {
-            shape->changeIntegrator(this->m_integrator->getIntegratorMaterial());
-        }
-
-        /* Iterate all GeometryShape for adding to |m_topGeometryGroup_Geometry|. */
-        for (const auto& shape : this->m_shapes_Geometry)
-        {
-            shape->changeIntegrator(this->m_integrator->getIntegratorMaterial());
-        }
-    }
 
 	/**
 	 * @brief Create TriangleMesh and add to SceneGraph shape
@@ -271,7 +221,7 @@ public:
         return quad;
     }
 
-    
+
 
 
     /**
@@ -324,13 +274,6 @@ public:
         this->m_context["sysSamplerType"]->setInt(toUnderlyingValue(samplerType));
     }
 
-    /**
-     * @brief Getter for currently used sampler.
-     */
-    std::shared_ptr<Sampler> getSampler() const 
-    {
-        return this->m_sampler;
-    }
 
     /**
      * @brief Create a camera object and 
@@ -388,6 +331,105 @@ public:
     std::shared_ptr<Camera> getCamera() const
     {
         return this->m_camera;
+    }
+
+    /**
+     * @brief Return currently used integrator.
+     */
+    std::shared_ptr<Integrator> getIntegrator() const
+    {
+        return this->m_integrator;
+    }
+
+    /**
+     * @brief Get DirectLighting Integrator from integrators map.
+     */
+    std::shared_ptr<DirectLighting> getDirectLighting() const
+    {
+        auto integratorItr = this->m_integratorsMap.find(IntegratorType::DirectLighting);
+        TW_ASSERT(integratorItr != this->m_integratorsMap.end());
+        return std::static_pointer_cast<DirectLighting>(integratorItr->second);
+    }
+
+    /**
+     * @brief Get DirectLighting Integrator from integrators map.
+     */
+    std::shared_ptr<PathTracing> getPathTracing() const
+    {
+        auto integratorItr = this->m_integratorsMap.find(IntegratorType::PathTracing);
+        TW_ASSERT(integratorItr != this->m_integratorsMap.end());
+        return std::static_pointer_cast<PathTracing>(integratorItr->second);
+    }
+
+    /**
+     * @brief Change current used integrator.
+     * @param[in] integratorType  Expected integrator type to use
+     */
+    void changeIntegrator(IntegratorType integratorType)
+    {
+        auto integratorItr = this->m_integratorsMap.find(integratorType);
+        TW_ASSERT(integratorItr != this->m_integratorsMap.end());
+        this->m_integrator = integratorItr->second;
+
+        for (const auto& shape : this->m_shapes_GeometryTriangles)
+        {
+            shape->changeIntegrator(this->m_integrator->getIntegratorMaterial());
+        }
+
+        /* Iterate all GeometryShape for adding to |m_topGeometryGroup_Geometry|. */
+        for (const auto& shape : this->m_shapes_Geometry)
+        {
+            shape->changeIntegrator(this->m_integrator->getIntegratorMaterial());
+        }
+    }
+
+    /**
+     * @brief Getter for currently used sampler.
+     */
+    std::shared_ptr<Sampler> getSampler() const
+    {
+        return this->m_sampler;
+    }
+
+    /**
+     * @brief Getter for currently used filter.
+     */
+    std::shared_ptr<Filter> getFilter() const
+    {
+        return this->m_filter;
+    }
+
+    /**
+     * @brief Get Box Filter from filters map.
+     */
+    std::shared_ptr<BoxFilter> getBoxFilter() const
+    {
+        auto filterItr = this->m_filtersMap.find(CommonStructs::FilterType::BoxFilter);
+        TW_ASSERT(filterItr != this->m_filtersMap.end());
+        return std::static_pointer_cast<BoxFilter>(filterItr->second);
+    }
+
+    /**
+     * @brief Get Gaussian Filter from filters map.
+     */
+    std::shared_ptr<GaussianFilter> getGaussianFilter() const
+    {
+        auto filterItr = this->m_filtersMap.find(CommonStructs::FilterType::GaussianFilter);
+        TW_ASSERT(filterItr != this->m_filtersMap.end());
+        return std::static_pointer_cast<GaussianFilter>(filterItr->second);
+    }
+
+    /**
+     * @brief Switch to the expected type of filter.
+     * @param[in] filterType  Expected filter type to use
+     */
+    void changeFilter(CommonStructs::FilterType filterType)
+    { 
+        auto filterItr = this->m_filtersMap.find(filterType);
+        TW_ASSERT(filterItr != this->m_filtersMap.end());
+
+        /* Update current filter to expected filter instance. */
+        this->updateCurrentFilter(filterItr->second);
     }
 
 private:

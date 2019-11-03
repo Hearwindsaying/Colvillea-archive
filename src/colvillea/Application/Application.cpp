@@ -473,7 +473,7 @@ void Application::drawSettings()
         ImGui::SetNextItemWidth(165);
         if (ImGui::Combo("##Integrator", &currentIntegratorIdx, "Direct Lighting\0Path Tracing\0\0"))
         {
-            /* Change to PathTracing integrator. */
+            /* Switch integrator. */
             this->m_sceneGraph->changeIntegrator(static_cast<IntegratorType>(currentIntegratorIdx));
             this->resetRenderParams();
         }
@@ -503,9 +503,76 @@ void Application::drawSettings()
                 this->resetRenderParams();
             }
         }
-
     }
 
+
+    /* Draw Reconstruction Filter setting. */
+    if (ImGui::CollapsingHeader("Reconstruction Filter", ImGuiTreeNodeFlags_CollapsingHeader))
+    {
+        int currentFilterTypeIdx = toUnderlyingValue(this->m_sceneGraph->getFilter()->getFilterType());
+
+        ImGui::AlignTextToFramePadding();
+        ImGui::Text("                                  Filter"); ImGui::SameLine(200.f);
+        ImGui::SetNextItemWidth(165);
+        if (ImGui::Combo("##Filter", &currentFilterTypeIdx, "Box\0Gaussian\0\0"))
+        {
+            /* Switch filter. */
+            this->m_sceneGraph->changeFilter(static_cast<CommonStructs::FilterType>(currentFilterTypeIdx));
+            this->resetRenderParams();
+        }
+
+        if (currentFilterTypeIdx == toUnderlyingValue(CommonStructs::FilterType::BoxFilter))
+        {
+            BoxFilter *boxFilter = this->m_sceneGraph->getBoxFilter().get();
+            float filterRadius = boxFilter->getRadius();
+            ImGui::AlignTextToFramePadding();
+            ImGui::Text("                                Radius"); ImGui::SameLine(200.f);
+            ImGui::SetNextItemWidth(165);
+            if (ImGui::InputFloat("##Radius", &filterRadius, 0.1f, 0.1f))
+            {
+                if (filterRadius <= 0.5f)
+                    filterRadius = 0.5f;
+                boxFilter->setRadius(filterRadius);
+                /* We need to update device variables (this work isn't included in setRadius(). */
+                this->m_sceneGraph->changeFilter(static_cast<CommonStructs::FilterType>(currentFilterTypeIdx));
+                this->resetRenderParams();
+            }
+        }
+        else if (currentFilterTypeIdx == toUnderlyingValue(CommonStructs::FilterType::GaussianFilter))
+        {
+            GaussianFilter *gaussianFilter = this->m_sceneGraph->getGaussianFilter().get();
+            float filterRadius = gaussianFilter->getRadius();
+            float filterAlpha  = gaussianFilter->getAlpha();
+
+            ImGui::AlignTextToFramePadding();
+            ImGui::Text("                                Radius"); ImGui::SameLine(200.f);
+            ImGui::SetNextItemWidth(165);
+            if (ImGui::InputFloat("##Radius", &filterRadius, 0.1f, 0.1f))
+            {
+                if (filterRadius <= 0.5f)
+                    filterRadius = 0.5f;
+                gaussianFilter->setRadius(filterRadius);
+                /* We need to update device variables (this work isn't included in setRadius(). */
+                this->m_sceneGraph->changeFilter(static_cast<CommonStructs::FilterType>(currentFilterTypeIdx));
+                this->resetRenderParams();
+            }
+
+            ImGui::AlignTextToFramePadding();
+            ImGui::Text("                  Gaussian Alpha"); ImGui::SameLine(200.f);
+            ImGui::SetNextItemWidth(165);
+            if (ImGui::InputFloat("##Gaussian Alpha", &filterAlpha, 0.05f, 0.05f))
+            {
+                if (filterAlpha <= 0.05f)
+                    filterAlpha = 0.05f;
+                gaussianFilter->setAlpha(filterAlpha);
+                /* We need to update device variables (this work isn't included in setRadius().
+                 * todo: update context variables in setRadius() */
+                this->m_sceneGraph->changeFilter(static_cast<CommonStructs::FilterType>(currentFilterTypeIdx));
+                this->resetRenderParams();
+            }
+        }
+
+    }
 
     ImGui::End();
 }

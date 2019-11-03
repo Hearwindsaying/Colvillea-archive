@@ -18,8 +18,8 @@ public:
      * @brief Factory method for creating a GaussianFilter instance.
      *
      * @param[in] context
-     * @param[in] radius Filter radius >= 1.0f. One sample contributes to only one pixel if radius == 1.0f
-     * @param[in] alpha  Gaussian alpha parameter controlling the fallof of the filter. Smaller values cause a slower falloff, giving a blurrier image.
+     * @param[in] radius Filter radius >= 0.5f. One sample contributes to only one pixel if radius == 0.5f
+     * @param[in] alpha  Gaussian alpha parameter controlling the fallof of the filter. Smaller values cause a slower falloff, giving a blurrier image. Note that small values would lead to floating number precision error.
      */
     static std::unique_ptr<GaussianFilter> createGaussianFilter(float radius, float alpha)
     {
@@ -51,15 +51,20 @@ public:
 
     void setRadius(float radius)
     {
-        if (radius < 1.f)
+        if (radius < 0.5f)
         {
-            std::cout << "[Warning] Filter radius >= 1.f is not satisfied. Setting radius to 1.f instead." << std::endl;
-            this->m_csGaussianFilter.radius = 1.f;
+            std::cout << "[Warning] Filter radius >= 0.5f is not satisfied. Setting radius to 0.5f instead." << std::endl;
+            this->m_csGaussianFilter.radius = 0.5f;
         }
         else
         {
             this->m_csGaussianFilter.radius = radius;
         }
+    }
+
+    float getRadius() const noexcept
+    {
+        return this->m_csGaussianFilter.radius;
     }
 
     void setAlpha(float alpha)
@@ -74,8 +79,13 @@ public:
             this->m_csGaussianFilter.alpha = alpha;
         }
 
-        this->m_csGaussianFilter.gaussianExp = std::expf(-this->m_csGaussianFilter.alpha *
-                                                          this->m_csGaussianFilter.radius * this->m_csGaussianFilter.radius);
+        this->m_csGaussianFilter.gaussianExp = std::exp(-this->m_csGaussianFilter.alpha *
+                                                         this->m_csGaussianFilter.radius * this->m_csGaussianFilter.radius);
+    }
+
+    float getAlpha() const noexcept
+    {
+        return this->m_csGaussianFilter.alpha;
     }
 
 private:

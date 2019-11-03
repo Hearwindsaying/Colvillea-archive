@@ -126,14 +126,14 @@ RT_PROGRAM void RayGeneration_PinholeCamera()
 	/*----Perform filtering and reconstruction so as to write to the output buffer----*/
 	/*--------------------------------------------------------------------------------*/
 
-    /* If filter width <= 1.f, one sample could only contribute to one pixel
+    /* If filter width <= 0.5f, one sample could only contribute to one pixel
        -- and there is no chance that two samples not in the same pixel will
        -- contribute to the same pixel. So atomic operation could be saved for
        -- efficenciy. */
     float filterWidth = GetFilterWidth();
-    if(filterWidth <= 1.f)
+    if(filterWidth <= 0.5f)
     {
-        float currentWeight = EvaluateFilter(qmcSamples.x - .5f, qmcSamples.y - .5f);
+        float currentWeight = EvaluateFilter(qmcSamples.x - 0.5f, qmcSamples.y - 0.5f);
 
         float4 &currLi = prdRadiance.radiance;
         /*ignore alpha channel*/
@@ -146,20 +146,25 @@ RT_PROGRAM void RayGeneration_PinholeCamera()
     {
         /* Compute pFilm's raster extent
          * --1.get film sample's discrete coordinates. */
-        float2 dCoordsSample = pFilm - .5f;
+        float2 dCoordsSample = pFilm - 0.5f;
 
         /*--2.search around the filterWidth for raster pixel boundary*/
         int2 pMin = TwUtil::ceilf2i(dCoordsSample - filterWidth);
         int2 pMax = TwUtil::floorf2i(dCoordsSample + filterWidth);
 
         /*--3.check for film extent*/
-        pMin.x = max(pMin.x, 0);                   pMin.y = max(pMin.y, 0);
-        pMax.x = min(pMax.x, sysLaunch_Dim.x - 1); pMax.y = min(pMax.y, sysLaunch_Dim.y - 1);
+        pMin.x = max(pMin.x, 0);                       pMin.y = max(pMin.y, 0);
+        pMax.x = min(pMax.x, sysLaunch_Dim.x - 1);     pMax.y = min(pMax.y, sysLaunch_Dim.y - 1);
 
-        /*loop over raster pixel and add sample with filtering operation*/
-        for (int y = pMin.y; y < pMax.y; ++y)
+        if ((pMax.x - pMin.x) < 0 || (pMax.y - pMin.y) < 0)
         {
-            for (int x = pMin.x; x < pMax.x; ++x)
+            rtPrintf("invalid samples:%f %f\n", dCoordsSample.x, dCoordsSample.y);
+        }
+
+        /* Loop over raster pixel and add sample with filtering operation. */
+        for (int y = pMin.y; y <= pMax.y; ++y)
+        {
+            for (int x = pMin.x; x <= pMax.x; ++x)
             {
                 /*not necessary to distinguish first iteration, because one sample
                  *could possibly contribute to multiple pixels so the 0th iteration doesn't
@@ -193,28 +198,52 @@ RT_PROGRAM void RayGeneration_InitializeFilter()
 //Perform filtering
 RT_PROGRAM void RayGeneration_Filter()
 {
-	/*perform gamma correction to resolve correct linear color for computation.*/
+	/* Perform gamma correction to resolve correct linear color for computation. */
 	sysOutputBuffer[sysLaunch_index] = convertsRGBToLinear(sysOutputBuffer[sysLaunch_index]);
+	sysOutputBuffer[sysLaunch_index] = (sysOutputBuffer[sysLaunch_index] * sysSampleWeightedSum[sysLaunch_index] + sysCurrResultBuffer[sysLaunch_index]) / 
+                                       (sysSampleWeightedSum[sysLaunch_index] + sysCurrWeightedSumBuffer[sysLaunch_index]);
+    sysHDRBuffer[sysLaunch_index]    = (sysHDRBuffer[sysLaunch_index] * sysSampleWeightedSum[sysLaunch_index] + sysCurrResultBuffer[sysLaunch_index]) / 
+                                       (sysSampleWeightedSum[sysLaunch_index] + sysCurrWeightedSumBuffer[sysLaunch_index]);
 
-	sysOutputBuffer[sysLaunch_index] = (sysOutputBuffer[sysLaunch_index] * sysSampleWeightedSum[sysLaunch_index] + sysCurrResultBuffer[sysLaunch_index]) / (sysSampleWeightedSum[sysLaunch_index] + sysCurrWeightedSumBuffer[sysLaunch_index]);
-    sysHDRBuffer[sysLaunch_index]    = (sysHDRBuffer[sysLaunch_index] * sysSampleWeightedSum[sysLaunch_index] + sysCurrResultBuffer[sysLaunch_index]) / (sysSampleWeightedSum[sysLaunch_index] + sysCurrWeightedSumBuffer[sysLaunch_index]);
 	sysSampleWeightedSum[sysLaunch_index] += sysCurrWeightedSumBuffer[sysLaunch_index];
 
-    if (isnan(sysOutputBuffer[sysLaunch_index].x) || isnan(sysOutputBuffer[sysLaunch_index].y) || isnan(sysOutputBuffer[sysLaunch_index].z))
+    /* Ensure w component of output buffer is 1.0f in case of being transparent
+     * -- in RenderView. */
+    sysOutputBuffer[sysLaunch_index].w = 1.f;
+    sysHDRBuffer[sysLaunch_index].w    = 1.f;
+
+    /* Prevent from precision error. Note that some filters (such as Gaussian)
+     * -- could have zero sample weight to a pixel, which may cause that for some
+     * -- pixels, they couldn't have any sample weight contribution at all at first
+     * -- launch (almost only one sample distributes sparsely per pixel in the situation).
+     * But after a few iterations, all pixels are able to have sample weight contribution.
+     * For this reason, we skip the NaN values in output buffer to give a chance for
+     * later accumulation. */
+    if (isnan(sysOutputBuffer[sysLaunch_index].x) || isnan(sysOutputBuffer[sysLaunch_index].y) || isnan(sysOutputBuffer[sysLaunch_index].z) || 
+        isnan(sysHDRBuffer[sysLaunch_index].x)    || isnan(sysHDRBuffer[sysLaunch_index].y)    || isnan(sysHDRBuffer[sysLaunch_index].z))
     {
-        rtPrintf("%f=%f %f/ %f %f\n", 
-            sysOutputBuffer[sysLaunch_index].x, 
+        sysOutputBuffer[sysLaunch_index] = make_float4(0.0f, 0.0f, 0.0f, 1.0f);
+        sysHDRBuffer[sysLaunch_index]    = make_float4(0.0f, 0.0f, 0.0f, 1.0f);
+    }
+
+    #if 0
+    if (isnan(sysOutputBuffer[sysLaunch_index].x) || isnan(sysOutputBuffer[sysLaunch_index].y) || isnan(sysOutputBuffer[sysLaunch_index].z) || (sysOutputBuffer[sysLaunch_index].x < 0.f || sysOutputBuffer[sysLaunch_index].y < 0.f || sysOutputBuffer[sysLaunch_index].z < 0.f))
+    {
+        rtPrintf("%d %d out=%f * %f + %f / (%f + %f)\n", sysLaunch_index.x,sysLaunch_index.y,
+            sysOutputBuffer[sysLaunch_index].x,
             sysSampleWeightedSum[sysLaunch_index], 
             sysCurrResultBuffer[sysLaunch_index].x, 
             sysSampleWeightedSum[sysLaunch_index], 
             sysCurrWeightedSumBuffer[sysLaunch_index]);
     }
+#endif // 
+    
 
 	/*clear current buffer for next iteration*/
 	sysCurrResultBuffer[sysLaunch_index] = make_float4(0.0f, 0.0f, 0.0f, 1.0f);
 	sysCurrWeightedSumBuffer[sysLaunch_index] = 0.0f;
 
-	/*perform "degamma" operation converting linear color to sRGB for diplaying in RenderView*/
+	/* Perform "degamma" operation converting linear color to sRGB for diplaying in RenderView. */
 	sysOutputBuffer[sysLaunch_index] = convertFromLinearTosRGB(sysOutputBuffer[sysLaunch_index]);
 }
 
