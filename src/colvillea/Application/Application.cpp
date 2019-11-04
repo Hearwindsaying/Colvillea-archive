@@ -31,12 +31,18 @@
 #pragma comment(lib, "legacy_stdio_definitions")
 #endif
 
-#include "colvillea/Application/TWAssert.h"
+/* For TinyFileDialogs. */
+#include "tinyfiledialogs/tinyfiledialogs.h"
+
 #include "colvillea/Application/GlobalDefs.h"
+#include "colvillea/Application/SceneGraph.h"
+#include "colvillea/Application/TWAssert.h"
+
 #include "colvillea/Device/Toolkit/CommonStructs.h"
 #include "colvillea/Module/Camera/CameraController.h"
 #include "colvillea/Module/Image/ImageLoader.h"
-#include "colvillea/Application/SceneGraph.h"
+#include "colvillea/Module/Light/LightPool.h"
+
 
 #include <src/sampleConfig.h>
 
@@ -46,7 +52,7 @@ Application::Application(GLFWwindow* glfwWindow, const uint32_t filmWidth, const
     m_filmWidth(filmWidth), m_filmHeight(filmHeight), 
     m_optixReportLevel(optixReportLevel),
     m_sysIterationIndex(0),m_resetRenderParamsNotification(true),
-    m_sceneGraph(nullptr), m_cameraController(nullptr)
+    m_sceneGraph(nullptr), m_cameraController(nullptr),m_lightPool(nullptr)
 {
     /* Output OptiX Device information. */
     this->outputDeviceInfo();
@@ -592,23 +598,41 @@ void Application::drawInspector()
 
     ImGui::Separator();
 
-    /*if (ImGui::CollapsingHeader("General", ImGuiTreeNodeFlags_CollapsingHeader))
+
+    TW_ASSERT(this->m_lightPool);
+    HDRILight *hdriLight = this->m_lightPool->getHDRILight().get();
+
+    if (ImGui::CollapsingHeader("General", ImGuiTreeNodeFlags_CollapsingHeader))
     {
-        static bool enableHDRIProbe = false;
-        static std::string HDRIFilename{ "uffizi-large.exr" };
+        bool enableHDRIProbe = hdriLight->getEnableHDRILight();
+        std::string HDRIFilename = hdriLight->getHDRIFilename();
+
         ImGui::AlignTextToFramePadding();
         ImGui::Text("                               Enable"); ImGui::SameLine(200.f);
-        ImGui::Checkbox("##Enable HDRIProbe", &enableHDRIProbe);
+        if (ImGui::Checkbox("##Enable HDRIProbe", &enableHDRIProbe))
+        {
+            hdriLight->setEnableHDRILight(enableHDRIProbe);
+            this->resetRenderParams();
+        }
 
         ImGui::AlignTextToFramePadding();
         ImGui::Text("                        HDR Image"); ImGui::SameLine(200.f);
         ImGui::SetNextItemWidth(165);
-        ImGui::Button(HDRIFilename.c_str(), ImVec2(165.f, 0.0f));
+        ImGui::Button(HDRIFilename.c_str()/*, ImVec2(220.f, 0.0f)*/);
         ImGui::SameLine();
-        ImGui::Button("M");
-    }*/
+        if (ImGui::Button("M"))
+        {
+            static char const * lFilterPatterns[2] = { "*.exr" };
+            const char * HDRIFilename_c_str = tinyfd_openFileDialog("Select a HDR Image file", "", 1, lFilterPatterns, "HDR Files(*.exr)", 0);
+            if (HDRIFilename_c_str != NULL)
+            {
+                hdriLight->setHDRIFilename(HDRIFilename_c_str);
+                this->resetRenderParams();
+            }
+        }
+    }
 
-    /*if (ImGui::CollapsingHeader("Transform", ImGuiTreeNodeFlags_CollapsingHeader))
+    if (ImGui::CollapsingHeader("Transform", ImGuiTreeNodeFlags_CollapsingHeader))
     {
         ImGui::AlignTextToFramePadding();
         ImGui::Text("                         Rotation");
@@ -617,9 +641,13 @@ void Application::drawInspector()
         ImGui::Text(" X\n");
         ImGui::SameLine(200.f);
         ImGui::SetNextItemWidth(85);
-        if (ImGui::DragFloat("##HDRI Rotation X", &cInfo.x, 1.0f, -100.0f, 100.0f))
-        {
 
+        float3 rotationAngle = hdriLight->getLightRotation();
+        /* Note that SliderAngle manipulates angle in radian. */
+        if (ImGui::SliderAngle("##HDRI Rotation X", &rotationAngle.x, 0.0f, 360.0f))
+        {
+            hdriLight->setLightRotation(rotationAngle);
+            this->resetRenderParams();
         }
 
         ImGui::Text("            ");
@@ -628,9 +656,10 @@ void Application::drawInspector()
         ImGui::Text(" Y\n");
         ImGui::SameLine(200.f);
         ImGui::SetNextItemWidth(85);
-        if (ImGui::DragFloat("##HDRI Rotation Y", &cInfo.y, 1.0f, -100.0f, 100.0f))
+        if (ImGui::SliderAngle("##HDRI Rotation Y", &rotationAngle.y, 0.0f, 360.0f))
         {
-
+            hdriLight->setLightRotation(rotationAngle);
+            this->resetRenderParams();
         }
 
         ImGui::Text("            ");
@@ -639,11 +668,12 @@ void Application::drawInspector()
         ImGui::Text(" Z\n");
         ImGui::SameLine(200.f);
         ImGui::SetNextItemWidth(85);
-        if (ImGui::DragFloat("##HDRI Rotation Z", &cInfo.z, 1.0f, -100.0f, 100.0f))
+        if (ImGui::SliderAngle("##HDRI Rotation Z", &rotationAngle.z, 0.0f, 360.0f))
         {
-
+            hdriLight->setLightRotation(rotationAngle);
+            this->resetRenderParams();
         }
-    }*/
+    }
 
     ImGui::End();
 }

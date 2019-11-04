@@ -20,6 +20,7 @@
 //#endif
 
 class SceneGraph;
+class LightPool;
 struct GLFWwindow;
 
 class CameraController;
@@ -57,7 +58,7 @@ public:
      * before calling Application::render().
      */
     void buildSceneGraph(std::shared_ptr<SceneGraph> &sceneGraph);
-    
+
     /**
      * @brief Use widgets from Dear ImGui to draw User Interface.
      */
@@ -243,9 +244,12 @@ private:
     unsigned int   m_filmWidth, m_filmHeight;
     bool           m_resetRenderParamsNotification;
 
+    friend class LightPool;
+
     /// Scene related variables
     unsigned int                      m_sysIterationIndex;
     std::shared_ptr<SceneGraph>       m_sceneGraph;
+    std::shared_ptr<LightPool>        m_lightPool;
     std::unique_ptr<CameraController> m_cameraController;
 
     /// Function object to store preprocessor using OptiX launch 

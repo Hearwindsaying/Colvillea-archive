@@ -25,12 +25,12 @@ public:
      * @param[in] context
      * @param[in] programsMap  map to store Programs
      * @param[in] hdriFilename HDRI filename
-     * @param[in] lightToWorld
+     * @param[in] rotation     rotation radian angles in X,Y,Z
      */
-    static std::unique_ptr<HDRILight> createHDRILight(Application *application, optix::Context context, const std::map<std::string, optix::Program> &programsMap, const std::string & hdriFilename, const optix::Matrix4x4 &lightToWorld, /*std::shared_ptr<LightPool>*/LightPool * lightPool)
+    static std::unique_ptr<HDRILight> createHDRILight(Application *application, optix::Context context, const std::map<std::string, optix::Program> &programsMap, const std::string & hdriFilename, const optix::float3 &rotation, /*std::shared_ptr<LightPool>*/LightPool * lightPool)
     {
-        std::unique_ptr<HDRILight> hdriLight = std::make_unique<HDRILight>(application, context, programsMap, hdriFilename, lightPool);
-        hdriLight->initializeLight(lightToWorld);
+        std::unique_ptr<HDRILight> hdriLight = std::make_unique<HDRILight>(application, context, programsMap, hdriFilename, lightPool, rotation);
+        hdriLight->initializeLight();
         return hdriLight;
     }
 
@@ -42,40 +42,12 @@ public:
        return std::make_unique<HDRILight>(application, context, programsMap, lightPool);
     }
 
-    HDRILight(Application *application, optix::Context context, const std::map<std::string, optix::Program> &programsMap, const std::string & hdriFilename, /*std::shared_ptr<LightPool>*/LightPool * lightPool);
+    HDRILight(Application *application, optix::Context context, const std::map<std::string, optix::Program> &programsMap, const std::string & hdriFilename, /*std::shared_ptr<LightPool>*/LightPool * lightPool, const optix::float3 &rotation);
 
-    HDRILight(Application *application, optix::Context context, const std::map<std::string, optix::Program> &programsMap, LightPool * lightPool) : Light(context, programsMap, "HDRI"), m_HDRIFilename(""), m_lightPool(lightPool), m_enable(false)
-    {
-        TW_ASSERT(application);
-        TW_ASSERT(lightPool);
+    HDRILight(Application *application, optix::Context context, const std::map<std::string, optix::Program> &programsMap, LightPool * lightPool);
 
-        this->m_csHDRILight.lightToWorld = optix::Matrix4x4::identity();
-        this->m_csHDRILight.worldToLight = optix::Matrix4x4::identity();
-        this->m_csHDRILight.hdriEnvmap = RT_TEXTURE_ID_NULL;
-        this->m_csHDRILight.lightType = CommonStructs::LightType::HDRILight;
-    }
-
-    void initializeLight(const optix::Matrix4x4 &lightToWorld) override
-    {
-        /* Load HDRI texture. */
-        auto context = this->m_context;
-        this->m_HDRITextureSampler = ImageLoader::LoadImageTexture(context, this->m_HDRIFilename, optix::make_float4(0.f));
-
-        /* Create HDRILight Struct for GPU program. */
-
-        /* Check whether transform matrix has scale. */
-        if (TwUtil::hasScale(lightToWorld))
-            std::cerr << "[Warning] HDRILight has scale, which could lead to undefined behavior!" << std::endl;
-        std::cout << "[Info] Scale component for HDRILight is: (" << TwUtil::getXScale(lightToWorld) << "," << TwUtil::getYScale(lightToWorld) << "," << TwUtil::getZScale(lightToWorld) << ")." << std::endl;
-
-        this->m_csHDRILight.lightToWorld = lightToWorld;
-        this->m_csHDRILight.worldToLight = lightToWorld.inverse();
-        this->m_csHDRILight.hdriEnvmap   = this->m_HDRITextureSampler->getId();
-        this->m_csHDRILight.lightType    = CommonStructs::LightType::HDRILight;
-
-        /* HDRILight Struct setup can't be done until finish HDRILight::preprocess(). */
-        /*context["hdriLight"]->setUserData(sizeof(CommonStructs::HDRILight), &this->m_csHDRILight);*/
-    }
+    void initializeLight(); //override this
+    void initializeLight(const optix::Matrix4x4 &lightToWorld) { __debugbreak(); }
 
     const CommonStructs::HDRILight &getCommonStructsLight() const
     {
@@ -99,16 +71,16 @@ public:
     }
 
     /**
-     * @brief Setter for |m_csHDRILight.lightToWorld|.
+     * @brief Setter for |m_rotation|.
      */
-    void setLightTransform(const optix::Matrix4x4 &lightToWorld);
+    void setLightRotation(const optix::float3 &rotation);
 
     /**
-     * @brief Getter for |m_csHDRILight.lightToWorld|.
+     * @brief Getter for |m_rotation|.
      */
-    optix::Matrix4x4 getTransform() const
+    optix::float3 getLightRotation() const
     {
-        return this->m_csHDRILight.lightToWorld;
+        return this->m_rotationRad;
     }
 
     /**
@@ -171,4 +143,7 @@ private:
 
     /// Record status of Enable/Disable HDRILight (host only)
     bool m_enable;
+
+    /// Record user-friendly transform elements: Rotation angle in radian (host only)
+    optix::float3 m_rotationRad;
 };

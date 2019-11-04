@@ -2,6 +2,7 @@
 
 #include <map>
 #include <vector>
+#include <memory>
 
 #include <optix_world.h>
 #include <optix_host.h>
@@ -26,6 +27,13 @@ class Application;
 class LightPool
 {
 public:
+    static std::shared_ptr<LightPool> createLightPool(Application *application, const std::map<std::string, optix::Program> &programsMap, const optix::Context context, std::shared_ptr<SceneGraph> sceneGraph)
+    {
+        std::shared_ptr<LightPool> lightPool = std::make_shared<LightPool>(application, programsMap, context, sceneGraph);
+        lightPool->m_application->m_lightPool = lightPool;
+        return lightPool;
+    }
+
     LightPool(Application *application, const std::map<std::string, optix::Program> &programsMap, const optix::Context context, std::shared_ptr<SceneGraph> sceneGraph)
         : m_programsMap(programsMap), m_context(context), m_application(application), m_sceneGraph(sceneGraph)
     {
@@ -43,6 +51,7 @@ private:
         /* Create a dummy HDRILight. */
         this->m_HDRILight = HDRILight::createHDRILight(this->m_application, this->m_context, this->m_programsMap, this);
     }
+
 public:
 
     /**
@@ -59,17 +68,15 @@ public:
      *
      * @param[in] HDRIFilename filename including path to HDRI.
      */
-    void createHDRILight(const std::string & HDRIFilename, const optix::Matrix4x4 &lightToWorld)
+    void createHDRILight(const std::string & HDRIFilename, const optix::float3 &rotationAngles)
     {
         TW_ASSERT(this->m_HDRILight);
 
         /* Replace m_HDRILight directly. */
-        this->m_HDRILight = HDRILight::createHDRILight(this->m_application, this->m_context, this->m_programsMap, HDRIFilename, lightToWorld, this);
+        this->m_HDRILight = HDRILight::createHDRILight(this->m_application, this->m_context, this->m_programsMap, HDRIFilename, rotationAngles, this);
 
         /* Note that after HDRILight::preprocess() we need to update LightBuffers again.
          * -- We can't fetch a complete CommonStructs::HDRILight now. */
-        this->m_csLightBuffers.hdriLight = this->m_HDRILight->getCommonStructsLight();
-        this->updateLightBuffers();
     }
 
     /**
@@ -168,8 +175,23 @@ private:
      */
     void updateCurrentHDRILight()
     {
+        TW_ASSERT(this->m_HDRILight);
         this->m_csLightBuffers.hdriLight = this->m_HDRILight->getCommonStructsLight();
-        updateLightBuffers();
+        this->updateLightBuffers();
+    }
+
+    /**
+     * @brief Update CommonStructs::HDRILight for |m_csLightBuffers| in HDRILight
+     * constructor.
+     * 
+     * @note When this->m_HDRILight is empty (creating default HDRILight),
+     * an extra CommonStructs::HDRILight is needed for updating |m_csLightBuffers.hdriLight|.
+     */
+    void updateCurrentHDRILight(const CommonStructs::HDRILight &hdriLight)
+    {
+        /*TW_ASSERT(!this->m_HDRILight); // If we have a hard code creating HDRILight, this->m_HDRILight is not empty. */
+        this->m_csLightBuffers.hdriLight = hdriLight;
+        this->updateLightBuffers();
     }
 
     void updateLightBuffers()

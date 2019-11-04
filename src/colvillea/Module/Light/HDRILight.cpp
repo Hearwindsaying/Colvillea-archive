@@ -13,11 +13,44 @@
 
 using namespace optix;
 
-HDRILight::HDRILight(Application *application, optix::Context context, const std::map<std::string, optix::Program> &programsMap, const std::string & hdriFilename, /*std::shared_ptr<LightPool>*/LightPool * lightPool) : Light(context, programsMap, "HDRI"), m_HDRIFilename(hdriFilename), m_lightPool(lightPool), m_enable(true)
+HDRILight::HDRILight(Application *application, optix::Context context, const std::map<std::string, optix::Program> &programsMap, const std::string & hdriFilename, /*std::shared_ptr<LightPool>*/LightPool * lightPool, const optix::float3 &rotation) : Light(context, programsMap, "HDRI"), m_HDRIFilename(hdriFilename), m_lightPool(lightPool), m_enable(true), m_rotationRad(rotation)
 {
     TW_ASSERT(application);
     TW_ASSERT(lightPool);
+    TW_ASSERT(rotation.x >= 0.f && rotation.y >= 0.f && rotation.z >= 0.f);
     application->setPreprocessFunc(std::bind(&HDRILight::preprocess, this));
+}
+
+HDRILight::HDRILight(Application * application, optix::Context context, const std::map<std::string, optix::Program>& programsMap, LightPool * lightPool) : Light(context, programsMap, "HDRI"), m_HDRIFilename(""), m_lightPool(lightPool), m_enable(false), m_rotationRad(optix::make_float3(0.f,0.f,0.f))
+{
+    TW_ASSERT(application);
+    TW_ASSERT(lightPool);
+
+    this->m_csHDRILight.lightToWorld = optix::Matrix4x4::identity();
+    this->m_csHDRILight.worldToLight = optix::Matrix4x4::identity();
+    this->m_csHDRILight.hdriEnvmap = RT_TEXTURE_ID_NULL;
+    this->m_csHDRILight.lightType = CommonStructs::LightType::HDRILight;
+
+    lightPool->updateCurrentHDRILight(this->m_csHDRILight);
+}
+
+void HDRILight::initializeLight()
+{
+    /* Load HDRI texture. */
+    auto context = this->m_context;
+    this->m_HDRITextureSampler = ImageLoader::LoadImageTexture(context, this->m_HDRIFilename, optix::make_float4(0.f));
+
+    /* Create HDRILight Struct for GPU program. */
+    this->m_csHDRILight.lightToWorld = Matrix4x4::rotate(this->m_rotationRad.x, make_float3(1.f,0.f,0.f)) *
+                                       Matrix4x4::rotate(this->m_rotationRad.y, make_float3(0.f,1.f,0.f)) *
+                                       Matrix4x4::rotate(this->m_rotationRad.z, make_float3(0.f,0.f,1.f));;
+    this->m_csHDRILight.worldToLight = this->m_csHDRILight.lightToWorld.inverse();
+    this->m_csHDRILight.hdriEnvmap = this->m_HDRITextureSampler->getId();
+    this->m_csHDRILight.lightType = CommonStructs::LightType::HDRILight;
+
+    /* HDRILight Struct setup can't be done until finish HDRILight::preprocess(). */
+    /*context["hdriLight"]->setUserData(sizeof(CommonStructs::HDRILight), &this->m_csHDRILight);*/
+    this->m_lightPool->updateCurrentHDRILight(this->m_csHDRILight);
 }
 
 void HDRILight::setEnableHDRILight(bool enable)
@@ -39,19 +72,20 @@ void HDRILight::setEnableHDRILight(bool enable)
     std::cout << "[Info] " << (enable ? "Enable" : "Disable") << " HDRI Light." << std::endl;
 }
 
-void HDRILight::setLightTransform(const optix::Matrix4x4 & lightToWorld)
+void HDRILight::setLightRotation(const optix::float3 & rotation)
 {
-    /* Check whether transform matrix has scale. */
-    if (TwUtil::hasScale(lightToWorld))
-        std::cerr << "[Warning] HDRILight has scale, which could lead to undefined behavior!" << std::endl;
-    std::cout << "[Info] Scale component for HDRILight is: (" << TwUtil::getXScale(lightToWorld) << "," << TwUtil::getYScale(lightToWorld) << "," << TwUtil::getZScale(lightToWorld) << ")." << std::endl;
+    TW_ASSERT(rotation.x >= 0.f && rotation.y >= 0.f && rotation.z >= 0.f);
+    this->m_rotationRad = rotation;
 
-    this->m_csHDRILight.lightToWorld = lightToWorld;
-    this->m_csHDRILight.worldToLight = lightToWorld.inverse();
+    this->m_csHDRILight.lightToWorld = Matrix4x4::rotate(this->m_rotationRad.x, make_float3(1.f,0.f,0.f)) *
+                                       Matrix4x4::rotate(this->m_rotationRad.y, make_float3(0.f,1.f,0.f)) *
+                                       Matrix4x4::rotate(this->m_rotationRad.z, make_float3(0.f,0.f,1.f));;
+    this->m_csHDRILight.worldToLight = this->m_csHDRILight.lightToWorld.inverse();
     this->m_lightPool->updateCurrentHDRILight();
 
     std::cout << "[Info] " << "Updated HDRILight Transform successfully." << std::endl;
 }
+
 
 
 void HDRILight::preprocess()

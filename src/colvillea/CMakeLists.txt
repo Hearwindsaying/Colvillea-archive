@@ -127,6 +127,9 @@ set(SOURCE_LIST_LIB
 	
 	"${CMAKE_CURRENT_SOURCE_DIR}/../tinyobjloader/tiny_obj_loader.cc"
 	"${CMAKE_CURRENT_SOURCE_DIR}/../tinyobjloader/tiny_obj_loader.h"
+
+	"${CMAKE_CURRENT_SOURCE_DIR}/../tinyfiledialogs/tinyfiledialogs.c"
+	"${CMAKE_CURRENT_SOURCE_DIR}/../tinyfiledialogs/tinyfiledialogs.h"
 )
 
 if(OPENGL_FOUND)
@@ -247,6 +250,9 @@ OPTIX_add_sample_executable( colvillea
 	
 	${CMAKE_CURRENT_SOURCE_DIR}/../tinyobjloader/tiny_obj_loader.cc
 	${CMAKE_CURRENT_SOURCE_DIR}/../tinyobjloader/tiny_obj_loader.h
+
+	${CMAKE_CURRENT_SOURCE_DIR}/../tinyfiledialogs/tinyfiledialogs.c
+	${CMAKE_CURRENT_SOURCE_DIR}/../tinyfiledialogs/tinyfiledialogs.h
 
     )
 
