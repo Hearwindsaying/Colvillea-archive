@@ -769,11 +769,30 @@ void Application::drawInspector()
                 this->resetRenderParams();
             }
         }
+
+
+        ImGui::BeginGroup();
+
+        ImGui::BeginChild("RemoveObjectSpaceChild", ImVec2(0, -ImGui::GetFrameHeightWithSpacing())); // Leave room for 1 line below us
+        ImGui::EndChild();
+
+        /* Last line of Inspector window. */
+        if (ImGui::Button("Remove Object")) 
+        {
+            this->m_lightPool->removePointLight(pointLight);
+            this->m_currentHierarchyNode.reset();
+            this->resetRenderParams();
+        }
+
+        ImGui::EndGroup();
     }
     else
     {
-
+        std::cerr << "[Error] Error object type" << std::endl;
     }
+
+
+    
 
     
 
@@ -782,12 +801,40 @@ void Application::drawInspector()
 
 void Application::drawHierarchy()
 {
-    static const ImGuiWindowFlags window_flags_inspector = ImGuiWindowFlags_None;
+    static const ImGuiWindowFlags window_flags_inspector = ImGuiWindowFlags_MenuBar;
     if (!ImGui::Begin("Hierarchy", NULL, window_flags_inspector))
     {
         ImGui::End();
         return;
     }
+
+    /* Menu for creating lights and geometries. */
+    if (ImGui::BeginMenuBar())
+    {
+        if (ImGui::BeginMenu("Create"))
+        {
+            if (ImGui::BeginMenu("Light"))
+            {
+                if (ImGui::MenuItem("PointLight"))
+                {
+                    this->m_lightPool->createPointLight(optix::make_float3(0.0f), optix::make_float3(1.0f), 5.0f);
+                    this->resetRenderParams();
+                }
+                ImGui::MenuItem("QuadLight");
+                ImGui::EndMenu();
+            }
+            if (ImGui::BeginMenu("Geometry"))
+            {
+                ImGui::MenuItem("Quad");
+                ImGui::MenuItem("TriangleMesh");
+                ImGui::EndMenu();
+            }
+
+            ImGui::EndMenu();
+        }
+        ImGui::EndMenuBar();
+    }
+
 
     if (ImGui::TreeNode("Light"))
     {

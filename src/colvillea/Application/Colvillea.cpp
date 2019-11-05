@@ -208,14 +208,6 @@ int main(int argc, char *argv[])
         /* Draw ImGui widgets. */
         application->drawWidget();
 
-
-        {
-            bool showWindow = true;
-            ImGui::Begin("Another Window", &showWindow);   // Pass a pointer to our bool variable (the window will have a closing button that will clear the bool when clicked)
-            ImGui::Text("Hello from another window!");
-            ImGui::End();
-        }
-
         /* Launch renderer. */
         application->render();
 
@@ -224,7 +216,8 @@ int main(int argc, char *argv[])
         int display_w, display_h;
         glfwGetFramebufferSize(glfwWindow, &display_w, &display_h);
         glViewport(0, 0, display_w, display_h);
-        glClearColor(0.45f, 0.55f, 0.60f, 1.0f);
+        //glClearColor(0.45f, 0.55f, 0.60f, 1.0f);
+        glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 

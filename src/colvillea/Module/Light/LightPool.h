@@ -1,5 +1,6 @@
 #pragma once
 
+#include <algorithm>
 #include <map>
 #include <vector>
 #include <memory>
@@ -90,23 +91,29 @@ public:
     void createPointLight(const optix::float3 &lightPosition, const optix::float3 &color, float intensity)
     {
         std::shared_ptr<PointLight> pointLight = PointLight::createPointLight(this->m_context, this->m_programsMap, color, intensity, lightPosition, this);
-
         this->m_pointLights.push_back(pointLight);
 
+        this->updateAllPointLights();
+    }
 
-        /* Setup pointLightBuffer for GPU Program */
-        auto pointLightBuffer = this->m_context->createBuffer(RT_BUFFER_INPUT, RT_FORMAT_USER, this->m_pointLights.size());
-        pointLightBuffer->setElementSize(sizeof(CommonStructs::PointLight));
-        auto pointLightArray = static_cast<CommonStructs::PointLight *>(pointLightBuffer->map());
-        for (auto itr = this->m_pointLights.cbegin(); itr != this->m_pointLights.cend(); ++itr)
+
+    /**
+    * @brief Remove a PointLight.
+    */
+    void removePointLight(const std::shared_ptr<PointLight> &pointLight)
+    {
+        auto itrToErase = std::find_if(this->m_pointLights.begin(), this->m_pointLights.end(),
+            [&pointLight](const auto& curPointLight)
         {
-            pointLightArray[itr - this->m_pointLights.cbegin()] = (*itr)->getCommonStructsLight();
-        }
+            return curPointLight->getId() == pointLight->getId();
+        });
 
-        this->m_csLightBuffers.pointLightBuffer = pointLightBuffer->getId();
-        this->updateLightBuffers();
+        TW_ASSERT(itrToErase != this->m_pointLights.end());
 
-        pointLightBuffer->unmap();
+        this->m_pointLights.erase(itrToErase);
+
+        /* Update PointLights. */
+        this->updateAllPointLights();
     }
 
     /**
@@ -206,12 +213,31 @@ private:
      * to call this function.
      * @todo Rewrite createPointLight() and this function to support update one
      * single PointLight a time.
+     *       -- add "bool resizeBuffer" to avoid unnecessary resizing.
      */
     void updateAllPointLights()
     {
-        optix::Buffer pointLightBuffer = this->m_context->getBufferFromId(this->m_csLightBuffers.pointLightBuffer.getId());
-        TW_ASSERT(pointLightBuffer);
+        optix::Buffer pointLightBuffer;
 
+        /* PointLight Buffer has yet been set up. */
+        if (this->m_csLightBuffers.pointLightBuffer.getId() == RT_BUFFER_ID_NULL)
+        {
+            pointLightBuffer = this->m_context->createBuffer(RT_BUFFER_INPUT, RT_FORMAT_USER, this->m_pointLights.size());
+            pointLightBuffer->setElementSize(sizeof(CommonStructs::PointLight));
+
+            this->m_csLightBuffers.pointLightBuffer = pointLightBuffer->getId();
+
+            std::cout << "[Info] Created PointLight Buffer." << std::endl;
+        }
+        else
+        {
+            pointLightBuffer = this->m_context->getBufferFromId(this->m_csLightBuffers.pointLightBuffer.getId());
+            TW_ASSERT(pointLightBuffer);
+            pointLightBuffer->setSize(this->m_pointLights.size());
+
+            std::cout << "[Info] Updated PointLight Buffer." << std::endl;
+        }
+            
         /* Setup pointLightBuffer for GPU Program */
         auto pointLightArray = static_cast<CommonStructs::PointLight *>(pointLightBuffer->map());
         for (auto itr = this->m_pointLights.cbegin(); itr != this->m_pointLights.cend(); ++itr)
@@ -221,6 +247,7 @@ private:
 
         this->updateLightBuffers();
 
+        /* Unmap buffer. */
         pointLightBuffer->unmap();
     }
 
