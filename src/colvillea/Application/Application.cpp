@@ -846,7 +846,12 @@ void Application::drawHierarchy()
         TW_ASSERT(lightPool);
         HDRILight *hdriLight = lightPool->getHDRILight().get();
         TW_ASSERT(hdriLight);
-        ImGui::TreeNodeEx((void*)(intptr_t)hdriLight->getId(), base_flags, hdriLight->getName().c_str());
+
+        ImGuiTreeNodeFlags hdriLight_TreeNode_flag = (this->m_currentHierarchyNode ? 
+            ((this->m_currentHierarchyNode->getId() == hdriLight->getId()) ? 
+             (base_flags | ImGuiTreeNodeFlags_Selected) : base_flags)
+            : base_flags);
+        ImGui::TreeNodeEx((void*)(intptr_t)hdriLight->getId(), hdriLight_TreeNode_flag, hdriLight->getName().c_str());
         if (ImGui::IsItemClicked())
         {
             this->m_currentHierarchyNode = lightPool->getHDRILight();
@@ -854,9 +859,16 @@ void Application::drawHierarchy()
 
         for (auto pointLightItr = lightPool->getPointLights().cbegin(); pointLightItr != lightPool->getPointLights().cend(); ++pointLightItr)
         {
-            ImGui::TreeNodeEx((void*)(intptr_t)((*pointLightItr)->getId()), base_flags, (*pointLightItr)->getName().c_str());
+            ImGuiTreeNodeFlags pointLight_TreeNode_flag = (this->m_currentHierarchyNode ? 
+                ((this->m_currentHierarchyNode->getId() == (*pointLightItr)->getId()) ? 
+                 (base_flags | ImGuiTreeNodeFlags_Selected) : base_flags)
+                : base_flags);
+
+            ImGui::TreeNodeEx((void*)(intptr_t)((*pointLightItr)->getId()), pointLight_TreeNode_flag, (*pointLightItr)->getName().c_str());
             if (ImGui::IsItemClicked())
+            {
                 this->m_currentHierarchyNode = *pointLightItr;
+            }    
         }
 
         ImGui::TreePop();
