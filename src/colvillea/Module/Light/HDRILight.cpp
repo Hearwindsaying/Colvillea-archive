@@ -65,7 +65,7 @@ void HDRILight::setEnableHDRILight(bool enable)
     {
         /* This is a dummy HDRILight.*/
         TW_ASSERT(this->m_csHDRILight.hdriEnvmap == RT_TEXTURE_ID_NULL);
-        std::cout << "[Info] " << (enable ? "Enable" : "Disable") << " HDRI Light." << std::endl;
+        std::cout << "[Info] " << (enable ? "Enable" : "Disable") << " HDRI Light. This is a dummy HDRILight. Please try to load a HDRI to enable HDRILight." << std::endl;
         return;
     }
 
@@ -102,10 +102,14 @@ void HDRILight::preprocess()
     std::cout << "[Info] Getting HDRIWidth: " << HDRIWidth << " HDRIHeight:" << HDRIHeight << std::endl;
 
     
-    optix::Buffer prefilteringLaunchBuffer = context->createBuffer(RT_BUFFER_OUTPUT, RT_FORMAT_FLOAT, HDRIWidth, HDRIWidth);
+    optix::Buffer prefilteringLaunchBuffer = context->createBuffer(RT_BUFFER_OUTPUT, RT_FORMAT_FLOAT, HDRIWidth, HDRIHeight);
     CommonStructs::HDRIEnvmapLuminanceBufferWrapper hdriEnvmapLuminanceBufferWrapper;
     hdriEnvmapLuminanceBufferWrapper.HDRIEnvmapLuminanceBuffer = prefilteringLaunchBuffer->getId();
     context["sysHDRIEnvmapLuminanceBufferWrapper"]->setUserData(sizeof(CommonStructs::HDRIEnvmapLuminanceBufferWrapper), &hdriEnvmapLuminanceBufferWrapper);
+
+    /* Before launching, we need to update sysLightBuffers.hdriLight.hdriEnvmap
+     * -- which will be later used by preprocessing OptiX launch. */
+    this->m_lightPool->updateCurrentHDRILight();
 
     /* Launch prefiltering HDRI. */
     auto currentTime = std::chrono::system_clock::now();
@@ -116,8 +120,18 @@ void HDRILight::preprocess()
     std::chrono::duration<double> diff = end - currentTime;
     std::cout << "[Info]Prefiltering launching time elapsed: " << (diff).count() << std::endl;
 
-    /* Test:write result buffer to image
-      ImageLoader::SaveLuminanceBufferToImage(this->context["hdriEnvmapLuminance"]->getBuffer(), "hdriEnvmapLuminance.exr");*/
+    #if 0
+    {
+        /* Test for writing result buffer to image. */
+        CommonStructs::HDRIEnvmapLuminanceBufferWrapper outWrapper;
+        context["sysHDRIEnvmapLuminanceBufferWrapper"]->getUserData(sizeof(CommonStructs::HDRIEnvmapLuminanceBufferWrapper), &outWrapper);
+        TW_ASSERT(outWrapper.HDRIEnvmapLuminanceBuffer.getId() >= 0 && outWrapper.HDRIEnvmapLuminanceBuffer.getId() != RT_BUFFER_ID_NULL);
+        
+        ImageLoader::SaveLuminanceBufferToImage(
+            context->getBufferFromId(outWrapper.HDRIEnvmapLuminanceBuffer.getId()), 
+            "hdriEnvmapLuminance.exr");
+    }
+    #endif 
 
     /* Compute Distribution data for HDRILight*/ //todo:should be a part of HDRILight
     currentTime = std::chrono::system_clock::now();

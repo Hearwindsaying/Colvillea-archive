@@ -95,11 +95,18 @@ public:
      */
     void setHDRIFilename(const std::string &HDRIFilename)
     {
+        if (!this->m_HDRITextureSampler)
+        {
+            /* This is a dummy HDRILight. After loading HDRI, the light
+             * -- is enabled automatically. */
+            this->m_enable = true;
+        }
+
         /* Load HDRI texture. */
         this->m_HDRIFilename = HDRIFilename;
         /* todo: Note that this could lead to memory leaking because it's creating rtBuffer 
          * -- each time we want to change a HDRI file but never call *rtRemove... like function
-         * -- to destroy device buffers (Optixpp might not a RAII-style wrapper...). */
+         * -- to destroy device buffers (Optixpp might not be a RAII-style wrapper...). */
         this->m_HDRITextureSampler = ImageLoader::LoadImageTexture(this->m_context, HDRIFilename, optix::make_float4(0.f), false);
 
         this->m_csHDRILight.hdriEnvmap = this->m_HDRITextureSampler->getId();

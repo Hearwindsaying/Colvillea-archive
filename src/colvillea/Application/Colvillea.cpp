@@ -31,7 +31,9 @@ void create_CornellBoxScene(std::shared_ptr<SceneGraph> &sceneGraph, std::shared
     /* Create integator. */
 
     /* For finding a better position to look at CornellBox. */
-    lightPool->createHDRILight(basePath + "HDRI\\uffizi-large.hdr", optix::make_float3(0.f,0.f,0.f));
+    //lightPool->createHDRILight(basePath + "HDRI\\uffizi-large.hdr", optix::make_float3(0.f,0.f,0.f));
+    //lightPool->createPointLight(optix::make_float3(0.0f, 0.0f, 8.0f), optix::make_float3(1.0f, 1.0f, 1.0f), 4.0f);
+
 
     //sceneGraph->createDirectLightingIntegrator();
     //sceneGraph->createPathTracingIntegrator(true, 5);
