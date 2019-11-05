@@ -31,7 +31,7 @@ void HDRILight::preprocess()
     std::cout << "[Info]Getting HDRIWidth: " << HDRIWidth << " HDRIHeight:" << HDRIHeight << std::endl;
 
     
-    optix::Buffer prefilteringLaunchBuffer = context->createBuffer(RT_BUFFER_OUTPUT, RT_FORMAT_FLOAT, HDRIWidth, HDRIWidth);
+    optix::Buffer prefilteringLaunchBuffer = context->createBuffer(RT_BUFFER_OUTPUT, RT_FORMAT_FLOAT, HDRIWidth, HDRIHeight);
     CommonStructs::HDRIEnvmapLuminanceBufferWrapper hdriEnvmapLuminanceBufferWrapper;
     hdriEnvmapLuminanceBufferWrapper.HDRIEnvmapLuminanceBuffer = prefilteringLaunchBuffer->getId();
     context["sysHDRIEnvmapLuminanceBufferWrapper"]->setUserData(sizeof(CommonStructs::HDRIEnvmapLuminanceBufferWrapper), &hdriEnvmapLuminanceBufferWrapper);
