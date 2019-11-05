@@ -7,7 +7,9 @@
 
 #include <map>
 
+#include "colvillea/Application/GlobalDefs.h"
 #include "colvillea/Application/TWAssert.h"
+
 
 class Application;
 
@@ -29,10 +31,12 @@ class Application;
  * 
  * todo: design decoupling:loading Light programs.
  */
-class Light
+class Light : public IEditableObject
 {
 public:
-    Light(optix::Context context, const std::map<std::string, optix::Program> &programsMap, const std::string &lightClassName):m_context(context), m_programsMap(programsMap)
+    Light(optix::Context context, const std::map<std::string, optix::Program> &programsMap, const std::string &lightClassName, const std::string &lightObjectName, IEditableObject::IEditableObjectType objectType) : 
+        IEditableObject(lightObjectName, objectType),
+        m_context(context), m_programsMap(programsMap)
     {    
         std::cout << "[Info] Derived class name from Light is: " << lightClassName << std::endl;
 
@@ -45,8 +49,6 @@ public:
         TW_ASSERT(programItr != this->m_programsMap.end());
         this->m_lightPdf = programItr->second;
     }
-
-    virtual void initializeLight(const optix::Matrix4x4 &lightToWorld) = 0;
 
     //virtual void getCommonStructsLight()
 

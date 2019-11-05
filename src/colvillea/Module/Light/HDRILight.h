@@ -46,8 +46,7 @@ public:
 
     HDRILight(Application *application, optix::Context context, const std::map<std::string, optix::Program> &programsMap, LightPool * lightPool);
 
-    void initializeLight(); //override this
-    void initializeLight(const optix::Matrix4x4 &lightToWorld) { __debugbreak(); }
+    void initializeLight();
 
     const CommonStructs::HDRILight &getCommonStructsLight() const
     {

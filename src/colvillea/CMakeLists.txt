@@ -35,6 +35,7 @@ set(SOURCE_LIST
 	"${CMAKE_CURRENT_SOURCE_DIR}/Application/Application.h"
 	"${CMAKE_CURRENT_SOURCE_DIR}/Application/Colvillea.cpp"
 	"${CMAKE_CURRENT_SOURCE_DIR}/Application/GlobalDefs.h"
+	"${CMAKE_CURRENT_SOURCE_DIR}/Application/GlobalDefs.cpp"
 	"${CMAKE_CURRENT_SOURCE_DIR}/Application/SceneGraph.h"
 	"${CMAKE_CURRENT_SOURCE_DIR}/Application/TWAssert.h"
 	
@@ -160,6 +161,7 @@ OPTIX_add_sample_executable( colvillea
 	${CMAKE_CURRENT_SOURCE_DIR}/Application/Application.h
 	${CMAKE_CURRENT_SOURCE_DIR}/Application/Colvillea.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/Application/GlobalDefs.h
+	${CMAKE_CURRENT_SOURCE_DIR}/Application/GlobalDefs.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/Application/SceneGraph.h
 	${CMAKE_CURRENT_SOURCE_DIR}/Application/TWAssert.h
 	

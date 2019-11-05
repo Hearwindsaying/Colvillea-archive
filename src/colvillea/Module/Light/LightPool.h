@@ -86,12 +86,10 @@ public:
      * translation component is needed for an ideal point light.
      * @param intensity representing both color and intensity,
      * whose components could be larger than 1.f.
-     *
-     * @note Only adding light is supported. //todo:use LightPool
      */
-    void createPointLight(const optix::Matrix4x4 &lightToWorld, const optix::float3 &intensity)
+    void createPointLight(const optix::float3 &lightPosition, const optix::float3 &color, float intensity)
     {
-        std::shared_ptr<PointLight> pointLight = PointLight::createPointLight(this->m_context, this->m_programsMap, intensity, lightToWorld);
+        std::shared_ptr<PointLight> pointLight = PointLight::createPointLight(this->m_context, this->m_programsMap, color, intensity, lightPosition);
 
         this->m_pointLights.push_back(pointLight);
 
@@ -161,6 +159,14 @@ public:
         return this->m_HDRILight;
     }
 
+    /**
+     * @brief Getter for |m_pointLights|.
+     */
+    const std::vector<std::shared_ptr<PointLight>> &getPointLights() const
+    {
+        return this->m_pointLights;
+    }
+
 
 private:
     /************************************************************************/
@@ -193,6 +199,9 @@ private:
         this->m_csLightBuffers.hdriLight = hdriLight;
         this->updateLightBuffers();
     }
+
+
+
 
     void updateLightBuffers()
     {

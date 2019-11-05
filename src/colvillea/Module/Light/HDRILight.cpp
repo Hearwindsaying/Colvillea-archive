@@ -13,7 +13,9 @@
 
 using namespace optix;
 
-HDRILight::HDRILight(Application *application, optix::Context context, const std::map<std::string, optix::Program> &programsMap, const std::string & hdriFilename, /*std::shared_ptr<LightPool>*/LightPool * lightPool, const optix::float3 &rotation) : Light(context, programsMap, "HDRI"), m_HDRIFilename(hdriFilename), m_lightPool(lightPool), m_enable(true), m_rotationRad(rotation)
+HDRILight::HDRILight(Application *application, optix::Context context, const std::map<std::string, optix::Program> &programsMap, const std::string & hdriFilename, /*std::shared_ptr<LightPool>*/LightPool * lightPool, const optix::float3 &rotation) : 
+    Light(context, programsMap, "HDRI", "HDRI Probe", IEditableObject::IEditableObjectType::HDRILight), 
+    m_HDRIFilename(hdriFilename), m_lightPool(lightPool), m_enable(true), m_rotationRad(rotation)
 {
     TW_ASSERT(application);
     TW_ASSERT(lightPool);
@@ -21,7 +23,9 @@ HDRILight::HDRILight(Application *application, optix::Context context, const std
     application->setPreprocessFunc(std::bind(&HDRILight::preprocess, this));
 }
 
-HDRILight::HDRILight(Application * application, optix::Context context, const std::map<std::string, optix::Program>& programsMap, LightPool * lightPool) : Light(context, programsMap, "HDRI"), m_HDRIFilename(""), m_lightPool(lightPool), m_enable(false), m_rotationRad(optix::make_float3(0.f,0.f,0.f))
+HDRILight::HDRILight(Application * application, optix::Context context, const std::map<std::string, optix::Program>& programsMap, LightPool * lightPool) : 
+    Light(context, programsMap, "HDRI", "HDRI Probe", IEditableObject::IEditableObjectType::HDRILight),
+    m_HDRIFilename(""), m_lightPool(lightPool), m_enable(false), m_rotationRad(optix::make_float3(0.f,0.f,0.f))
 {
     TW_ASSERT(application);
     TW_ASSERT(lightPool);

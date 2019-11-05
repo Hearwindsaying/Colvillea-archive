@@ -21,6 +21,9 @@ add_library( imgui STATIC
     imstb_rectpack.h
     imstb_textedit.h
     imstb_truetype.h
+
+	imgui_stdlib.h
+	imgui_stdlib.cpp
 	
 	${CMAKE_CURRENT_SOURCE_DIR}/../gl/glew.c
 	${CMAKE_CURRENT_SOURCE_DIR}/../gl/glew.h

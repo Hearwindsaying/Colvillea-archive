@@ -38,12 +38,12 @@ public:
         optix::Matrix4x4 lightToWorld, worldToLight;
         quadShape->getMatrix(lightToWorld, worldToLight);
 
-        quadLight->initializeLight(lightToWorld);
+        quadLight->initializeLight();
         return quadLight;
     }
 
     QuadLight(optix::Context context, const std::map<std::string, optix::Program> &programsMap, const optix::float3 intensity, std::shared_ptr<Quad> quadShape) :
-        Light(context, programsMap, "Quad"), m_quadShape(quadShape)
+        Light(context, programsMap, "Quad", "Quad Light", IEditableObject::IEditableObjectType::QuadLight), m_quadShape(quadShape)
     {
         this->m_csQuadLight.intensity = optix::make_float4(intensity.x, intensity.y, intensity.z, 1.f);
     }
@@ -53,7 +53,7 @@ public:
      * will have no effect on QuadLight, whose transform
      * matrix is decided by its underlying Quad shape.
      */
-    void initializeLight(const optix::Matrix4x4 &lightToWorld) override
+    void initializeLight() 
     {
         /* Create QuadLight Struct for GPU program. */
         this->m_csQuadLight.lightType = CommonStructs::LightType::QuadLight;

@@ -13,6 +13,7 @@
 #include <imgui/imgui.h>
 #include <imgui/imgui_impl_glfw.h>
 #include <imgui/imgui_impl_opengl3.h>
+#include <imgui/imgui_stdlib.h>
 
 // About Desktop OpenGL function loaders:
 //  Modern desktop OpenGL doesn't have a standard portable header file to load OpenGL function pointers.
@@ -121,6 +122,7 @@ void Application::drawWidget()
 {
     this->drawSettings();
     this->drawInspector();
+    this->drawHierarchy();
 
     static uint32_t frame_count = 0; // todo:use iteration index
 
@@ -593,91 +595,188 @@ void Application::drawInspector()
         return;
     }
 
-    static char str0[128] = "HDRI Probe 1";
-    ImGui::InputText("##Object Name", str0, IM_ARRAYSIZE(str0));
-
-    ImGui::Separator();
-
-
-    TW_ASSERT(this->m_lightPool);
-    HDRILight *hdriLight = this->m_lightPool->getHDRILight().get();
-
-    if (ImGui::CollapsingHeader("General", ImGuiTreeNodeFlags_CollapsingHeader))
+    /* Nothing has been selected: */
+    if (!this->m_currentHierarchyNode)
     {
-        bool enableHDRIProbe = hdriLight->getEnableHDRILight();
-        std::string HDRIFilename = hdriLight->getHDRIFilename();
+        ImGui::End();
+        return;
+    }
 
-        ImGui::AlignTextToFramePadding();
-        ImGui::Text("                               Enable"); ImGui::SameLine(200.f);
-        if (ImGui::Checkbox("##Enable HDRIProbe", &enableHDRIProbe))
+    IEditableObject::IEditableObjectType objectType = this->m_currentHierarchyNode->getObjectType();
+    if (objectType == IEditableObject::IEditableObjectType::HDRILight)
+    {
+        std::shared_ptr<HDRILight> hdriLight = std::static_pointer_cast<HDRILight>(this->m_currentHierarchyNode);
+        TW_ASSERT(hdriLight);
+
+        std::string hdriLightName = hdriLight->getName();
+        if (ImGui::InputText("##Object Name", &hdriLightName))
         {
-            hdriLight->setEnableHDRILight(enableHDRIProbe);
-            this->resetRenderParams();
+            hdriLight->setName(hdriLightName);
         }
 
-        ImGui::AlignTextToFramePadding();
-        ImGui::Text("                        HDR Image"); ImGui::SameLine(200.f);
-        ImGui::SetNextItemWidth(165);
-        ImGui::Button(HDRIFilename.c_str()/*, ImVec2(220.f, 0.0f)*/);
-        ImGui::SameLine();
-        if (ImGui::Button("M"))
+        ImGui::Separator();
+
+        if (ImGui::CollapsingHeader("General", ImGuiTreeNodeFlags_CollapsingHeader))
         {
-            static char const * lFilterPatterns[2] = { "*.exr" };
-            const char * HDRIFilename_c_str = tinyfd_openFileDialog("Select a HDR Image file", "", 1, lFilterPatterns, "HDR Files(*.exr)", 0);
-            if (HDRIFilename_c_str != NULL)
+            bool enableHDRIProbe = hdriLight->getEnableHDRILight();
+            std::string HDRIFilename = hdriLight->getHDRIFilename();
+
+            ImGui::AlignTextToFramePadding();
+            ImGui::Text("                               Enable"); ImGui::SameLine(200.f);
+            if (ImGui::Checkbox("##Enable HDRIProbe", &enableHDRIProbe))
             {
-                hdriLight->setHDRIFilename(HDRIFilename_c_str);
+                hdriLight->setEnableHDRILight(enableHDRIProbe);
+                this->resetRenderParams();
+            }
+
+            ImGui::AlignTextToFramePadding();
+            ImGui::Text("                        HDR Image"); ImGui::SameLine(200.f);
+            ImGui::SetNextItemWidth(165);
+            ImGui::Button(HDRIFilename.c_str()/*, ImVec2(220.f, 0.0f)*/);
+            ImGui::SameLine();
+            if (ImGui::Button("M"))
+            {
+                static char const * lFilterPatterns[2] = { "*.exr" };
+                const char * HDRIFilename_c_str = tinyfd_openFileDialog("Select a HDR Image file", "", 1, lFilterPatterns, "HDR Files(*.exr)", 0);
+                if (HDRIFilename_c_str != NULL)
+                {
+                    hdriLight->setHDRIFilename(HDRIFilename_c_str);
+                    this->resetRenderParams();
+                }
+            }
+        }
+
+        if (ImGui::CollapsingHeader("Transform", ImGuiTreeNodeFlags_CollapsingHeader))
+        {
+            ImGui::AlignTextToFramePadding();
+            ImGui::Text("                         Rotation");
+            ImGui::SameLine(178.f);
+            ImGui::AlignTextToFramePadding();
+            ImGui::Text(" X\n");
+            ImGui::SameLine(200.f);
+            ImGui::SetNextItemWidth(85);
+
+            float3 rotationAngle = hdriLight->getLightRotation();
+            /* Note that SliderAngle manipulates angle in radian. */
+            if (ImGui::SliderAngle("##HDRI Rotation X", &rotationAngle.x, 0.0f, 360.0f))
+            {
+                hdriLight->setLightRotation(rotationAngle);
+                this->resetRenderParams();
+            }
+
+            ImGui::Text("            ");
+            ImGui::SameLine(178.f);
+            ImGui::AlignTextToFramePadding();
+            ImGui::Text(" Y\n");
+            ImGui::SameLine(200.f);
+            ImGui::SetNextItemWidth(85);
+            if (ImGui::SliderAngle("##HDRI Rotation Y", &rotationAngle.y, 0.0f, 360.0f))
+            {
+                hdriLight->setLightRotation(rotationAngle);
+                this->resetRenderParams();
+            }
+
+            ImGui::Text("            ");
+            ImGui::SameLine(178.f);
+            ImGui::AlignTextToFramePadding();
+            ImGui::Text(" Z\n");
+            ImGui::SameLine(200.f);
+            ImGui::SetNextItemWidth(85);
+            if (ImGui::SliderAngle("##HDRI Rotation Z", &rotationAngle.z, 0.0f, 360.0f))
+            {
+                hdriLight->setLightRotation(rotationAngle);
                 this->resetRenderParams();
             }
         }
     }
-
-    if (ImGui::CollapsingHeader("Transform", ImGuiTreeNodeFlags_CollapsingHeader))
+    else if (objectType == IEditableObject::IEditableObjectType::PointLight)
     {
-        ImGui::AlignTextToFramePadding();
-        ImGui::Text("                         Rotation");
-        ImGui::SameLine(178.f);
-        ImGui::AlignTextToFramePadding();
-        ImGui::Text(" X\n");
-        ImGui::SameLine(200.f);
-        ImGui::SetNextItemWidth(85);
+        std::shared_ptr<PointLight> pointLight = std::static_pointer_cast<PointLight>(this->m_currentHierarchyNode);
+        TW_ASSERT(pointLight);
 
-        float3 rotationAngle = hdriLight->getLightRotation();
-        /* Note that SliderAngle manipulates angle in radian. */
-        if (ImGui::SliderAngle("##HDRI Rotation X", &rotationAngle.x, 0.0f, 360.0f))
+        std::string pointLightName = pointLight->getName();
+        if (ImGui::InputText("##Object Name", &pointLightName))
         {
-            hdriLight->setLightRotation(rotationAngle);
-            this->resetRenderParams();
+            pointLight->setName(pointLightName);
         }
 
-        ImGui::Text("            ");
-        ImGui::SameLine(178.f);
-        ImGui::AlignTextToFramePadding();
-        ImGui::Text(" Y\n");
-        ImGui::SameLine(200.f);
-        ImGui::SetNextItemWidth(85);
-        if (ImGui::SliderAngle("##HDRI Rotation Y", &rotationAngle.y, 0.0f, 360.0f))
-        {
-            hdriLight->setLightRotation(rotationAngle);
-            this->resetRenderParams();
-        }
+        ImGui::Separator();
 
-        ImGui::Text("            ");
-        ImGui::SameLine(178.f);
-        ImGui::AlignTextToFramePadding();
-        ImGui::Text(" Z\n");
-        ImGui::SameLine(200.f);
-        ImGui::SetNextItemWidth(85);
-        if (ImGui::SliderAngle("##HDRI Rotation Z", &rotationAngle.z, 0.0f, 360.0f))
+        if (ImGui::CollapsingHeader("General##Point Light", ImGuiTreeNodeFlags_CollapsingHeader))
         {
-            hdriLight->setLightRotation(rotationAngle);
-            this->resetRenderParams();
+            optix::float3 color = pointLight->getLightColor();
+            float intensity = pointLight->getLightIntensity();
+
+            ImGui::AlignTextToFramePadding();
+            ImGui::Text("                                  Color"); ImGui::SameLine(200.f);
+            ImGui::SetNextItemWidth(165);
+            if (ImGui::ColorEdit3("##Point Light Color", static_cast<float *>(&color.x), ImGuiColorEditFlags__OptionsDefault))
+            {
+                pointLight->setLightColor(color);
+                this->resetRenderParams();
+            }
+
+            ImGui::AlignTextToFramePadding();
+            ImGui::Text("                             Intensity"); ImGui::SameLine(200.f);
+            ImGui::SetNextItemWidth(165);
+            if (ImGui::InputFloat("##Light Intensity", &intensity, 1, 1))
+            {
+                if (intensity < 0.0f)
+                    intensity = 0.0f;
+                pointLight->setLightIntensity(intensity);
+            }
         }
     }
+    else
+    {
+
+    }
+
+    
 
     ImGui::End();
 }
 
+void Application::drawHierarchy()
+{
+    static const ImGuiWindowFlags window_flags_inspector = ImGuiWindowFlags_None;
+    if (!ImGui::Begin("Hierarchy", NULL, window_flags_inspector))
+    {
+        ImGui::End();
+        return;
+    }
+
+    if (ImGui::TreeNode("Light"))
+    {
+        static ImGuiTreeNodeFlags base_flags = ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen;
+
+        int node_clicked = -1;
+
+        LightPool *lightPool = this->m_lightPool.get();
+        TW_ASSERT(lightPool);
+        HDRILight *hdriLight = lightPool->getHDRILight().get();
+        TW_ASSERT(hdriLight);
+        ImGui::TreeNodeEx((void*)(intptr_t)hdriLight->getId(), base_flags, hdriLight->getName().c_str());
+        if (ImGui::IsItemClicked())
+        {
+            this->m_currentHierarchyNode = lightPool->getHDRILight();
+        }
+
+        for (auto pointLightItr = lightPool->getPointLights().cbegin(); pointLightItr != lightPool->getPointLights().cend(); ++pointLightItr)
+        {
+            ImGui::TreeNodeEx((void*)(intptr_t)((*pointLightItr)->getId()), base_flags, (*pointLightItr)->getName().c_str());
+            if (ImGui::IsItemClicked())
+                this->m_currentHierarchyNode = *pointLightItr;
+        }
+
+        ImGui::TreePop();
+    }
+
+    ImGui::Separator();
+
+
+    ImGui::End();
+}
 
 /************************************************************************/
 /*              Helper functions for initialization                     */

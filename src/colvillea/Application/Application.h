@@ -21,6 +21,8 @@
 
 class SceneGraph;
 class LightPool;
+class IEditableObject;
+
 struct GLFWwindow;
 
 class CameraController;
@@ -93,6 +95,11 @@ private:
      * @brief Draw Inspector window.
      */
     void drawInspector();
+
+    /**
+     * @brief Draw Hierarchy window.
+     */
+    void drawHierarchy();
 
 public:
     /**
@@ -254,4 +261,7 @@ private:
 
     /// Function object to store preprocessor using OptiX launch 
     std::function<void()> m_preprocessFunc;
+
+    /// Current holding IEditableObject:
+    std::shared_ptr<IEditableObject> m_currentHierarchyNode;
 };
