@@ -724,6 +724,49 @@ void Application::drawInspector()
                 if (intensity < 0.0f)
                     intensity = 0.0f;
                 pointLight->setLightIntensity(intensity);
+                this->resetRenderParams();
+            }
+        }
+
+        if (ImGui::CollapsingHeader("Transform##Point Light", ImGuiTreeNodeFlags_CollapsingHeader))
+        {
+            optix::float3 pointLightLocation = pointLight->getLightPosition();
+
+            ImGui::AlignTextToFramePadding();
+            ImGui::Text("                         Location");
+            ImGui::SameLine(178.f);
+            ImGui::AlignTextToFramePadding();
+            ImGui::Text(" X\n");
+            ImGui::SameLine(200.f);
+            ImGui::SetNextItemWidth(85);
+            if (ImGui::DragFloat("##PointLight Location X", &pointLightLocation.x, 1.0f, -100.0f, 100.0f))
+            {
+                pointLight->setLightPosition(pointLightLocation);
+                this->resetRenderParams();
+            }
+
+            ImGui::Text("            ");
+            ImGui::SameLine(178.f);
+            ImGui::AlignTextToFramePadding();
+            ImGui::Text(" Y\n");
+            ImGui::SameLine(200.f);
+            ImGui::SetNextItemWidth(85);
+            if (ImGui::DragFloat("##PointLight Location Y", &pointLightLocation.y, 1.0f, -100.0f, 100.0f))
+            {
+                pointLight->setLightPosition(pointLightLocation);
+                this->resetRenderParams();
+            }
+
+            ImGui::Text("            ");
+            ImGui::SameLine(178.f);
+            ImGui::AlignTextToFramePadding();
+            ImGui::Text(" Z\n");
+            ImGui::SameLine(200.f);
+            ImGui::SetNextItemWidth(85);
+            if (ImGui::DragFloat("##PointLight Location Z", &pointLightLocation.z, 1.0f, -100.0f, 100.0f))
+            {
+                pointLight->setLightPosition(pointLightLocation);
+                this->resetRenderParams();
             }
         }
     }

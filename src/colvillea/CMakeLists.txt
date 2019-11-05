@@ -104,7 +104,9 @@ set(SOURCE_LIST
 	"${CMAKE_CURRENT_SOURCE_DIR}/Module/Light/Light.h"
 	"${CMAKE_CURRENT_SOURCE_DIR}/Module/Light/LightPool.h"
 	"${CMAKE_CURRENT_SOURCE_DIR}/Module/Light/PointLight.h"
+	"${CMAKE_CURRENT_SOURCE_DIR}/Module/Light/PointLight.cpp"
 	"${CMAKE_CURRENT_SOURCE_DIR}/Module/Light/QuadLight.h"
+	"${CMAKE_CURRENT_SOURCE_DIR}/Module/Light/QuadLight.cpp"
 	
 	"${CMAKE_CURRENT_SOURCE_DIR}/Module/Material/MaterialPool.h"
 	
@@ -231,6 +233,8 @@ OPTIX_add_sample_executable( colvillea
 	${CMAKE_CURRENT_SOURCE_DIR}/Module/Light/LightPool.h
 	${CMAKE_CURRENT_SOURCE_DIR}/Module/Light/PointLight.h
 	${CMAKE_CURRENT_SOURCE_DIR}/Module/Light/QuadLight.h
+	${CMAKE_CURRENT_SOURCE_DIR}/Module/Light/PointLight.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/Module/Light/QuadLight.cpp
 	
 	${CMAKE_CURRENT_SOURCE_DIR}/Module/Material/MaterialPool.h
 	

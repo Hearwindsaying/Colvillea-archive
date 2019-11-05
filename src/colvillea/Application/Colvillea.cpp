@@ -30,9 +30,8 @@ void create_CornellBoxScene(std::shared_ptr<SceneGraph> &sceneGraph, std::shared
 {
     /* Create integator. */
 
-    /* For finding a better position to look at CornellBox. */
     //lightPool->createHDRILight(basePath + "HDRI\\uffizi-large.hdr", optix::make_float3(0.f,0.f,0.f));
-    //lightPool->createPointLight(optix::make_float3(0.0f, 0.0f, 8.0f), optix::make_float3(1.0f, 1.0f, 1.0f), 4.0f);
+    lightPool->createPointLight(optix::make_float3(0.0f, 0.0f, 11.0f), optix::make_float3(1.0f, 1.0f, 1.0f), 44.0f);
 
 
     //sceneGraph->createDirectLightingIntegrator();
@@ -67,8 +66,8 @@ void create_TestScene(std::shared_ptr<SceneGraph> &sceneGraph, std::shared_ptr<L
 {
     //sceneGraph->createDirectLightingIntegrator();
     //sceneGraph->createPathTracingIntegrator(true, 5);
-    lightPool->createHDRILight(basePath + "HDRI\\uffizi-large.hdr", optix::make_float3(0.f,0.f,0.f));
-    sceneGraph->createSampler(CommonStructs::SamplerType::SobolQMCSampler);// todo:ifdef USE_HALTON_SAMPLER to enable Halton
+    //lightPool->createHDRILight(basePath + "HDRI\\uffizi-large.hdr", optix::make_float3(0.f,0.f,0.f));
+    sceneGraph->createSampler(CommonStructs::SamplerType::IndependentSampler);// todo:ifdef USE_HALTON_SAMPLER to enable Halton
 
     /* TriangleMesh is created with the help of MaterialPool. */
     //std::unique_ptr<MaterialPool> materialPool = std::make_unique<MaterialPool>(application->getProgramsMap(), application->getContext());
@@ -97,6 +96,8 @@ void create_TestScene(std::shared_ptr<SceneGraph> &sceneGraph, std::shared_ptr<L
     //    materialPool->createLambertMaterial(optix::make_float4(0.8f))
     //    /*materialPool->createSmoothGlassMaterial(1.46f)*/);
     int emissiveMaterial = materialPool->createEmissiveMaterial();
+
+    //lightPool->createPointLight(optix::make_float3(0.0f, 0.0f, 3.0f), optix::make_float3(1.0f, 1.0f, 1.0f), 4.0f);
 
     lightPool->createQuadLight(
         Matrix4x4::translate(make_float3(-0.5f, 0.f, 1.5f))

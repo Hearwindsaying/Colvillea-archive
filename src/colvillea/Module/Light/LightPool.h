@@ -89,7 +89,7 @@ public:
      */
     void createPointLight(const optix::float3 &lightPosition, const optix::float3 &color, float intensity)
     {
-        std::shared_ptr<PointLight> pointLight = PointLight::createPointLight(this->m_context, this->m_programsMap, color, intensity, lightPosition);
+        std::shared_ptr<PointLight> pointLight = PointLight::createPointLight(this->m_context, this->m_programsMap, color, intensity, lightPosition, this);
 
         this->m_pointLights.push_back(pointLight);
 
@@ -200,6 +200,29 @@ private:
         this->updateLightBuffers();
     }
 
+    /**
+     * @brief Update all PointLights. This is applicable for all modification operations to
+     * PointLight, adding, modifying and removing. However, creating PointLight doesn't need
+     * to call this function.
+     * @todo Rewrite createPointLight() and this function to support update one
+     * single PointLight a time.
+     */
+    void updateAllPointLights()
+    {
+        optix::Buffer pointLightBuffer = this->m_context->getBufferFromId(this->m_csLightBuffers.pointLightBuffer.getId());
+        TW_ASSERT(pointLightBuffer);
+
+        /* Setup pointLightBuffer for GPU Program */
+        auto pointLightArray = static_cast<CommonStructs::PointLight *>(pointLightBuffer->map());
+        for (auto itr = this->m_pointLights.cbegin(); itr != this->m_pointLights.cend(); ++itr)
+        {
+            pointLightArray[itr - this->m_pointLights.cbegin()] = (*itr)->getCommonStructsLight();
+        }
+
+        this->updateLightBuffers();
+
+        pointLightBuffer->unmap();
+    }
 
 
 
@@ -222,4 +245,5 @@ private:
     CommonStructs::LightBuffers m_csLightBuffers;
 
     friend class HDRILight;
+    friend class PointLight;
 };
