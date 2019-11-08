@@ -131,26 +131,41 @@ public:
      * @note Only adding light is supported.
      * @see MaterialPool::createEmissiveMaterial()
      */
-    void createQuadLight(const optix::Matrix4x4 &lightToWorld, const optix::float3 &intensity, const int materialIndex, bool flipNormal = false)
+    void createQuadLight(const optix::float3 &position, const optix::float3 &rotation, const optix::float3 &scale, const optix::float3& color, float intensity, const int materialIndex, bool flipNormal = false)
     {
-        std::shared_ptr<Quad> lightQuadShape = this->m_sceneGraph->createQuad(materialIndex, lightToWorld, this->m_quadLights.size() /* size() is the index we want for the current creating quad */, flipNormal);
-        std::shared_ptr<QuadLight> quadLight = QuadLight::createQuadLight(this->m_context, this->m_programsMap, intensity, lightQuadShape);
-
+        std::shared_ptr<Quad> lightQuadShape = this->m_sceneGraph->createQuad(materialIndex, position, rotation, scale, this->m_quadLights.size() /* size() is the index we want for the current creating quad */, flipNormal);
+        std::shared_ptr<QuadLight> quadLight = QuadLight::createQuadLight(this->m_context, this->m_programsMap, color, intensity, lightQuadShape, this);
         this->m_quadLights.push_back(quadLight);
 
-        /* Setup quadLightBuffer for GPU Program */
-        auto quadLightBuffer = this->m_context->createBuffer(RT_BUFFER_INPUT, RT_FORMAT_USER, this->m_quadLights.size());
-        quadLightBuffer->setElementSize(sizeof(CommonStructs::QuadLight));
-        auto quadLightArray = static_cast<CommonStructs::QuadLight *>(quadLightBuffer->map());
-        for (auto itr = this->m_quadLights.cbegin(); itr != this->m_quadLights.cend(); ++itr)
+        this->updateAllQuadLights(true);
+    }
+
+    /**
+     * @brief Remove a QuadLight.
+     * @note The underlying Quad shape is removed as well.
+     */
+    void removeQuadLight(const std::shared_ptr<QuadLight> &quadLight)
+    {
+        auto itrToErase = std::find_if(this->m_quadLights.begin(), this->m_quadLights.end(),
+            [&quadLight](const auto& curQuadLight)
         {
-            quadLightArray[itr - this->m_quadLights.cbegin()] = (*itr)->getCommonStructsLight();
-        }
+            return curQuadLight->getId() == quadLight->getId();
+        });
 
-        this->m_csLightBuffers.quadLightBuffer = quadLightBuffer->getId();
-        updateLightBuffers();
+        TW_ASSERT(itrToErase != this->m_quadLights.end());
 
-        quadLightBuffer->unmap();
+        /* 1.Remove Quad shape. */
+        std::shared_ptr<Quad> quadShape = (*itrToErase)->getQuadShape();
+        quadShape->getGeometry()->destroy();
+        this->m_sceneGraph->removeGeometry(quadShape);
+        quadShape->getGeometryInstance()->destroy();
+        
+
+        /* 2.Remove QuadLight. */
+        this->m_quadLights.erase(itrToErase);
+
+        /* 3.Update QuadLights. */
+        this->updateAllQuadLights(true);
     }
 
 
@@ -172,6 +187,14 @@ public:
     const std::vector<std::shared_ptr<PointLight>> &getPointLights() const
     {
         return this->m_pointLights;
+    }
+
+    /**
+     * @brief Getter for |m_quadLights|.
+     */
+    const std::vector<std::shared_ptr<QuadLight>> &getQuadLights() const
+    {
+        return this->m_quadLights;
     }
 
 
@@ -209,8 +232,7 @@ private:
 
     /**
      * @brief Update all PointLights. This is applicable for all modification operations to
-     * PointLight, adding, modifying and removing. However, creating PointLight doesn't need
-     * to call this function.
+     * PointLight, adding, modifying and removing.
      * @todo Rewrite createPointLight() and this function to support update one
      * single PointLight a time.
      *       -- add "bool resizeBuffer" to avoid unnecessary resizing.
@@ -251,6 +273,59 @@ private:
         pointLightBuffer->unmap();
     }
 
+    /**
+     * @brief Update all QuadLights. This is applicable for all modification operations to
+     * QuadLight, adding, modifying and removing.
+     * 
+     * @todo Rewrite createQuadLight() and this function to support update one
+     * single QuadLight a time.
+     *       -- add "bool resizeBuffer" to avoid unnecessary resizing.
+     *       
+     * @param[in] rebuildAccel acceleration structure should be rebuilt? This is required
+     * when adding, modifying light transform and removing light.
+     */
+    void updateAllQuadLights(bool rebuildAccel)
+    {
+        optix::Buffer quadLightBuffer;
+        /* QuadLight Buffer has yet to be set up. */
+        if (this->m_csLightBuffers.quadLightBuffer.getId() == RT_BUFFER_ID_NULL)
+        {
+            TW_ASSERT(rebuildAccel);
+
+            quadLightBuffer = this->m_context->createBuffer(RT_BUFFER_INPUT, RT_FORMAT_USER, this->m_quadLights.size());
+            quadLightBuffer->setElementSize(sizeof(CommonStructs::QuadLight));
+
+            this->m_csLightBuffers.quadLightBuffer = quadLightBuffer->getId();
+
+            std::cout << "[Info] Created QuadLight Buffer." << std::endl;
+        }
+        else
+        {
+            quadLightBuffer = this->m_context->getBufferFromId(this->m_csLightBuffers.quadLightBuffer.getId());
+            TW_ASSERT(quadLightBuffer);
+            quadLightBuffer->setSize(this->m_quadLights.size());
+
+            std::cout << "[Info] Updated QuadLight Buffer." << std::endl;
+        }
+
+        /* Setup quadLightBuffer for GPU Program */
+        auto quadLightArray = static_cast<CommonStructs::QuadLight *>(quadLightBuffer->map());
+        for (auto itr = this->m_quadLights.begin(); itr != this->m_quadLights.end(); ++itr)
+        {
+            (*itr)->getQuadShape()->setQuadLightIndex(itr - this->m_quadLights.begin());
+            quadLightArray[itr - this->m_quadLights.begin()] = (*itr)->getCommonStructsLight();
+        }
+
+        this->updateLightBuffers();
+
+        if (rebuildAccel)
+        {
+            this->m_sceneGraph->rebuildGeometry();
+        }
+
+        /* Unmap buffer. */
+        quadLightBuffer->unmap();
+    }
 
 
     void updateLightBuffers()
@@ -273,4 +348,5 @@ private:
 
     friend class HDRILight;
     friend class PointLight;
+    friend class QuadLight;
 };

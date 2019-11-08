@@ -63,7 +63,7 @@ public:
 	 * qualifier is a hint that it should not be 
 	 * modified other place.
 	 */
-	const optix::GeometryInstance getGeometryInstance() const
+	optix::GeometryInstance getGeometryInstance() const
 	{
 		return this->m_geometryInstance;
 	}

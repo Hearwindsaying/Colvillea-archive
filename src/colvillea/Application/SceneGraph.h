@@ -176,18 +176,19 @@ public:
      * loadShape().
      *
      * @param[in] materialIndex material index to materialBuffer
-     * @param[in] objectToWorld transform matrix that does not have
-     * a z-component scale
+     * @param[in] position
+     * @param[in] rotation      XYZ rotation angle in radian
+     * @param[in] scale         Z-component is zero
      * @param[in] flipNormal    flip quad's normal
      *
      * @note Note that this operation doesn't invoke buildGraph()
      * which is necessary to call explicitly eventually.
      */
-    std::shared_ptr<Quad> createQuad(const int materialIndex, const optix::Matrix4x4 &objectToWorld, bool flipNormal = false)
+    std::shared_ptr<Quad> createQuad(const int materialIndex, const optix::float3 &position, const optix::float3 &rotation, const optix::float3 &scale, bool flipNormal = false)
     {
         //todo:assert that quad is not assigned with Emissive BSDF.//todo:delete emissive?
         //todo:review copy of Quad
-        std::shared_ptr<Quad> quad = Quad::createQuad(this->m_context, this->m_programsMap, objectToWorld, this->m_integrator->getIntegratorMaterial(), materialIndex);
+        std::shared_ptr<Quad> quad = Quad::createQuad(this->m_context, this->m_programsMap, position, rotation, scale, this->m_integrator->getIntegratorMaterial(), materialIndex);
         if(flipNormal)
             quad->flipGeometryNormal();
         m_shapes_Geometry.push_back(quad);
@@ -201,19 +202,20 @@ public:
      * loadShape().
      *
      * @param[in] materialIndex  material index to materialBuffer
-     * @param[in] objectToWorld  transform matrix that does not have
-     * a z-component scale
+     * @param[in] position
+     * @param[in] rotation      XYZ rotation angle in radian
+     * @param[in] scale         Z-component is zero
      * @param[in] quadLightIndex index to |quadLightBuffer|
      * @param[in] flipNormal     flip quad's normal
      *
      * @note Note that this operation doesn't invoke buildGraph()
      * which is necessary to call explicitly eventually.
      */
-    std::shared_ptr<Quad> createQuad(const int materialIndex, const optix::Matrix4x4 &objectToWorld, int quadLightIndex, bool flipNormal = false)
+    std::shared_ptr<Quad> createQuad(const int materialIndex, const optix::float3 &position, const optix::float3 &rotation, const optix::float3 &scale, int quadLightIndex, bool flipNormal = false)
     {
         //todo:assert that quad is not assigned with Emissive BSDF.//todo:delete emissive?
         //todo:review copy of Quad
-        std::shared_ptr<Quad> quad = Quad::createQuad(this->m_context, this->m_programsMap, objectToWorld, quadLightIndex, this->m_integrator->getIntegratorMaterial(), materialIndex);
+        std::shared_ptr<Quad> quad = Quad::createQuad(this->m_context, this->m_programsMap, position, rotation, scale, quadLightIndex, this->m_integrator->getIntegratorMaterial(), materialIndex);
         if(flipNormal)
             quad->flipGeometryNormal();
         m_shapes_Geometry.push_back(quad);
@@ -323,6 +325,53 @@ public:
         this->m_context["sysTopShadower"]->set(this->m_topGroup);
 	}
 
+    /**
+     * @brief Remove a Geometry from graph.
+     * @param[in] geometryShape GeometryShape to be removed
+     * @note This is for Geometry only, not for GeometryTriangles.
+     */
+    void removeGeometry(const std::shared_ptr<GeometryShape> &geometryShape)
+    {
+        this->m_topGeometryGroup_Geometry->removeChild(geometryShape->getGeometryInstance());
+        rebuildGeometry();
+    }
+
+    /**
+     * @brief Remove a GeometryTriangles from graph.
+     * @param[in] geometryTrianglesShape GeometryTrianglesShape to be removed
+     * @note This is for GeometryTriangles only, not for Geometry.
+     */
+    void removeGeometryTriangles(const std::shared_ptr<GeometryTrianglesShape> &geometryTrianglesShape)
+    {
+        this->m_topGeometryGroup_GeometryTriangles->removeChild(geometryTrianglesShape->getGeometryInstance());
+        __debugbreak();
+    }
+
+    /**
+     * @brief Expect to rebuild |m_topGeometryGroup_Geometry| Acceleration Structure.
+     */
+    void rebuildGeometry()
+    {
+        this->m_topGeometryGroup_Geometry->getAcceleration()->markDirty();
+
+        /* Update top group as well. */
+        this->m_topGroup->getAcceleration()->markDirty();
+
+        std::cout << "[Info] AS of m_topGeometryGroup_Geometry and m_topGroup has been marked dirty." << std::endl;
+    }
+
+    /**
+     * @brief Expect to rebuild |m_topGeometryGroup_GeometryTriangles| Acceleration Structure.
+     */
+    void rebuildGeometryTriangles()
+    {
+        __debugbreak();
+        this->m_topGeometryGroup_GeometryTriangles->getAcceleration()->markDirty();
+
+        /* Update top group as well. */
+        this->m_topGroup->getAcceleration()->markDirty();
+        std::cout << "[Info] AS of m_topGeometryGroup_GeometryTriangles and m_topGroup has been marked dirty." << std::endl;
+    }
 
 
     /************************************************************************/

@@ -34,6 +34,11 @@ public:
         this->m_intersectionProgram = programItr->second;
     }
 
+    optix::Geometry getGeometry() const
+    {
+        return this->m_geometry;
+    }
+
 protected:
     void setupGeometry() override
     {

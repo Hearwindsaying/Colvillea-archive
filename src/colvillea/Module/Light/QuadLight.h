@@ -7,6 +7,8 @@
 #include "colvillea/Device/Toolkit/CommonStructs.h"
 #include "colvillea/Device/Toolkit/Utility.h"
 
+class LightPool;
+
 /**
  * @brief QuadLight is the simplest area light 
  * supported in Colvillea. It describes a diffusely
@@ -28,38 +30,27 @@ public:
      *
      * @param[in] context
      * @param[in] programsMap  map to store Programs
+     * @param[in] color        light color
      * @param[in] intensity    light intensity
      * @param[in] quadShape    underlying Quad shape
      */
-    static std::unique_ptr<QuadLight> createQuadLight(optix::Context context, const std::map<std::string, optix::Program> &programsMap, const optix::float3 intensity, std::shared_ptr<Quad> quadShape)
+    static std::unique_ptr<QuadLight> createQuadLight(optix::Context context, const std::map<std::string, optix::Program> &programsMap, const optix::float3& color, float intensity, std::shared_ptr<Quad> quadShape, LightPool *lightPool)
     {
-        std::unique_ptr<QuadLight> quadLight = std::make_unique<QuadLight>(context, programsMap, intensity, quadShape);
-
-        optix::Matrix4x4 lightToWorld, worldToLight;
-        quadShape->getMatrix(lightToWorld, worldToLight);
-
-        quadLight->initializeLight();
+        std::unique_ptr<QuadLight> quadLight = std::make_unique<QuadLight>(context, programsMap, color, intensity, quadShape, lightPool);
         return quadLight;
     }
 
-    QuadLight(optix::Context context, const std::map<std::string, optix::Program> &programsMap, const optix::float3 intensity, std::shared_ptr<Quad> quadShape) :
-        Light(context, programsMap, "Quad", "Quad Light", IEditableObject::IEditableObjectType::QuadLight), m_quadShape(quadShape)
+    QuadLight(optix::Context context, const std::map<std::string, optix::Program> &programsMap, const optix::float3& color, float intensity, std::shared_ptr<Quad> quadShape, LightPool *lightPool) :
+        Light(context, programsMap, "Quad", "Quad Light", IEditableObject::IEditableObjectType::QuadLight), m_quadShape(quadShape), m_intensity(intensity), m_color(color), m_lightPool(lightPool)
     {
-        this->m_csQuadLight.intensity = optix::make_float4(intensity.x, intensity.y, intensity.z, 1.f);
-    }
+        optix::float3 csIntensity = this->m_intensity * this->m_color;
 
-    /**
-     * @param[in] lightToWorld the transform matrix 
-     * will have no effect on QuadLight, whose transform
-     * matrix is decided by its underlying Quad shape.
-     */
-    void initializeLight() 
-    {
         /* Create QuadLight Struct for GPU program. */
         this->m_csQuadLight.lightType = CommonStructs::LightType::QuadLight;
         this->m_quadShape->getMatrix(this->m_csQuadLight.lightToWorld, this->m_csQuadLight.worldToLight); /* note that |lightToWorld| is directly decided by |m_quadShape| */
         this->m_csQuadLight.reverseOrientation = this->m_quadShape->isFlippedGeometryNormal();
         this->m_csQuadLight.invSurfaceArea = 1.f / this->m_quadShape->getSurfaceArea();
+        this->m_csQuadLight.intensity = optix::make_float4(csIntensity.x, csIntensity.y, csIntensity.z, 1.0f);
 
         optix::float3 nn = TwUtil::xfmNormal(
             optix::make_float3(0.f, 0.f, (this->m_csQuadLight.reverseOrientation ? -1.f : 1.f)), this->m_csQuadLight.lightToWorld);
@@ -70,15 +61,73 @@ public:
         TW_ASSERT(std::fabs(1.f - (TwUtil::sqr_length(nn))) <= 1e-6f);
     }
 
- 
+    float getLightIntensity() const
+    {
+        return this->m_intensity;
+    }
+
+    void setLightIntensity(float intensity);
+
+    optix::float3 getLightColor() const
+    {
+        return this->m_color;
+    }
+
+    void setLightColor(const optix::float3 &color);
+
+    optix::float3 getPosition() const
+    {
+        return this->m_quadShape->getPosition();
+    }
+
+    void setPosition(const optix::float3 &position);
+
+    optix::float3 getRotation() const
+    {
+        return this->m_quadShape->getRotation();
+    }
+
+    void setRotation(const optix::float3 &rotation);
+
+    optix::float3 getScale() const
+    {
+        return this->m_quadShape->getScale();
+    }
+
+    void setScale(const optix::float3 &scale);
 
     const CommonStructs::QuadLight &getCommonStructsLight() const
     {
         return this->m_csQuadLight;
     }
 
+    std::shared_ptr<Quad> getQuadShape() const
+    {
+        return this->m_quadShape;
+    }
+
 private:
+    /**
+     * @brief Update |m_csQuadLight.lightToWorld| and its inverse,
+     * and inverse of surface area.
+     */
+    void updateMatrixParameter()
+    {
+        this->m_quadShape->getMatrix(this->m_csQuadLight.lightToWorld, this->m_csQuadLight.worldToLight); /* note that |lightToWorld| is directly decided by |m_quadShape| */
+        this->m_csQuadLight.invSurfaceArea = 1.f / this->m_quadShape->getSurfaceArea();
+    }
+
+    
+
+private:
+    LightPool *m_lightPool;
+
     CommonStructs::QuadLight m_csQuadLight;
     std::shared_ptr<Quad>    m_quadShape;
+
+    /// Color (host only)
+    optix::float3 m_color;
+    /// Intensity (host only)
+    float m_intensity;
 };
 

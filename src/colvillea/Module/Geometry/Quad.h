@@ -28,13 +28,15 @@ public:
      *
      * @param[in] context
      * @param[in] programsMap      map to store Programs
-     * @param[in] objectToWorld  
+     * @param[in] position
+     * @param[in] rotation         XYZ rotation angle in radian
+     * @param[in] scale            Z-component is zero 
      * @param[in] integrator       integrator of optix::Material type
      * @param[in] materialIndex    material index in |materialBuffer|
      */
-    static std::unique_ptr<Quad> createQuad(optix::Context context, const std::map<std::string, optix::Program> &programsMap, const optix::Matrix4x4 &objectToWorld, optix::Material integrator, const int materialIndex)
+    static std::unique_ptr<Quad> createQuad(optix::Context context, const std::map<std::string, optix::Program> &programsMap, const optix::float3 &position, const optix::float3 &rotation, const optix::float3 &scale, optix::Material integrator, const int materialIndex)
     {
-        return Quad::createQuadInner(context, programsMap, objectToWorld, integrator, materialIndex);
+        return Quad::createQuadInner(context, programsMap, position, rotation, scale, integrator, materialIndex);
     }
 
     /**
@@ -42,14 +44,16 @@ public:
      *
      * @param[in] context
      * @param[in] programsMap      map to store Programs
-     * @param[in] objectToWorld    also hints lightToWorld
+     * @param[in] position
+     * @param[in] rotation         XYZ rotation angle in radian
+     * @param[in] scale            Z-component is zero
      * @param[in] quadLightIndex   index to |quadLightBuffer|
      * @param[in] integrator       integrator of optix::Material type
      * @param[in] materialIndex    material index in |materialBuffer|
      */
-    static std::unique_ptr<Quad> createQuad(optix::Context context, const std::map<std::string, optix::Program> &programsMap, const optix::Matrix4x4 &objectToWorld, int quadLightIndex, optix::Material integrator, const int materialIndex)
+    static std::unique_ptr<Quad> createQuad(optix::Context context, const std::map<std::string, optix::Program> &programsMap, const optix::float3 &position, const optix::float3 &rotation, const optix::float3 &scale, int quadLightIndex, optix::Material integrator, const int materialIndex)
     {
-        return Quad::createQuadInner(context, programsMap, objectToWorld, quadLightIndex, integrator, materialIndex);
+        return Quad::createQuadInner(context, programsMap, position, rotation, scale, quadLightIndex, integrator, materialIndex);
     }
 
 private:
@@ -70,33 +74,41 @@ public:
     /**
      * @brief Constructor for an ordinary quad shape given transform matrix.
      * 
-     * @note |objectToWorld| matrix should have no scale component in z-axis.
+     * @param[in] position
+     * @param[in] rotation         XYZ rotation angle in radian
+     * @param[in] scale            Z-component is zero
      */
-    Quad(optix::Context context, const std::map<std::string, optix::Program> &programsMap, const optix::Matrix4x4 &objectToWorld, optix::Material integrator, const int materialIndex)
-        : GeometryShape(context, programsMap, "Quad", integrator, materialIndex), m_objectToWorld(objectToWorld), m_worldToObject(objectToWorld.inverse())
+    Quad(optix::Context context, const std::map<std::string, optix::Program> &programsMap, const optix::float3 &position, const optix::float3 &rotation, const optix::float3 &scale, optix::Material integrator, const int materialIndex)
+        : GeometryShape(context, programsMap, "Quad", integrator, materialIndex), 
+        m_position(position), m_rotationRad(rotation), m_scale(scale)
     {
         /* Check whether transform matrix has z-component scale. */
-        if (TwUtil::hasZScale(objectToWorld))
+        TW_ASSERT(m_scale.z == 1.f);
+        if (m_scale.z != 1.f)
             std::cerr << "[Warning] Quad shape has z-component scale, which could lead to undefined behavior!" << std::endl;
-        std::cout << "[Info] Scale component for quad shape is: (" << TwUtil::getXScale(objectToWorld) << "," << TwUtil::getYScale(objectToWorld) << ")." << std::endl;
+        std::cout << "[Info] Scale component for quad shape is: (" << scale.x << "," << scale.y << ")." << std::endl;
     }
 
     /**
      * @brief Constructor for a quad shape to serve as an underlying shape for
      * quadLight.
      *
-     * @note |objectToWorld| matrix should have no scale component in z-axis.
+     * @param[in] position
+     * @param[in] rotation         XYZ rotation angle in radian
+     * @param[in] scale            Z-component is zero
      */
-    Quad(optix::Context context, const std::map<std::string, optix::Program> &programsMap, const optix::Matrix4x4 &objectToWorld, int quadLightIndex, optix::Material integrator, const int materialIndex)
+    Quad(optix::Context context, const std::map<std::string, optix::Program> &programsMap, const optix::float3 &position, const optix::float3 &rotation, const optix::float3 &scale, int quadLightIndex, optix::Material integrator, const int materialIndex)
         : GeometryShape(context, programsMap, "Quad", integrator, materialIndex),
-          m_objectToWorld(objectToWorld), m_worldToObject(objectToWorld.inverse()), m_quadLightIndex(quadLightIndex), m_isAreaLight(true)
+         m_position(position), m_rotationRad(rotation), m_scale(scale),  
+         m_quadLightIndex(quadLightIndex), m_isAreaLight(true)
     {
         TW_ASSERT(quadLightIndex >= 0);
 
+        TW_ASSERT(m_scale.z == 1.f);
         /* Check whether transform matrix has z-component scale. */
-        if (TwUtil::hasZScale(objectToWorld))
+        if (m_scale.z != 1.f)
             std::cerr << "[Warning] Quad shape has z-component scale, which could lead to undefined behavior!" << std::endl;
-        std::cout << "[Info] Scale component for quad shape is: (" << TwUtil::getXScale(objectToWorld) << "," << TwUtil::getYScale(objectToWorld) << ")." << std::endl;
+        std::cout << "[Info] Scale component for quad shape is: (" << scale.x << "," << scale.y << ")." << std::endl;
     }
 
     void initializeShape() override
@@ -113,27 +125,57 @@ public:
         this->m_geometryInstance["quadLightIndex"]->setInt(this->m_isAreaLight ? this->m_quadLightIndex : -1);
     }
 public:
-
-    /**
-     * @brief Setter method for quad matrices.
-     */
-    void setMatrix(const optix::Matrix4x4 &objectToWorld)
+    optix::float3 getPosition() const
     {
-        this->m_objectToWorld = objectToWorld;
-        this->m_worldToObject = objectToWorld.inverse();
-        updateMatrixParameter();
+        return this->m_position;
+    }
+    
+    void setPosition(const optix::float3 &position)
+    {
+        this->m_position = position;
+        this->updateMatrixParameter();
+    }
+
+    optix::float3 getRotation() const
+    {
+        return this->m_rotationRad;
+    }
+
+    void setRotation(const optix::float3 &rotation)
+    {
+        this->m_rotationRad = rotation;
+        this->updateMatrixParameter();
+    }
+
+    optix::float3 getScale() const
+    {
+        return this->m_scale;
+    }
+
+    void setScale(const optix::float3 &scale)
+    {
+        TW_ASSERT(m_scale.z == 1.f);
+        if (scale.z != 1.f)
+        {
+            std::cout << "[Info] Quad shape scale's z-component is not zero!" << std::endl;
+        }
+
+        this->m_scale = scale;
+        this->updateMatrixParameter();
     }
 
     /**
      * @brief Getter method for quad matrices
-     * 
+     *
      * @param[out] objectToWorld
      * @param[out] worldToObject
      */
     void getMatrix(optix::Matrix4x4 &objectToWorld, optix::Matrix4x4 &worldToObject)
     {
-        objectToWorld = this->m_objectToWorld;
-        worldToObject = this->m_worldToObject;
+        this->m_geometryInstance["objectToWorld"]->getMatrix4x4(false, objectToWorld.getData());
+        worldToObject = objectToWorld.inverse();
+
+        /*TW_ASSERT(optix::Matrix4x4(worldToObject) * optix::Matrix4x4(objectToWorld) == optix::Matrix4x4::identity());*/
     }
 
     /**
@@ -142,13 +184,30 @@ public:
     float getSurfaceArea() const override
     {
         //todo:delete assertion:
-        float area = optix::length(
+        /*float area = optix::length(
             TwUtil::xfmVector(optix::make_float3(2, 0, 0), this->m_objectToWorld)) *
                      optix::length(
             TwUtil::xfmVector(optix::make_float3(0, 2, 0), this->m_objectToWorld));
         TW_ASSERT(area == TwUtil::getXScale(this->m_objectToWorld) * TwUtil::getYScale(this->m_objectToWorld) * 4);
 
-        return TwUtil::getXScale(this->m_objectToWorld) * TwUtil::getYScale(this->m_objectToWorld) * 4;
+        return TwUtil::getXScale(this->m_objectToWorld) * TwUtil::getYScale(this->m_objectToWorld) * 4;*/
+        return this->m_scale.x * this->m_scale.y;
+    }
+
+    /**
+     * @brief Update quadlight index. This is used
+     * by LightPool::updateAllQuadLights() to ensure
+     * the quad shape's light index is consistent with
+     * LightPool::m_quadLights.
+     * 
+     * @param[in] quadLightIndex
+     * @see LightPool::updateAllQuadLights()
+     */
+    void setQuadLightIndex(int quadLightIndex)
+    {
+        TW_ASSERT(quadLightIndex >= 0 && this->m_quadLightIndex != -1 && this->m_isAreaLight);
+        this->m_quadLightIndex = quadLightIndex;
+        this->m_geometryInstance["quadLightIndex"]->setInt(this->m_quadLightIndex);
     }
 
 protected:
@@ -164,15 +223,26 @@ private:
     {
         TW_ASSERT(this->m_geometryInstance);
 
-        this->m_geometryInstance["objectToWorld"]->setMatrix4x4fv(false, this->m_objectToWorld.getData());
-        this->m_geometryInstance["worldToObject"]->setMatrix4x4fv(false, this->m_worldToObject.getData());
+        optix::Matrix4x4 objectToWorld = 
+            optix::Matrix4x4::translate(this->m_position) * 
+            optix::Matrix4x4::rotate(this->m_rotationRad.x, optix::make_float3(1.f, 0.f, 0.f)) *
+            optix::Matrix4x4::rotate(this->m_rotationRad.y, optix::make_float3(0.f, 1.f, 0.f)) *
+            optix::Matrix4x4::rotate(this->m_rotationRad.z, optix::make_float3(0.f, 0.f, 1.f)) *
+            optix::Matrix4x4::scale(this->m_scale);
+
+        std::cout << TwUtil::getXScale(objectToWorld) << " " << TwUtil::getYScale(objectToWorld) << std::endl;
+
+        this->m_geometryInstance["objectToWorld"]->setMatrix4x4fv(false, objectToWorld.getData());
+        this->m_geometryInstance["worldToObject"]->setMatrix4x4fv(false, objectToWorld.inverse().getData());
     }
 
 private:
-    /// Transform matrix for quad shape
-    optix::Matrix4x4 m_objectToWorld, m_worldToObject;
-
     /// Store index to |quadLightBuffer|, be careful for the circular reference if we want to have another std::shared_ptr to quadLight
     bool m_isAreaLight;
     int  m_quadLightIndex;
+
+    /// Record user-friendly transform elements.
+    optix::float3 m_rotationRad;
+    optix::float3 m_position;
+    optix::float3 m_scale;
 };

@@ -786,6 +786,171 @@ void Application::drawInspector()
 
         ImGui::EndGroup();
     }
+    else if (objectType == IEditableObject::IEditableObjectType::QuadLight)
+    {
+        std::shared_ptr<QuadLight> quadLight = std::static_pointer_cast<QuadLight>(this->m_currentHierarchyNode);
+        TW_ASSERT(quadLight);
+
+        std::string quadLightName = quadLight->getName();
+        if (ImGui::InputText("##Object Name", &quadLightName))
+        {
+            quadLight->setName(quadLightName);
+        }
+
+        ImGui::Separator();
+
+        if (ImGui::CollapsingHeader("General##Quad Light", ImGuiTreeNodeFlags_CollapsingHeader))
+        {
+            optix::float3 color = quadLight->getLightColor();
+            float intensity = quadLight->getLightIntensity();
+
+            ImGui::AlignTextToFramePadding();
+            ImGui::Text("                                  Color"); ImGui::SameLine(200.f);
+            ImGui::SetNextItemWidth(165);
+            if (ImGui::ColorEdit3("##Quad Light Color", static_cast<float *>(&color.x), ImGuiColorEditFlags__OptionsDefault))
+            {
+                quadLight->setLightColor(color);
+                this->resetRenderParams();
+            }
+
+            ImGui::AlignTextToFramePadding();
+            ImGui::Text("                             Intensity"); ImGui::SameLine(200.f);
+            ImGui::SetNextItemWidth(165);
+            if (ImGui::InputFloat("##Light Intensity", &intensity, 1, 1))
+            {
+                if (intensity < 0.0f)
+                    intensity = 0.0f;
+                quadLight->setLightIntensity(intensity);
+                this->resetRenderParams();
+            }
+        }
+
+        if (ImGui::CollapsingHeader("Transform##Quad Light", ImGuiTreeNodeFlags_CollapsingHeader))
+        {
+            float3 quadLightLocation = quadLight->getPosition();
+            float3 quadLightRotation = quadLight->getRotation();
+            float3 quadLightScale    = quadLight->getScale();
+
+            ImGui::AlignTextToFramePadding();
+            ImGui::Text("                         Location");
+            ImGui::SameLine(178.f);
+            ImGui::AlignTextToFramePadding();
+            ImGui::Text(" X\n");
+            ImGui::SameLine(200.f);
+            ImGui::SetNextItemWidth(85);
+            if (ImGui::DragFloat("##QuadLight Location X", &quadLightLocation.x, 1.0f, -100.0f, 100.0f))
+            {
+                quadLight->setPosition(quadLightLocation);
+                this->resetRenderParams();
+            }
+
+            ImGui::Text("            ");
+            ImGui::SameLine(178.f);
+            ImGui::AlignTextToFramePadding();
+            ImGui::Text(" Y\n");
+            ImGui::SameLine(200.f);
+            ImGui::SetNextItemWidth(85);
+            if (ImGui::DragFloat("##QuadLight Location Y", &quadLightLocation.y, 1.0f, -100.0f, 100.0f))
+            {
+                quadLight->setPosition(quadLightLocation);
+                this->resetRenderParams();
+            }
+
+            ImGui::Text("            ");
+            ImGui::SameLine(178.f);
+            ImGui::AlignTextToFramePadding();
+            ImGui::Text(" Z\n");
+            ImGui::SameLine(200.f);
+            ImGui::SetNextItemWidth(85);
+            if (ImGui::DragFloat("##QuadLight Location Z", &quadLightLocation.z, 1.0f, -100.0f, 100.0f))
+            {
+                quadLight->setPosition(quadLightLocation);
+                this->resetRenderParams();
+            }
+
+            ImGui::AlignTextToFramePadding();
+            ImGui::Text("                         Rotation");
+            ImGui::SameLine(178.f);
+            ImGui::AlignTextToFramePadding();
+            ImGui::Text(" X\n");
+            ImGui::SameLine(200.f);
+            ImGui::SetNextItemWidth(85);
+            if (ImGui::SliderAngle("##QuadLight Rotation X", &quadLightRotation.x, 0.0f, 360.0f))
+            {
+                quadLight->setRotation(quadLightRotation);
+                this->resetRenderParams();
+            }
+
+            ImGui::Text("            ");
+            ImGui::SameLine(178.f);
+            ImGui::AlignTextToFramePadding();
+            ImGui::Text(" Y\n");
+            ImGui::SameLine(200.f);
+            ImGui::SetNextItemWidth(85);
+            if (ImGui::SliderAngle("##QuadLight Rotation Y", &quadLightRotation.y, 0.0f, 360.0f))
+            {
+                quadLight->setRotation(quadLightRotation);
+                this->resetRenderParams();
+            }
+
+            ImGui::Text("            ");
+            ImGui::SameLine(178.f);
+            ImGui::AlignTextToFramePadding();
+            ImGui::Text(" Z\n");
+            ImGui::SameLine(200.f);
+            ImGui::SetNextItemWidth(85);
+            if (ImGui::SliderAngle("##QuadLight Rotation Z", &quadLightRotation.z, 0.0f, 360.0f))
+            {
+                quadLight->setRotation(quadLightRotation);
+                this->resetRenderParams();
+            }
+
+
+            ImGui::Text("");
+            ImGui::SameLine(135.5f);
+            ImGui::AlignTextToFramePadding();
+            ImGui::Text("Scale");
+            ImGui::SameLine(178.f);
+            ImGui::AlignTextToFramePadding();
+            ImGui::Text(" X\n");
+            ImGui::SameLine(200.f);
+            ImGui::SetNextItemWidth(85);
+            if (ImGui::DragFloat("##QuadLight Scale X", &quadLightScale.x, 1.0f, -100.0f, 100.0f))
+            {
+                quadLight->setScale(quadLightScale);
+                this->resetRenderParams();
+            }
+
+            ImGui::Text("            ");
+            ImGui::SameLine(178.f);
+            ImGui::AlignTextToFramePadding();
+            ImGui::Text(" Y\n");
+            ImGui::SameLine(200.f);
+            ImGui::SetNextItemWidth(85);
+            if (ImGui::DragFloat("##QuadLight Scale Y", &quadLightScale.y, 1.0f, -100.0f, 100.0f))
+            {
+                quadLight->setScale(quadLightScale);
+                this->resetRenderParams();
+            }
+
+        }
+
+        /* Public Remove Button */
+        ImGui::BeginGroup();
+
+        ImGui::BeginChild("RemoveObjectSpaceChild", ImVec2(0, -ImGui::GetFrameHeightWithSpacing())); // Leave room for 1 line below us
+        ImGui::EndChild();
+
+        /* Last line of Inspector window. */
+        if (ImGui::Button("Remove Object"))
+        {
+            this->m_lightPool->removeQuadLight(quadLight);
+            this->m_currentHierarchyNode.reset();
+            this->resetRenderParams();
+        }
+
+        ImGui::EndGroup();
+    }
     else
     {
         std::cerr << "[Error] Error object type" << std::endl;
@@ -820,7 +985,11 @@ void Application::drawHierarchy()
                     this->m_lightPool->createPointLight(optix::make_float3(0.0f), optix::make_float3(1.0f), 5.0f);
                     this->resetRenderParams();
                 }
-                ImGui::MenuItem("QuadLight");
+                if (ImGui::MenuItem("QuadLight"))
+                {
+                    //this->m_lightPool->createQuadLight(make_float3(0.f), make_float3(0.f), make_float3(1.f, 1.f, 1.f), make_float3(1.f), 5.f, , false);
+                    //this->resetRenderParams();
+                }
                 ImGui::EndMenu();
             }
             if (ImGui::BeginMenu("Geometry"))
@@ -844,6 +1013,8 @@ void Application::drawHierarchy()
 
         LightPool *lightPool = this->m_lightPool.get();
         TW_ASSERT(lightPool);
+
+        /* HDRILights */
         HDRILight *hdriLight = lightPool->getHDRILight().get();
         TW_ASSERT(hdriLight);
 
@@ -857,6 +1028,7 @@ void Application::drawHierarchy()
             this->m_currentHierarchyNode = lightPool->getHDRILight();
         }
 
+        /* PointLights */
         for (auto pointLightItr = lightPool->getPointLights().cbegin(); pointLightItr != lightPool->getPointLights().cend(); ++pointLightItr)
         {
             ImGuiTreeNodeFlags pointLight_TreeNode_flag = (this->m_currentHierarchyNode ? 
@@ -870,6 +1042,22 @@ void Application::drawHierarchy()
                 this->m_currentHierarchyNode = *pointLightItr;
             }    
         }
+
+        /* QuadLights */
+        for (auto quadLightItr = lightPool->getQuadLights().cbegin(); quadLightItr != lightPool->getQuadLights().cend(); ++quadLightItr)
+        {
+            ImGuiTreeNodeFlags quadLight_TreeNode_flag = (this->m_currentHierarchyNode ?
+                ((this->m_currentHierarchyNode->getId() == (*quadLightItr)->getId()) ?
+                (base_flags | ImGuiTreeNodeFlags_Selected) : base_flags)
+                : base_flags);
+            ImGui::TreeNodeEx((void*)(intptr_t)((*quadLightItr)->getId()), quadLight_TreeNode_flag, (*quadLightItr)->getName().c_str());
+            if (ImGui::IsItemClicked())
+            {
+                this->m_currentHierarchyNode = *quadLightItr;
+            }
+        }
+
+
 
         ImGui::TreePop();
     }

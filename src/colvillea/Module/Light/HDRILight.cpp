@@ -47,7 +47,7 @@ void HDRILight::initializeLight()
     /* Create HDRILight Struct for GPU program. */
     this->m_csHDRILight.lightToWorld = Matrix4x4::rotate(this->m_rotationRad.x, make_float3(1.f,0.f,0.f)) *
                                        Matrix4x4::rotate(this->m_rotationRad.y, make_float3(0.f,1.f,0.f)) *
-                                       Matrix4x4::rotate(this->m_rotationRad.z, make_float3(0.f,0.f,1.f));;
+                                       Matrix4x4::rotate(this->m_rotationRad.z, make_float3(0.f,0.f,1.f));
     this->m_csHDRILight.worldToLight = this->m_csHDRILight.lightToWorld.inverse();
     this->m_csHDRILight.hdriEnvmap = this->m_HDRITextureSampler->getId();
     this->m_csHDRILight.lightType = CommonStructs::LightType::HDRILight;
@@ -83,7 +83,7 @@ void HDRILight::setLightRotation(const optix::float3 & rotation)
 
     this->m_csHDRILight.lightToWorld = Matrix4x4::rotate(this->m_rotationRad.x, make_float3(1.f,0.f,0.f)) *
                                        Matrix4x4::rotate(this->m_rotationRad.y, make_float3(0.f,1.f,0.f)) *
-                                       Matrix4x4::rotate(this->m_rotationRad.z, make_float3(0.f,0.f,1.f));;
+                                       Matrix4x4::rotate(this->m_rotationRad.z, make_float3(0.f,0.f,1.f));
     this->m_csHDRILight.worldToLight = this->m_csHDRILight.lightToWorld.inverse();
     this->m_lightPool->updateCurrentHDRILight();
 

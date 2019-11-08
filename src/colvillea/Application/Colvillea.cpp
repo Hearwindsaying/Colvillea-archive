@@ -31,7 +31,7 @@ void create_CornellBoxScene(std::shared_ptr<SceneGraph> &sceneGraph, std::shared
     /* Create integator. */
 
     //lightPool->createHDRILight(basePath + "HDRI\\uffizi-large.hdr", optix::make_float3(0.f,0.f,0.f));
-    lightPool->createPointLight(optix::make_float3(0.0f, 0.0f, 11.0f), optix::make_float3(1.0f, 1.0f, 1.0f), 44.0f);
+    //lightPool->createPointLight(optix::make_float3(0.0f, 0.0f, 11.0f), optix::make_float3(1.0f, 1.0f, 1.0f), 44.0f);
 
 
     //sceneGraph->createDirectLightingIntegrator();
@@ -55,10 +55,10 @@ void create_CornellBoxScene(std::shared_ptr<SceneGraph> &sceneGraph, std::shared
         materialPool->createLambertMaterial(optix::make_float4(0.725f, 0.71f, 0.68f, 1.f)));*/
 
     /* Create light. */
-    /*lightPool->createQuadLight(
-         Matrix4x4::translate(make_float3(0.f, 0.f, 11.7f)) * 
-         Matrix4x4::scale(make_float3(3.25f, 2.625f, 1.f)),
-        make_float3(17.f, 12.f, 4.f), materialPool->createEmissiveMaterial(), true);*/
+    lightPool->createQuadLight(
+         make_float3(0.f, 0.f, 11.7f), make_float3(0.f),
+         make_float3(3.25f, 2.625f, 1.f),
+        make_float3(17.f, 12.f, 4.f)/17.f, 17.f, materialPool->createEmissiveMaterial(), true);
 }
 
 /* Create test scene. */
@@ -66,7 +66,7 @@ void create_TestScene(std::shared_ptr<SceneGraph> &sceneGraph, std::shared_ptr<L
 {
     //sceneGraph->createDirectLightingIntegrator();
     //sceneGraph->createPathTracingIntegrator(true, 5);
-    //lightPool->createHDRILight(basePath + "HDRI\\uffizi-large.hdr", optix::make_float3(0.f,0.f,0.f));
+    lightPool->createHDRILight(basePath + "HDRI\\uffizi-large.hdr", optix::make_float3(0.f,0.f,0.f));
     sceneGraph->createSampler(CommonStructs::SamplerType::IndependentSampler);// todo:ifdef USE_HALTON_SAMPLER to enable Halton
 
     /* TriangleMesh is created with the help of MaterialPool. */
@@ -79,13 +79,13 @@ void create_TestScene(std::shared_ptr<SceneGraph> &sceneGraph, std::shared_ptr<L
     //auto quadShape = sceneGraph->createQuad(
     //    materialPool->createRoughMetalMaterial(0.03f, make_float4(1.66f,0.95151f,0.7115f,0.f), make_float4(8.0406f,6.3585f,5.1380f,0.f)), 
     //    /*materialPool->createLambertMaterial(optix::make_float4(0.8f)),*/
-    //       /*Matrix4x4::translate(make_float3(0.f,0.f,4.f)) * */Matrix4x4::rotate(TwUtil::deg2rad(45.f), make_float3(1.f,0.f,0.f)));
+    //       /*Matrix4x4::translate(make_float3(0.f,0.f,4.f)) * */Matrix4x4::rotate(TwUtil::deg2rad(45.f), make_float3(1.f,0.f,0.f)));//todo:fix this
     //quadShape->flipGeometryNormal();
 
     auto quadShapeB = sceneGraph->createQuad(
         materialPool->createRoughMetalMaterial(0.03f, make_float4(1.66f, 0.95151f, 0.7115f, 0.f), make_float4(8.0406f, 6.3585f, 5.1380f, 0.f)),
         /*materialPool->createLambertMaterial(optix::make_float4(0.8f)),*/
-        Matrix4x4::identity());
+        make_float3(0.f),make_float3(0.f),make_float3(1.f,1.f,1.f));
     //quadShapeB->flipGeometryNormal();
 
     //sceneGraph->createTriangleMesh("D:\\Project\\Twilight\\GraphicsRes\\Colvillea\\roughmetal.obj",
@@ -100,15 +100,14 @@ void create_TestScene(std::shared_ptr<SceneGraph> &sceneGraph, std::shared_ptr<L
     //lightPool->createPointLight(optix::make_float3(0.0f, 0.0f, 3.0f), optix::make_float3(1.0f, 1.0f, 1.0f), 4.0f);
 
     lightPool->createQuadLight(
-        Matrix4x4::translate(make_float3(-0.5f, 0.f, 1.5f))
-        /**Matrix4x4::scale(make_float3(0.5f,0.5f,1.f))
-        *Matrix4x4::rotate(TwUtil::deg2rad(-45.f), make_float3(1.f, 0.f, 0.f))*/,
-        make_float3(4.f, 0.f, 0.f), emissiveMaterial, true);
+        (make_float3(-0.5f, 0.f, 1.5f)),make_float3(0.f),make_float3(0.5f,0.5f,1.f),
+        make_float3(1.f, 0.f, 0.f), 4.0f, emissiveMaterial, true);
     lightPool->createQuadLight(
-        Matrix4x4::translate(make_float3(0.5f, 0.f, 1.5f))
-        /**Matrix4x4::scale(make_float3(0.5f, 0.5f, 1.f))
-        *Matrix4x4::rotate(TwUtil::deg2rad(45.f), make_float3(1.f, 0.f, 0.f))*/,
-        make_float3(0.f, 0.f, 4.f), emissiveMaterial, true);
+        (make_float3(0.5f, 0.f, 1.5f)), make_float3(0.f), make_float3(0.5f, 0.5f, 1.f),
+        make_float3(0.f, 0.f, 1.f), 4.0f, emissiveMaterial, true);
+    
+    /*lightPool->createQuadLight(
+        make_float3(0.f), make_float3(TwUtil::deg2rad(45.f), 0.f, 0.f), make_float3(1.f, 1.f, 1.f), make_float3(1.f), 1.f, emissiveMaterial, true);*/
 }
 
 
@@ -187,8 +186,8 @@ int main(int argc, char *argv[])
 
     /* Create scene using sceneGraph::createXXX methods. */
     sceneGraph->createCamera(Matrix4x4::identity(), fov, filmWidth, filmHeight);
-    create_CornellBoxScene(sceneGraph, lightPool, application, materialPool, examplesBasePath); /* left scene configurations are created... */
-    //create_TestScene(sceneGraph, lightPool, application, materialPool, examplesBasePath);
+    //create_CornellBoxScene(sceneGraph, lightPool, application, materialPool, examplesBasePath); /* left scene configurations are created... */
+    create_TestScene(sceneGraph, lightPool, application, materialPool, examplesBasePath);
 
     /* Finally initialize scene and prepare for launch. */
     application->buildSceneGraph(sceneGraph);
