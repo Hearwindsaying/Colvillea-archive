@@ -83,6 +83,7 @@ set(SOURCE_LIST
 	"${CMAKE_CURRENT_SOURCE_DIR}/Module/Camera/CameraController.h"
 	
 	"${CMAKE_CURRENT_SOURCE_DIR}/Module/Geometry/Quad.h"
+	"${CMAKE_CURRENT_SOURCE_DIR}/Module/Geometry/Quad.cpp"
 	"${CMAKE_CURRENT_SOURCE_DIR}/Module/Geometry/Shape.cpp"
 	"${CMAKE_CURRENT_SOURCE_DIR}/Module/Geometry/Shape.h"
 	"${CMAKE_CURRENT_SOURCE_DIR}/Module/Geometry/GeometryTrianglesShape.h"
@@ -211,6 +212,7 @@ OPTIX_add_sample_executable( colvillea
 	${CMAKE_CURRENT_SOURCE_DIR}/Module/Camera/CameraController.h
 	
 	${CMAKE_CURRENT_SOURCE_DIR}/Module/Geometry/Quad.h
+	${CMAKE_CURRENT_SOURCE_DIR}/Module/Geometry/Quad.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/Module/Geometry/Shape.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/Module/Geometry/Shape.h
 	${CMAKE_CURRENT_SOURCE_DIR}/Module/Geometry/GeometryTrianglesShape.h

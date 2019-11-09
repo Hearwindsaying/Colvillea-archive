@@ -76,13 +76,13 @@ void create_TestScene(std::shared_ptr<SceneGraph> &sceneGraph, std::shared_ptr<L
     //    "D:\\Project\\Twilight\\GraphicsRes\\Colvillea\\sofa.obj", 
     //    materialPool->createLambertMaterial(optix::make_float4(.8f)));
 
-    //auto quadShape = sceneGraph->createQuad(
+    //auto quadShape = sceneGraph->createQuad(sceneGraph.get(),
     //    materialPool->createRoughMetalMaterial(0.03f, make_float4(1.66f,0.95151f,0.7115f,0.f), make_float4(8.0406f,6.3585f,5.1380f,0.f)), 
     //    /*materialPool->createLambertMaterial(optix::make_float4(0.8f)),*/
     //       /*Matrix4x4::translate(make_float3(0.f,0.f,4.f)) * */Matrix4x4::rotate(TwUtil::deg2rad(45.f), make_float3(1.f,0.f,0.f)));//todo:fix this
     //quadShape->flipGeometryNormal();
 
-    auto quadShapeB = sceneGraph->createQuad(
+    auto quadShapeB = sceneGraph->createQuad(sceneGraph.get(),
         materialPool->createRoughMetalMaterial(0.01f, make_float4(1.66f, 0.95151f, 0.7115f, 0.f), make_float4(8.0406f, 6.3585f, 5.1380f, 0.f)),
         /*materialPool->createLambertMaterial(optix::make_float4(0.8f)),*/
         make_float3(0.f),make_float3(0.f),make_float3(1.f,1.f,1.f));

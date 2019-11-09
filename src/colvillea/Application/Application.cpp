@@ -914,7 +914,7 @@ void Application::drawInspector()
             ImGui::Text(" X\n");
             ImGui::SameLine(200.f);
             ImGui::SetNextItemWidth(85);
-            if (ImGui::DragFloat("##QuadLight Scale X", &quadLightScale.x, 1.0f, -100.0f, 100.0f))
+            if (ImGui::DragFloat("##QuadLight Scale X", &quadLightScale.x, 1.0f, 0.1f, 100.0f))
             {
                 quadLight->setScale(quadLightScale);
                 this->resetRenderParams();
@@ -926,7 +926,7 @@ void Application::drawInspector()
             ImGui::Text(" Y\n");
             ImGui::SameLine(200.f);
             ImGui::SetNextItemWidth(85);
-            if (ImGui::DragFloat("##QuadLight Scale Y", &quadLightScale.y, 1.0f, -100.0f, 100.0f))
+            if (ImGui::DragFloat("##QuadLight Scale Y", &quadLightScale.y, 1.0f, 0.1f, 100.0f))
             {
                 quadLight->setScale(quadLightScale);
                 this->resetRenderParams();
@@ -944,6 +944,155 @@ void Application::drawInspector()
         if (ImGui::Button("Remove Object"))
         {
             this->m_lightPool->removeQuadLight(quadLight);
+            this->m_currentHierarchyNode.reset();
+            this->resetRenderParams();
+        }
+
+        ImGui::EndGroup();
+    }
+    else if (objectType == IEditableObject::IEditableObjectType::QuadGeometry)
+    {
+        std::shared_ptr<Quad> quad = std::static_pointer_cast<Quad>(this->m_currentHierarchyNode);
+        TW_ASSERT(quad);
+
+
+        std::string quadName = quad->getName();
+        if (ImGui::InputText("##Object Name", &quadName))
+        {
+            quad->setName(quadName);
+        }
+
+        ImGui::Separator();
+
+        if (ImGui::CollapsingHeader("General##Quad Geometry", ImGuiTreeNodeFlags_CollapsingHeader))
+        {
+            ImGui::AlignTextToFramePadding();
+            ImGui::Text("                                 Mesh"); ImGui::SameLine(200.f);
+            ImGui::SetNextItemWidth(165);
+            ImGui::Button("Quad", ImVec2(165.f, 0.0f));
+            ImGui::SameLine();
+            ImGui::Button("M");
+        }
+        if (ImGui::CollapsingHeader("Transform##Quad Geometry", ImGuiTreeNodeFlags_CollapsingHeader))
+        {
+            float3 quadLocation = quad->getPosition();
+            float3 quadRotation = quad->getRotation();
+            float3 quadScale    = quad->getScale();
+
+            ImGui::AlignTextToFramePadding();
+            ImGui::Text("                         Location");
+            ImGui::SameLine(178.f);
+            ImGui::AlignTextToFramePadding();
+            ImGui::Text(" X\n");
+            ImGui::SameLine(200.f);
+            ImGui::SetNextItemWidth(85);
+            if (ImGui::DragFloat("##Quad Geometry Location X", &quadLocation.x, 1.0f, -100.0f, 100.0f))
+            {
+                quad->setPosition(quadLocation);
+                this->resetRenderParams();
+            }
+
+            ImGui::Text("            ");
+            ImGui::SameLine(178.f);
+            ImGui::AlignTextToFramePadding();
+            ImGui::Text(" Y\n");
+            ImGui::SameLine(200.f);
+            ImGui::SetNextItemWidth(85);
+            if (ImGui::DragFloat("##Quad Geometry Location Y", &quadLocation.y, 1.0f, -100.0f, 100.0f))
+            {
+                quad->setPosition(quadLocation);
+                this->resetRenderParams();
+            }
+
+            ImGui::Text("            ");
+            ImGui::SameLine(178.f);
+            ImGui::AlignTextToFramePadding();
+            ImGui::Text(" Z\n");
+            ImGui::SameLine(200.f);
+            ImGui::SetNextItemWidth(85);
+            if (ImGui::DragFloat("##Quad Geometry Location Z", &quadLocation.z, 1.0f, -100.0f, 100.0f))
+            {
+                quad->setPosition(quadLocation);
+                this->resetRenderParams();
+            }
+
+            //---------------------------------------------------------------------
+            ImGui::AlignTextToFramePadding();
+            ImGui::Text("                         Rotation");
+            ImGui::SameLine(178.f);
+            ImGui::AlignTextToFramePadding();
+            ImGui::Text(" X\n");
+            ImGui::SameLine(200.f);
+            ImGui::SetNextItemWidth(85);
+            if (ImGui::SliderAngle("##Quad Geometry Rotation X", &quadRotation.x, 0.0f, 360.0f))
+            {
+                quad->setRotation(quadRotation);
+                this->resetRenderParams();
+            }
+
+            ImGui::Text("            ");
+            ImGui::SameLine(178.f);
+            ImGui::AlignTextToFramePadding();
+            ImGui::Text(" Y\n");
+            ImGui::SameLine(200.f);
+            ImGui::SetNextItemWidth(85);
+            if (ImGui::SliderAngle("##Quad Geometry Rotation Y", &quadRotation.y, 0.0f, 360.0f))
+            {
+                quad->setRotation(quadRotation);
+                this->resetRenderParams();
+            }
+
+            ImGui::Text("            ");
+            ImGui::SameLine(178.f);
+            ImGui::AlignTextToFramePadding();
+            ImGui::Text(" Z\n");
+            ImGui::SameLine(200.f);
+            ImGui::SetNextItemWidth(85);
+            if (ImGui::SliderAngle("##Quad Geometry Rotation Z", &quadRotation.z, 0.0f, 360.0f))
+            {
+                quad->setRotation(quadRotation);
+                this->resetRenderParams();
+            }
+
+
+            ImGui::Text("");
+            ImGui::SameLine(135.5f);
+            ImGui::AlignTextToFramePadding();
+            ImGui::Text("Scale");
+            ImGui::SameLine(178.f);
+            ImGui::AlignTextToFramePadding();
+            ImGui::Text(" X\n");
+            ImGui::SameLine(200.f);
+            ImGui::SetNextItemWidth(85);
+            if (ImGui::DragFloat("##Quad Geometry Scale X", &quadScale.x, 1.0f, 0.1f, 100.0f))
+            {
+                quad->setScale(quadScale);
+                this->resetRenderParams();
+            }
+
+            ImGui::Text("            ");
+            ImGui::SameLine(178.f);
+            ImGui::AlignTextToFramePadding();
+            ImGui::Text(" Y\n");
+            ImGui::SameLine(200.f);
+            ImGui::SetNextItemWidth(85);
+            if (ImGui::DragFloat("##Quad Geometry Scale Y", &quadScale.y, 1.0f, 0.1f, 100.0f))
+            {
+                quad->setScale(quadScale);
+                this->resetRenderParams();
+            }
+        }
+        
+        /* Public Remove Button */
+        ImGui::BeginGroup();
+
+        ImGui::BeginChild("RemoveObjectSpaceChild", ImVec2(0, -ImGui::GetFrameHeightWithSpacing())); // Leave room for 1 line below us
+        ImGui::EndChild();
+
+        /* Last line of Inspector window. */
+        if (ImGui::Button("Remove Object"))
+        {
+            this->m_sceneGraph->removeGeometry(quad);
             this->m_currentHierarchyNode.reset();
             this->resetRenderParams();
         }
@@ -1008,8 +1157,6 @@ void Application::drawHierarchy()
     {
         static ImGuiTreeNodeFlags base_flags = ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen;
 
-        int node_clicked = -1;
-
         LightPool *lightPool = this->m_lightPool.get();
         TW_ASSERT(lightPool);
 
@@ -1063,6 +1210,54 @@ void Application::drawHierarchy()
 
     ImGui::Separator();
 
+    if (ImGui::TreeNode("Geometry"))
+    {
+        static ImGuiTreeNodeFlags base_flags = ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen;
+
+        /* Quad Shapes. 
+         *  Todo: modify GUI implementation to support various GeometryShape types. 
+         *        -- We assumed that there are only quads in GeometryShape in current implementation. */
+        const std::vector<std::shared_ptr<GeometryShape>> &shapes_Geometry = this->m_sceneGraph->getShapes_Geometry();
+
+        for (auto quadShapePtrItr = shapes_Geometry.cbegin(); quadShapePtrItr != shapes_Geometry.cend(); ++quadShapePtrItr)
+        {
+            /* If this Quad shape is used to be an underlying shape for AreaLight, never show 
+             * -- it up in Hierarchy. Because once the special Quad (used for AreaLight) is 
+             * -- removed by user, QuadLight is ill-defined and thus leading to corruption. */
+            if(std::static_pointer_cast<Quad>(*quadShapePtrItr)->isAreaLight())
+                continue;
+
+            ImGuiTreeNodeFlags quadShape_TreeNode_flag = (this->m_currentHierarchyNode ?
+                ((this->m_currentHierarchyNode->getId() == (*quadShapePtrItr)->getId()) ?
+                (base_flags | ImGuiTreeNodeFlags_Selected) : base_flags)
+                : base_flags);
+            ImGui::TreeNodeEx((void*)(intptr_t)((*quadShapePtrItr)->getId()), quadShape_TreeNode_flag, (*quadShapePtrItr)->getName().c_str());
+            if (ImGui::IsItemClicked())
+            {
+                this->m_currentHierarchyNode = *quadShapePtrItr;
+            }
+        }
+
+        /* GeometryTriangles Shapes. */
+        const std::vector<std::shared_ptr<GeometryTrianglesShape>> &shapes_GeometryTriangles = this->m_sceneGraph->getShapes_GeometryTriangles();
+
+        for (auto geometryTrianglesShapePtrItr = shapes_GeometryTriangles.cbegin(); geometryTrianglesShapePtrItr != shapes_GeometryTriangles.cend(); ++geometryTrianglesShapePtrItr)
+        {
+            ImGuiTreeNodeFlags geometryTrianglesShape_TreeNode_flag = (this->m_currentHierarchyNode ?
+                ((this->m_currentHierarchyNode->getId() == (*geometryTrianglesShapePtrItr)->getId()) ?
+                (base_flags | ImGuiTreeNodeFlags_Selected) : base_flags)
+                : base_flags);
+            ImGui::TreeNodeEx((void*)(intptr_t)((*geometryTrianglesShapePtrItr)->getId()), geometryTrianglesShape_TreeNode_flag, (*geometryTrianglesShapePtrItr)->getName().c_str());
+            if (ImGui::IsItemClicked())
+            {
+                this->m_currentHierarchyNode = *geometryTrianglesShapePtrItr;
+            }
+        }
+
+
+
+        ImGui::TreePop();
+    }
 
     ImGui::End();
 }

@@ -8,6 +8,7 @@
 #include "tinyobjloader/tiny_obj_loader.h"
 
 class Application;
+class SceneGraph;
 
 /**
  * @brief Quad represents a planar quadrilateral or
@@ -26,6 +27,7 @@ public:
      * @brief Factory method for creating a Quad instance for ordinary
      * usage but not for quad light.
      *
+     * @param[in] sceneGraph
      * @param[in] context
      * @param[in] programsMap      map to store Programs
      * @param[in] position
@@ -34,9 +36,9 @@ public:
      * @param[in] integrator       integrator of optix::Material type
      * @param[in] materialIndex    material index in |materialBuffer|
      */
-    static std::unique_ptr<Quad> createQuad(optix::Context context, const std::map<std::string, optix::Program> &programsMap, const optix::float3 &position, const optix::float3 &rotation, const optix::float3 &scale, optix::Material integrator, const int materialIndex)
+    static std::unique_ptr<Quad> createQuad(SceneGraph *sceneGraph, optix::Context context, const std::map<std::string, optix::Program> &programsMap, const optix::float3 &position, const optix::float3 &rotation, const optix::float3 &scale, optix::Material integrator, const int materialIndex)
     {
-        return Quad::createQuadInner(context, programsMap, position, rotation, scale, integrator, materialIndex);
+        return Quad::createQuadInner(sceneGraph, context, programsMap, position, rotation, scale, integrator, materialIndex);
     }
 
     /**
@@ -78,10 +80,13 @@ public:
      * @param[in] rotation         XYZ rotation angle in radian
      * @param[in] scale            Z-component is zero
      */
-    Quad(optix::Context context, const std::map<std::string, optix::Program> &programsMap, const optix::float3 &position, const optix::float3 &rotation, const optix::float3 &scale, optix::Material integrator, const int materialIndex)
-        : GeometryShape(context, programsMap, "Quad", integrator, materialIndex), 
-        m_position(position), m_rotationRad(rotation), m_scale(scale)
+    Quad(SceneGraph *sceneGraph, optix::Context context, const std::map<std::string, optix::Program> &programsMap, const optix::float3 &position, const optix::float3 &rotation, const optix::float3 &scale, optix::Material integrator, const int materialIndex)
+        : GeometryShape(context, programsMap, "Quad", integrator, materialIndex, "Quad", IEditableObject::IEditableObjectType::QuadGeometry), 
+        m_sceneGraph(sceneGraph),
+        m_position(position), m_rotationRad(rotation), m_scale(scale),
+        m_quadLightIndex(-1), m_isAreaLight(false)
     {
+        TW_ASSERT(sceneGraph);
         /* Check whether transform matrix has z-component scale. */
         TW_ASSERT(m_scale.z == 1.f);
         if (m_scale.z != 1.f)
@@ -98,7 +103,8 @@ public:
      * @param[in] scale            Z-component is zero
      */
     Quad(optix::Context context, const std::map<std::string, optix::Program> &programsMap, const optix::float3 &position, const optix::float3 &rotation, const optix::float3 &scale, int quadLightIndex, optix::Material integrator, const int materialIndex)
-        : GeometryShape(context, programsMap, "Quad", integrator, materialIndex),
+        : GeometryShape(context, programsMap, "Quad", integrator, materialIndex, "Quad", IEditableObject::IEditableObjectType::QuadGeometry),
+         m_sceneGraph(nullptr),
          m_position(position), m_rotationRad(rotation), m_scale(scale),  
          m_quadLightIndex(quadLightIndex), m_isAreaLight(true)
     {
@@ -125,6 +131,11 @@ public:
         this->m_geometryInstance["quadLightIndex"]->setInt(this->m_isAreaLight ? this->m_quadLightIndex : -1);
     }
 public:
+    bool isAreaLight() const
+    {
+        return this->m_isAreaLight;
+    }
+
     optix::float3 getPosition() const
     {
         return this->m_position;
@@ -154,7 +165,7 @@ public:
 
     void setScale(const optix::float3 &scale)
     {
-        TW_ASSERT(m_scale.z == 1.f);
+        TW_ASSERT(this->m_scale.z == 1.f && scale.z == 1.f);
         if (scale.z != 1.f)
         {
             std::cout << "[Info] Quad shape scale's z-component is not zero!" << std::endl;
@@ -183,14 +194,6 @@ public:
      */
     float getSurfaceArea() const override
     {
-        //todo:delete assertion:
-        /*float area = optix::length(
-            TwUtil::xfmVector(optix::make_float3(2, 0, 0), this->m_objectToWorld)) *
-                     optix::length(
-            TwUtil::xfmVector(optix::make_float3(0, 2, 0), this->m_objectToWorld));
-        TW_ASSERT(area == TwUtil::getXScale(this->m_objectToWorld) * TwUtil::getYScale(this->m_objectToWorld) * 4);
-
-        return TwUtil::getXScale(this->m_objectToWorld) * TwUtil::getYScale(this->m_objectToWorld) * 4;*/
         return this->m_scale.x * this->m_scale.y;
     }
 
@@ -243,22 +246,7 @@ protected:
     }
 
 private:
-    void updateMatrixParameter()
-    {
-        TW_ASSERT(this->m_geometryInstance);
-
-        optix::Matrix4x4 objectToWorld = 
-            optix::Matrix4x4::translate(this->m_position) * 
-            optix::Matrix4x4::rotate(this->m_rotationRad.x, optix::make_float3(1.f, 0.f, 0.f)) *
-            optix::Matrix4x4::rotate(this->m_rotationRad.y, optix::make_float3(0.f, 1.f, 0.f)) *
-            optix::Matrix4x4::rotate(this->m_rotationRad.z, optix::make_float3(0.f, 0.f, 1.f)) *
-            optix::Matrix4x4::scale(this->m_scale);
-
-        std::cout << TwUtil::getXScale(objectToWorld) << " " << TwUtil::getYScale(objectToWorld) << std::endl;
-
-        this->m_geometryInstance["objectToWorld"]->setMatrix4x4fv(false, objectToWorld.getData());
-        this->m_geometryInstance["worldToObject"]->setMatrix4x4fv(false, objectToWorld.inverse().getData());
-    }
+    void updateMatrixParameter();
 
 private:
     /// Store index to |quadLightBuffer|, be careful for the circular reference if we want to have another std::shared_ptr to quadLight
@@ -269,4 +257,7 @@ private:
     optix::float3 m_rotationRad;
     optix::float3 m_position;
     optix::float3 m_scale;
+
+    /// Pointer to SceneGraph
+    SceneGraph *m_sceneGraph;
 };

@@ -4,6 +4,7 @@
 #include <optixu/optixpp_namespace.h>
 #include <optixu_matrix_namespace.h>
 
+#include <algorithm>
 #include <map>
 #include <memory>
 
@@ -185,11 +186,11 @@ public:
      * @param[in] scale         Z-component is zero
      * @param[in] flipNormal    flip quad's normal
      */
-    std::shared_ptr<Quad> createQuad(const int materialIndex, const optix::float3 &position, const optix::float3 &rotation, const optix::float3 &scale, bool flipNormal = false)
+    std::shared_ptr<Quad> createQuad(SceneGraph *sceneGraph, const int materialIndex, const optix::float3 &position, const optix::float3 &rotation, const optix::float3 &scale, bool flipNormal = false)
     {
         //todo:assert that quad is not assigned with Emissive BSDF.//todo:delete emissive?
         //todo:review copy of Quad
-        std::shared_ptr<Quad> quad = Quad::createQuad(this->m_context, this->m_programsMap, position, rotation, scale, this->m_integrator->getIntegratorMaterial(), materialIndex);
+        std::shared_ptr<Quad> quad = Quad::createQuad(sceneGraph, this->m_context, this->m_programsMap, position, rotation, scale, this->m_integrator->getIntegratorMaterial(), materialIndex);
         if(flipNormal)
             quad->flipGeometryNormal();
         this->m_shapes_Geometry.push_back(quad);
@@ -484,6 +485,23 @@ public:
         /* Update current filter to expected filter instance. */
         this->updateCurrentFilter(filterItr->second);
     }
+
+    /**
+     * @brief Get |m_shapes_Geometry|.
+     */
+    const std::vector<std::shared_ptr<GeometryShape>> &getShapes_Geometry() const
+    {
+        return this->m_shapes_Geometry;
+    }
+
+    /**
+     * @brief Get |m_shapes_GeometryTriangles|.
+     */
+    const std::vector<std::shared_ptr<GeometryTrianglesShape>> &getShapes_GeometryTriangles() const
+    {
+        return this->m_shapes_GeometryTriangles;
+    }
+
 
 private:
     /************************************************************************/

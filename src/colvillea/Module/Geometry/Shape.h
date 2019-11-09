@@ -7,6 +7,7 @@
 #include <map>
 
 #include "colvillea/Application/TWAssert.h"
+#include "colvillea/Application/GlobalDefs.h"
 
 
 
@@ -16,14 +17,15 @@
  * provide fundamental function to prepare geometry for
  * rendering on GPU.
  */
-class Shape
+class Shape : public IEditableObject
 {
 public:
 	/**
 	 * @brief constructor for Shape class, collect all necessary
 	 * parameters to initialize and set up GeometryInstance.
 	 */
-	Shape(optix::Context context, const std::map<std::string, optix::Program> &programsMap, optix::Material integrator, const int materialIndex) : 
+    Shape(optix::Context context, const std::map<std::string, optix::Program> &programsMap, optix::Material integrator, const int materialIndex, const std::string &shapeObjectName, IEditableObject::IEditableObjectType objectType) :
+        IEditableObject(shapeObjectName, objectType),
         m_context(context), m_programsMap(programsMap), 
         m_materialIndex(materialIndex), m_integrator(integrator), m_primitiveCount(-1)
 	{
