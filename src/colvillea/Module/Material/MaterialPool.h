@@ -8,23 +8,58 @@
 #include "colvillea/Device/Toolkit/CommonStructs.h"
 #include "colvillea/Application/TWAssert.h"
 
+class Application;
 
 
 /**
  * @brief A pool used for creating, containing and
  * managing materials.
+ * @note First material is always an emissive material served as 
+         underlying BSDF for Area Light.
  */
 class MaterialPool
 {
 public:
+    /**
+     * @brief Factory method for creating MaterialPool instance.
+     * 
+     * @param[in] application
+     * @param[in] programsMap
+     * @param[in] context
+     */
+    static std::shared_ptr<MaterialPool> createMaterialPool(Application *application, const std::map<std::string, optix::Program> &programsMap, const optix::Context context)
+    {
+        std::shared_ptr<MaterialPool> materialPool = std::make_shared<MaterialPool>(programsMap, context);
+        application->m_materialPool = materialPool;
+        return materialPool;
+    }
+
 	MaterialPool(const std::map<std::string, optix::Program> &programsMap, const optix::Context context):m_programsMap(programsMap),m_context(context)
 	{
-		/* Setup shaderBuffer. */
-		this->m_shaderBuffer = this->m_context->createBuffer(RT_BUFFER_INPUT, RT_FORMAT_USER, MaterialPool::MAX_ShaderBuffer_Size);
+		/* Add a default Emissive BSDF and setup shaderBuffer. */
+		this->m_shaderBuffer = this->m_context->createBuffer(RT_BUFFER_INPUT, RT_FORMAT_USER, 1);
 		this->m_shaderBuffer->setElementSize(sizeof(CommonStructs::ShaderParams));
 
-        this->m_context["shaderBuffer"]->setBuffer(this->m_shaderBuffer);
+        /* First material is always an emissive material served as
+         * underlying BSDF for Area Light. */
+        TW_ASSERT(createEmissiveMaterial() == 0);
+
+        this->updateAllMaterials();
 	}
+
+    /**
+     * @brief Try to get an emissive material. If there is no
+     * emissive material available, create one and return corresponding
+     * index.
+     * @return Return the corresponding materialIndex pointed to materialBuffer.
+     */
+    int getEmissiveMaterial() const 
+    {
+        TW_ASSERT(this->m_materialBuffer.size() > 0);
+        /* First material is always an emissive material served as
+         * underlying BSDF for Area Light. */
+        return 0;
+    }
 
 #pragma region CodeFromSceneGraph
     inline int createEmissiveMaterial()
@@ -208,57 +243,59 @@ private:
 	 */
 	int addMaterial(CommonStructs::ShaderParams &shaderParams)
 	{
-		auto index = materialStruct.push_back(shaderParams);
+		this->m_materialBuffer.push_back(shaderParams);
+        int index = this->m_materialBuffer.size() - 1;
 
-		auto shaderBufferArray = static_cast<CommonStructs::ShaderParams *>(this->m_shaderBuffer->map());
-		shaderBufferArray[index] = shaderParams;
-		this->m_shaderBuffer->unmap();
-		//todo:review 
-        this->m_context["shaderBuffer"]->setBuffer(this->m_shaderBuffer);
+        /* Update all materials. */
+        this->updateAllMaterials();
+
 		return index;
 	}
 
+private:
+    /************************************************************************/
+    /*                             Update functions                         */
+    /************************************************************************/
+
+    /**
+     * @brief Update all materials. This is applicable for all modification operations to
+     * MaterialBuffer, adding, modifying and removing.
+     *
+     * @todo Rewrite addMaterial() and this function to support update one
+     * single material a time.
+     *       -- add "bool resizeBuffer" to avoid unnecessary resizing.
+     */
+    void updateAllMaterials()
+    {
+        TW_ASSERT(this->m_shaderBuffer);
+        /* At least an Emissive BSDF is stored. */
+        TW_ASSERT(this->m_materialBuffer.size() > 0);
+
+        this->m_shaderBuffer->setSize(this->m_materialBuffer.size());
+        std::cout << "[Info] Updated ShaderBuffer." << std::endl;
+
+        /* Setup shaderBuffer for GPU Program */
+        auto shaderParamsArray = static_cast<CommonStructs::ShaderParams *>(this->m_shaderBuffer->map());
+        for (auto itr = this->m_materialBuffer.begin(); itr != this->m_materialBuffer.end(); ++itr)
+        {
+            shaderParamsArray[itr - this->m_materialBuffer.begin()] = *itr;
+        }
+
+        this->m_context["shaderBuffer"]->setBuffer(this->m_shaderBuffer);
+
+        /* Unmap buffer. */
+        this->m_shaderBuffer->unmap();
+    }
+
 
 private:
-	class 
-	{
-	public:
-		/**
-		 * @brief Add a material to materialBuffer.
-		 * Note that only adding operation is supported now.
-		 * @return the material index in materialBuffer.
-		 */
-		size_t push_back(CommonStructs::ShaderParams &shaderParams)
-		{
-			materialBuffer.push_back(shaderParams);
-			return materialBuffer.size();
-		}
-
-		/**
-		 * @brief Get a material by materialIndex
-		 * 
-		 */
-		CommonStructs::ShaderParams& getShaderParams(size_t materialIndex)
-		{
-			TW_ASSERT(materialIndex > 0);
-			TW_ASSERT(materialIndex < materialBuffer.size());
-
-			return materialBuffer[materialIndex];
-		}
-
-	public:
-		std::vector<CommonStructs::ShaderParams> materialBuffer;
-		
-		//todo:support delete operation.
-	//private:
-	//	std::vector<int>          validInfo;
-
-		
-	}materialStruct; //SOA style struct for materialBuffer
-	
     const std::map<std::string, optix::Program> &m_programsMap;
-    optix::Context m_context;
-	optix::Buffer      m_shaderBuffer;
+    optix::Context     m_context;
+
+    /// ShaderBuffer
+	optix::Buffer m_shaderBuffer;
+    /// MaterialBuffer contains CommonStructs::ShaderParams
+    std::vector<CommonStructs::ShaderParams> m_materialBuffer;
 
 	constexpr static int MAX_ShaderBuffer_Size = 20;
 };

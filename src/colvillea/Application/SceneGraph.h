@@ -86,6 +86,9 @@ private:
         /* Add GeometryTriangles GeometryGroup and Geometry GeometryGroup to top Group. */
         this->m_topGroup->addChild(this->m_topGeometryGroup_GeometryTriangles);
         this->m_topGroup->addChild(this->m_topGeometryGroup_Geometry);
+
+        this->m_context["sysTopObject"]->set(this->m_topGroup);
+        this->m_context["sysTopShadower"]->set(this->m_topGroup);
     }
 
     /**
@@ -158,16 +161,17 @@ public:
 	 * 
 	 * @param[in] meshFilename wavefront obj filename with path
 	 * @param[in] materialIndex material index to materialBuffer
-	 * 
-	 * @note Note that this operation doesn't invoke buildGraph()
-	 * which is necessary to call explicitly eventually.
 	 */
 	void createTriangleMesh(const std::string & meshFileName, const int materialIndex)
 	{
         /* Converting unique_ptr to shared_ptr. */
         std::shared_ptr<TriangleMesh> triMesh = TriangleMesh::createTriangleMesh(this->m_context, this->m_programsMap, meshFileName, this->m_integrator->getIntegratorMaterial(), materialIndex);
 
-        m_shapes_GeometryTriangles.push_back(triMesh);
+        this->m_shapes_GeometryTriangles.push_back(triMesh);
+
+        /* Update OptiX Graph. */
+        this->m_topGeometryGroup_GeometryTriangles->addChild(triMesh->getGeometryInstance());
+        this->rebuildGeometryTriangles();
 	}
 
     /**
@@ -180,9 +184,6 @@ public:
      * @param[in] rotation      XYZ rotation angle in radian
      * @param[in] scale         Z-component is zero
      * @param[in] flipNormal    flip quad's normal
-     *
-     * @note Note that this operation doesn't invoke buildGraph()
-     * which is necessary to call explicitly eventually.
      */
     std::shared_ptr<Quad> createQuad(const int materialIndex, const optix::float3 &position, const optix::float3 &rotation, const optix::float3 &scale, bool flipNormal = false)
     {
@@ -191,7 +192,11 @@ public:
         std::shared_ptr<Quad> quad = Quad::createQuad(this->m_context, this->m_programsMap, position, rotation, scale, this->m_integrator->getIntegratorMaterial(), materialIndex);
         if(flipNormal)
             quad->flipGeometryNormal();
-        m_shapes_Geometry.push_back(quad);
+        this->m_shapes_Geometry.push_back(quad);
+
+        /* Update OptiX Graph. */
+        this->m_topGeometryGroup_Geometry->addChild(quad->getGeometryInstance());
+        this->rebuildGeometry();
 
         return quad;
     }
@@ -207,9 +212,6 @@ public:
      * @param[in] scale         Z-component is zero
      * @param[in] quadLightIndex index to |quadLightBuffer|
      * @param[in] flipNormal     flip quad's normal
-     *
-     * @note Note that this operation doesn't invoke buildGraph()
-     * which is necessary to call explicitly eventually.
      */
     std::shared_ptr<Quad> createQuad(const int materialIndex, const optix::float3 &position, const optix::float3 &rotation, const optix::float3 &scale, int quadLightIndex, bool flipNormal = false)
     {
@@ -218,11 +220,86 @@ public:
         std::shared_ptr<Quad> quad = Quad::createQuad(this->m_context, this->m_programsMap, position, rotation, scale, quadLightIndex, this->m_integrator->getIntegratorMaterial(), materialIndex);
         if(flipNormal)
             quad->flipGeometryNormal();
-        m_shapes_Geometry.push_back(quad);
+        this->m_shapes_Geometry.push_back(quad);
+
+        /* Update OptiX Graph. */
+        this->m_topGeometryGroup_Geometry->addChild(quad->getGeometryInstance());
+        this->rebuildGeometry();
 
         return quad;
     }
 
+
+    /**
+     * @brief Remove a Geometry from graph.
+     * @param[in] geometryShape GeometryShape to be removed
+     * @note This is for Geometry only, not for GeometryTriangles.
+     */
+    void removeGeometry(const std::shared_ptr<GeometryShape> &geometryShape)
+    {
+        /* Remove child node from OptiX Graph. */
+        this->m_topGeometryGroup_Geometry->removeChild(geometryShape->getGeometryInstance());
+
+        auto findItr = std::find_if(this->m_shapes_Geometry.cbegin(), this->m_shapes_Geometry.cend(), 
+            [&geometryShape](const auto& geometryShapePtr)
+        {
+            return geometryShapePtr.get() == geometryShape.get();
+        });
+
+        /* Erase GeometryShape. */
+        TW_ASSERT(findItr != this->m_shapes_Geometry.cend());
+        this->m_shapes_Geometry.erase(findItr);
+
+        this->rebuildGeometry();
+    }
+
+    /**
+     * @brief Remove a GeometryTriangles from graph.
+     * @param[in] geometryTrianglesShape GeometryTrianglesShape to be removed
+     * @note This is for GeometryTriangles only, not for Geometry.
+     */
+    void removeGeometryTriangles(const std::shared_ptr<GeometryTrianglesShape> &geometryTrianglesShape)
+    {
+        /* Remove child node from OptiX Graph. */
+        this->m_topGeometryGroup_GeometryTriangles->removeChild(geometryTrianglesShape->getGeometryInstance());
+        
+        auto findItr = std::find_if(this->m_shapes_GeometryTriangles.cbegin(), this->m_shapes_GeometryTriangles.cend(),
+            [&geometryTrianglesShape](const auto& geometryTrianglesShapePtr)
+        {
+            return geometryTrianglesShapePtr.get() == geometryTrianglesShape.get();
+        });
+
+        /* Erase GeometryTrianglesShape. */
+        TW_ASSERT(findItr != this->m_shapes_GeometryTriangles.cend());
+        this->m_shapes_GeometryTriangles.erase(findItr);
+
+        this->rebuildGeometryTriangles();
+    }
+
+    /**
+     * @brief Expect to rebuild |m_topGeometryGroup_Geometry| Acceleration Structure.
+     */
+    void rebuildGeometry()
+    {
+        this->m_topGeometryGroup_Geometry->getAcceleration()->markDirty();
+
+        /* Update top group as well. */
+        this->m_topGroup->getAcceleration()->markDirty();
+
+        std::cout << "[Info] AS of m_topGeometryGroup_Geometry and m_topGroup has been marked dirty." << std::endl;
+    }
+
+    /**
+     * @brief Expect to rebuild |m_topGeometryGroup_GeometryTriangles| Acceleration Structure.
+     */
+    void rebuildGeometryTriangles()
+    {
+        this->m_topGeometryGroup_GeometryTriangles->getAcceleration()->markDirty();
+
+        /* Update top group as well. */
+        this->m_topGroup->getAcceleration()->markDirty();
+        std::cout << "[Info] AS of m_topGeometryGroup_GeometryTriangles and m_topGroup has been marked dirty." << std::endl;
+    }
 
 
 
@@ -297,81 +374,8 @@ public:
         this->m_camera = std::make_shared<Camera>(this->m_context, this->m_programsMap, /*resetRenderParam,*/this->m_application, cam2world, fov, filmWidth, filmHeight);
     }
 
-	/**
-	 * @brief Collect all related nodes and build graph for OptiX.
-	 * This function should be called once all shapes are created.
-	 * 
-	 * @note In current implementation, it's not supported instancing
-	 * so we gather all geometryInstance to share a parent of 
-	 * geometryGroup and one acceleration structure without any
-	 * transform nodes availiable.
-	 */
-	void buildGraph()
-	{
-		/* Iterate all GeometryTrianglesShape for adding to |m_topGeometryGroup_GeometryTriangles|. */
-		for (const auto& shape : this->m_shapes_GeometryTriangles)
-		{
-			this->m_topGeometryGroup_GeometryTriangles->addChild(shape->getGeometryInstance());
-		}
 
-        /* Iterate all GeometryShape for adding to |m_topGeometryGroup_Geometry|. */
-        for (const auto& shape : this->m_shapes_Geometry)
-        {
-            this->m_topGeometryGroup_Geometry->addChild(shape->getGeometryInstance());
-        }
-
-
-        this->m_context["sysTopObject"]->set(this->m_topGroup);
-        this->m_context["sysTopShadower"]->set(this->m_topGroup);
-	}
-
-    /**
-     * @brief Remove a Geometry from graph.
-     * @param[in] geometryShape GeometryShape to be removed
-     * @note This is for Geometry only, not for GeometryTriangles.
-     */
-    void removeGeometry(const std::shared_ptr<GeometryShape> &geometryShape)
-    {
-        this->m_topGeometryGroup_Geometry->removeChild(geometryShape->getGeometryInstance());
-        rebuildGeometry();
-    }
-
-    /**
-     * @brief Remove a GeometryTriangles from graph.
-     * @param[in] geometryTrianglesShape GeometryTrianglesShape to be removed
-     * @note This is for GeometryTriangles only, not for Geometry.
-     */
-    void removeGeometryTriangles(const std::shared_ptr<GeometryTrianglesShape> &geometryTrianglesShape)
-    {
-        this->m_topGeometryGroup_GeometryTriangles->removeChild(geometryTrianglesShape->getGeometryInstance());
-        __debugbreak();
-    }
-
-    /**
-     * @brief Expect to rebuild |m_topGeometryGroup_Geometry| Acceleration Structure.
-     */
-    void rebuildGeometry()
-    {
-        this->m_topGeometryGroup_Geometry->getAcceleration()->markDirty();
-
-        /* Update top group as well. */
-        this->m_topGroup->getAcceleration()->markDirty();
-
-        std::cout << "[Info] AS of m_topGeometryGroup_Geometry and m_topGroup has been marked dirty." << std::endl;
-    }
-
-    /**
-     * @brief Expect to rebuild |m_topGeometryGroup_GeometryTriangles| Acceleration Structure.
-     */
-    void rebuildGeometryTriangles()
-    {
-        __debugbreak();
-        this->m_topGeometryGroup_GeometryTriangles->getAcceleration()->markDirty();
-
-        /* Update top group as well. */
-        this->m_topGroup->getAcceleration()->markDirty();
-        std::cout << "[Info] AS of m_topGeometryGroup_GeometryTriangles and m_topGroup has been marked dirty." << std::endl;
-    }
+    
 
 
     /************************************************************************/

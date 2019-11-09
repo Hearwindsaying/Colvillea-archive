@@ -26,7 +26,7 @@
 using namespace optix;
 
 /* Create Cornellbox. */
-void create_CornellBoxScene(std::shared_ptr<SceneGraph> &sceneGraph, std::shared_ptr<LightPool> &lightPool, std::unique_ptr<Application> &application, std::unique_ptr<MaterialPool> &materialPool, const std::string & basePath)
+void create_CornellBoxScene(std::shared_ptr<SceneGraph> &sceneGraph, std::shared_ptr<LightPool> &lightPool, std::unique_ptr<Application> &application, std::shared_ptr<MaterialPool> &materialPool, const std::string & basePath)
 {
     /* Create integator. */
 
@@ -62,7 +62,7 @@ void create_CornellBoxScene(std::shared_ptr<SceneGraph> &sceneGraph, std::shared
 }
 
 /* Create test scene. */
-void create_TestScene(std::shared_ptr<SceneGraph> &sceneGraph, std::shared_ptr<LightPool> &lightPool, std::unique_ptr<Application> &application, std::unique_ptr<MaterialPool> &materialPool, const std::string & basePath)
+void create_TestScene(std::shared_ptr<SceneGraph> &sceneGraph, std::shared_ptr<LightPool> &lightPool, std::unique_ptr<Application> &application, std::shared_ptr<MaterialPool> &materialPool, const std::string & basePath)
 {
     //sceneGraph->createDirectLightingIntegrator();
     //sceneGraph->createPathTracingIntegrator(true, 5);
@@ -83,7 +83,7 @@ void create_TestScene(std::shared_ptr<SceneGraph> &sceneGraph, std::shared_ptr<L
     //quadShape->flipGeometryNormal();
 
     auto quadShapeB = sceneGraph->createQuad(
-        materialPool->createRoughMetalMaterial(0.03f, make_float4(1.66f, 0.95151f, 0.7115f, 0.f), make_float4(8.0406f, 6.3585f, 5.1380f, 0.f)),
+        materialPool->createRoughMetalMaterial(0.01f, make_float4(1.66f, 0.95151f, 0.7115f, 0.f), make_float4(8.0406f, 6.3585f, 5.1380f, 0.f)),
         /*materialPool->createLambertMaterial(optix::make_float4(0.8f)),*/
         make_float3(0.f),make_float3(0.f),make_float3(1.f,1.f,1.f));
     //quadShapeB->flipGeometryNormal();
@@ -95,16 +95,15 @@ void create_TestScene(std::shared_ptr<SceneGraph> &sceneGraph, std::shared_ptr<L
     //    /*materialPool->createRoughMetalMaterial(0.03f, make_float4(1.66f, 0.95151f, 0.7115f, 0.f), make_float4(8.0406f, 6.3585f, 5.1380f, 0.f))*/
     //    materialPool->createLambertMaterial(optix::make_float4(0.8f))
     //    /*materialPool->createSmoothGlassMaterial(1.46f)*/);
-    int emissiveMaterial = materialPool->createEmissiveMaterial();
 
     //lightPool->createPointLight(optix::make_float3(0.0f, 0.0f, 3.0f), optix::make_float3(1.0f, 1.0f, 1.0f), 4.0f);
 
     lightPool->createQuadLight(
         (make_float3(-0.5f, 0.f, 1.5f)),make_float3(0.f),make_float3(0.5f,0.5f,1.f),
-        make_float3(1.f, 0.f, 0.f), 4.0f, emissiveMaterial, true);
+        make_float3(1.f, 0.f, 0.f), 4.0f, materialPool->getEmissiveMaterial(), true);
     lightPool->createQuadLight(
         (make_float3(0.5f, 0.f, 1.5f)), make_float3(0.f), make_float3(0.5f, 0.5f, 1.f),
-        make_float3(0.f, 0.f, 1.f), 4.0f, emissiveMaterial, true);
+        make_float3(0.f, 0.f, 1.f), 4.0f, materialPool->getEmissiveMaterial(), true);
     
     /*lightPool->createQuadLight(
         make_float3(0.f), make_float3(TwUtil::deg2rad(45.f), 0.f, 0.f), make_float3(1.f, 1.f, 1.f), make_float3(1.f), 1.f, emissiveMaterial, true);*/
@@ -178,7 +177,7 @@ int main(int argc, char *argv[])
     std::shared_ptr<SceneGraph> sceneGraph = std::make_unique<SceneGraph>(application.get(), application->getProgramsMap(), application->getContext(), filmWidth, filmHeight);
 
     /* Create materialPool instance. */
-    std::unique_ptr<MaterialPool> materialPool = std::make_unique<MaterialPool>(application->getProgramsMap(), application->getContext());
+    std::shared_ptr<MaterialPool> materialPool = MaterialPool::createMaterialPool(application.get(), application->getProgramsMap(), application->getContext());
 
     /* Create lightPool instance. */
     std::shared_ptr<LightPool> lightPool = LightPool::createLightPool(application.get(), application->getProgramsMap(), application->getContext(), sceneGraph);

@@ -210,6 +210,30 @@ public:
         this->m_geometryInstance["quadLightIndex"]->setInt(this->m_quadLightIndex);
     }
 
+    /**
+     * @brief flip computed geometry normal(nGeometry) in Intersect()
+     * @note need to review, |reverseOrientation| is binded to geometry
+     * instance such that we could have multiple instance of the same
+     * geometry with various |reverseOrientation|.
+     */
+    void flipGeometryNormal()
+    {
+        TW_ASSERT(this->m_geometryInstance);
+
+        this->m_geometryInstance["reverseOrientation"]->setInt(1);
+    }
+
+    /**
+     * @brief is current geometry instance's normal flipped?
+     * @return 0 for not flipped, 1 for flipped normal.
+     */
+    int isFlippedGeometryNormal()/* const*/
+    {
+        TW_ASSERT(this->m_geometryInstance);
+
+        return this->m_geometryInstance["reverseOrientation"]->getInt();
+    }
+
 protected:
     void setupGeometry() override
     {

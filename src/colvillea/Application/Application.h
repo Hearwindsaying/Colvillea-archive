@@ -252,11 +252,13 @@ private:
     bool           m_resetRenderParamsNotification;
 
     friend class LightPool;
+    friend class MaterialPool;
 
     /// Scene related variables
     unsigned int                      m_sysIterationIndex;
     std::shared_ptr<SceneGraph>       m_sceneGraph;
     std::shared_ptr<LightPool>        m_lightPool;
+    std::shared_ptr<MaterialPool>     m_materialPool;
     std::unique_ptr<CameraController> m_cameraController;
 
     /// Function object to store preprocessor using OptiX launch 

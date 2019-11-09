@@ -43,6 +43,7 @@
 #include "colvillea/Module/Camera/CameraController.h"
 #include "colvillea/Module/Image/ImageLoader.h"
 #include "colvillea/Module/Light/LightPool.h"
+#include "colvillea/Module/Material/MaterialPool.h"
 
 
 #include <src/sampleConfig.h>
@@ -53,7 +54,7 @@ Application::Application(GLFWwindow* glfwWindow, const uint32_t filmWidth, const
     m_filmWidth(filmWidth), m_filmHeight(filmHeight), 
     m_optixReportLevel(optixReportLevel),
     m_sysIterationIndex(0),m_resetRenderParamsNotification(true),
-    m_sceneGraph(nullptr), m_cameraController(nullptr),m_lightPool(nullptr)
+    m_sceneGraph(nullptr), m_cameraController(nullptr),m_lightPool(nullptr),m_materialPool(nullptr)
 {
     /* Output OptiX Device information. */
     this->outputDeviceInfo();
@@ -97,8 +98,6 @@ void Application::buildSceneGraph(std::shared_ptr<SceneGraph> &sceneGraph)
 
     try
     {
-        this->m_sceneGraph->buildGraph();
-
         /* Before launching rendering kernel, maybe some necessary preprocessing launches
          * -- need to be done. */
         if (this->m_preprocessFunc)
@@ -987,8 +986,8 @@ void Application::drawHierarchy()
                 }
                 if (ImGui::MenuItem("QuadLight"))
                 {
-                    //this->m_lightPool->createQuadLight(make_float3(0.f), make_float3(0.f), make_float3(1.f, 1.f, 1.f), make_float3(1.f), 5.f, , false);
-                    //this->resetRenderParams();
+                    this->m_lightPool->createQuadLight(make_float3(0.f), make_float3(0.f), make_float3(1.f, 1.f, 1.f), make_float3(1.f), 5.f, this->m_materialPool->getEmissiveMaterial(), false);
+                    this->resetRenderParams();
                 }
                 ImGui::EndMenu();
             }
