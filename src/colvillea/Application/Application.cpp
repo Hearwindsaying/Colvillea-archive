@@ -1180,6 +1180,7 @@ void Application::drawInspector()
             {
 
             }
+            break;
             default:
                 std::cerr << "[Error] Unsupported BSDF" << std::endl;
                 break;

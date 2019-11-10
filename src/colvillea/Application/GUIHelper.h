@@ -46,6 +46,7 @@ namespace GUIHelper
                 application->resetRenderParams();
             }
         }
+        ImGui::SameLine();
         if (ImGui::Checkbox("##Enable Reflectance Texture", &enableReflectanceTexture))
         {
             bsdf->setEnableReflectanceTexture(enableReflectanceTexture);

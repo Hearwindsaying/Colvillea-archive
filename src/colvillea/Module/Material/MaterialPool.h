@@ -446,13 +446,16 @@ private:
 	/**
 	 * @brief Helper function for specifying shaderParams.
 	 * Todo:should be put into ctor of CommonStructs::ShaderParams?
+	 * 
+	 * @note Note that here we give some default values to avoid NaN complaints
+	 * when changing BSDF to a new type.
 	 */
 	 void settingMaterialParameters(CommonStructs::ShaderParams &shaderParams, CommonStructs::BSDFType bsdfType,
-         optix::float4 reflectance = optix::make_float4(0.f), int reflectanceId = RT_TEXTURE_ID_NULL,
-         optix::float4 specular = optix::make_float4(0.f), int specularId = RT_TEXTURE_ID_NULL,
-		float alphax = 0.f, int roughnessId = RT_TEXTURE_ID_NULL,
-         optix::float4 eta = optix::make_float4(0.f), optix::float4 kappa = optix::make_float4(0.f),
-		float ior = 0.f) const
+         optix::float4 reflectance = optix::make_float4(1.f), int reflectanceId = RT_TEXTURE_ID_NULL,
+         optix::float4 specular = optix::make_float4(1.f), int specularId = RT_TEXTURE_ID_NULL,
+		float alphax = 0.005f, int roughnessId = RT_TEXTURE_ID_NULL,
+         optix::float4 eta = optix::make_float4((1.66f, 0.95151f, 0.7115f, 0.f)), optix::float4 kappa = optix::make_float4(8.0406f, 6.3585f, 5.1380f, 0.f),
+		float ior = 1.5f) const
 	{
 		shaderParams.bsdfType = bsdfType;
 		shaderParams.Reflectance = reflectance;
