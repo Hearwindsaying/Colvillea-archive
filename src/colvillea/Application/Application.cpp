@@ -1369,7 +1369,10 @@ void Application::drawMaterialHierarchy()
     {
         static ImGuiTreeNodeFlags base_flags = ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen;
 
-        for (auto bsdfPtrItr = this->m_materialPool->getBSDFs().cbegin(); bsdfPtrItr != this->m_materialPool->getBSDFs().cend(); ++bsdfPtrItr)
+        /* Note that we don't show the Emissive BSDF in Hierarchy (i.e. skip getBSDFs().cbegin()).
+         * -- The Emissive BSDF is not editable. */
+        TW_ASSERT(this->m_materialPool->getBSDFs().size() >= 1);
+        for (auto bsdfPtrItr = this->m_materialPool->getBSDFs().cbegin() + 1; bsdfPtrItr != this->m_materialPool->getBSDFs().cend(); ++bsdfPtrItr)
         {
             ImGuiTreeNodeFlags bsdf_TreeNode_flag = (this->m_currentHierarchyNode ?
                 ((this->m_currentHierarchyNode->getId() == (*bsdfPtrItr)->getId()) ?
