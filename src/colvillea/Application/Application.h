@@ -101,6 +101,11 @@ private:
      */
     void drawHierarchy();
 
+    /**
+     * @brief Draw Material Hierarchy window.
+     */
+    void drawMaterialHierarchy();
+
 public:
     /**
      * @brief Force to relaunch progressive rendering.

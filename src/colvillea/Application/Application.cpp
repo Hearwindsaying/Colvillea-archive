@@ -38,6 +38,7 @@
 #include "colvillea/Application/GlobalDefs.h"
 #include "colvillea/Application/SceneGraph.h"
 #include "colvillea/Application/TWAssert.h"
+#include "colvillea/Application/GUIHelper.h"
 
 #include "colvillea/Device/Toolkit/CommonStructs.h"
 #include "colvillea/Module/Camera/CameraController.h"
@@ -122,6 +123,7 @@ void Application::drawWidget()
     this->drawSettings();
     this->drawInspector();
     this->drawHierarchy();
+    this->drawMaterialHierarchy();
 
     static uint32_t frame_count = 0; // todo:use iteration index
 
@@ -1099,6 +1101,94 @@ void Application::drawInspector()
 
         ImGui::EndGroup();
     }
+    else if (objectType == IEditableObject::IEditableObjectType::TriangleMeshGeometry)
+    {
+
+    }
+    else if (objectType == IEditableObject::IEditableObjectType::BSDF)
+    {
+        std::shared_ptr<BSDF> bsdf = std::static_pointer_cast<BSDF>(this->m_currentHierarchyNode);
+        TW_ASSERT(bsdf);
+
+        std::string bsdfName = bsdf->getName();
+        if (ImGui::InputText("##Object Name", &bsdfName))
+        {
+            bsdf->setName(bsdfName);
+        }
+
+        ImGui::Separator();
+
+        if (ImGui::CollapsingHeader("Material##BSDF", ImGuiTreeNodeFlags_CollapsingHeader))
+        {
+            int currentBSDFTypeIdx = MaterialPool::CommonStructsBSDFTypeToComboBSDFType(bsdf->getBSDFType());
+
+            ImGui::AlignTextToFramePadding();
+            ImGui::Text("                                  BSDF"); ImGui::SameLine(200.f);
+            ImGui::SetNextItemWidth(165);
+            /* Note that we hide Emissive BSDF to user, which is used for AreaLight. */
+
+            if (ImGui::Combo("##BSDF", &currentBSDFTypeIdx, "Lambert\0RoughMetal\0RoughDielectric\0SmoothGlass\0Plastic\0SmoothMirror\0FrostedMetal\0\0"))
+            {
+                bsdf->setBSDFType(MaterialPool::comboBSDFTypeToCommonStructsBSDFType(currentBSDFTypeIdx));
+                this->resetRenderParams();
+            }
+
+
+            switch (currentBSDFTypeIdx)
+            {
+            case MaterialPool::comboBSDFType_Lambert:
+            {
+                GUIHelper::drawInspector_MaterialCollapsingHeader_Reflectance(bsdf, this);
+            }
+            break;
+            case MaterialPool::comboBSDFType_RoughMetal:
+            {
+                GUIHelper::drawInspector_MaterialCollapsingHeader_Roughness(bsdf, this);
+                GUIHelper::drawInspector_MaterialCollapsingHeader_Specular(bsdf, this);
+                GUIHelper::drawInspector_MaterialCollapsingHeader_Eta(bsdf, this);
+                GUIHelper::drawInspector_MaterialCollapsingHeader_Kappa(bsdf, this);
+            }
+            break;
+            case MaterialPool::comboBSDFType_RoughDielectric:
+            {
+                /* todo: support reflectance texture in device code for RoughDielectric BSDF. */
+                GUIHelper::drawInspector_MaterialCollapsingHeader_Reflectance(bsdf, this);
+                GUIHelper::drawInspector_MaterialCollapsingHeader_Specular(bsdf, this);
+                GUIHelper::drawInspector_MaterialCollapsingHeader_Roughness(bsdf, this);
+                GUIHelper::drawInspector_MaterialCollapsingHeader_IOR(bsdf, this);
+            }
+            break;
+            case MaterialPool::comboBSDFType_SmoothGlass:
+            {
+                GUIHelper::drawInspector_MaterialCollapsingHeader_IOR(bsdf, this);
+            }
+            break;
+            case MaterialPool::comboBSDFType_Plastic:
+            {
+                GUIHelper::drawInspector_MaterialCollapsingHeader_Reflectance(bsdf, this);
+                GUIHelper::drawInspector_MaterialCollapsingHeader_Specular(bsdf, this);
+                GUIHelper::drawInspector_MaterialCollapsingHeader_Roughness(bsdf, this);
+                GUIHelper::drawInspector_MaterialCollapsingHeader_IOR(bsdf, this);
+            }
+            break;
+            case MaterialPool::comboBSDFType_SmoothMirror:
+            {
+
+            }
+            break;
+            case MaterialPool::comboBSDFType_FrostedMetal:
+            {
+
+            }
+            default:
+                std::cerr << "[Error] Unsupported BSDF" << std::endl;
+                break;
+            }
+        }
+
+        
+     
+    }
     else
     {
         std::cerr << "[Error] Error object type" << std::endl;
@@ -1142,7 +1232,11 @@ void Application::drawHierarchy()
             }
             if (ImGui::BeginMenu("Geometry"))
             {
-                ImGui::MenuItem("Quad");
+                if (ImGui::MenuItem("Quad"))
+                {
+                    this->m_sceneGraph->createQuad(this->m_sceneGraph.get(), this->m_materialPool->getEmissiveMaterial(), make_float3(0.f), make_float3(0.f), make_float3(1.0f, 1.0f, 1.0f));
+                    this->resetRenderParams();
+                }
                 ImGui::MenuItem("TriangleMesh");
                 ImGui::EndMenu();
             }
@@ -1254,6 +1348,39 @@ void Application::drawHierarchy()
             }
         }
 
+
+
+        ImGui::TreePop();
+    }
+
+    ImGui::End();
+}
+
+void Application::drawMaterialHierarchy()
+{
+    static const ImGuiWindowFlags window_flags_inspector = ImGuiWindowFlags_MenuBar;
+    if (!ImGui::Begin("Material", NULL, window_flags_inspector))
+    {
+        ImGui::End();
+        return;
+    }
+
+    if (ImGui::TreeNode("BSDF"))
+    {
+        static ImGuiTreeNodeFlags base_flags = ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen;
+
+        for (auto bsdfPtrItr = this->m_materialPool->getBSDFs().cbegin(); bsdfPtrItr != this->m_materialPool->getBSDFs().cend(); ++bsdfPtrItr)
+        {
+            ImGuiTreeNodeFlags bsdf_TreeNode_flag = (this->m_currentHierarchyNode ?
+                ((this->m_currentHierarchyNode->getId() == (*bsdfPtrItr)->getId()) ?
+                (base_flags | ImGuiTreeNodeFlags_Selected) : base_flags)
+                : base_flags);
+            ImGui::TreeNodeEx((void*)(intptr_t)((*bsdfPtrItr)->getId()), bsdf_TreeNode_flag, (*bsdfPtrItr)->getName().c_str());
+            if (ImGui::IsItemClicked())
+            {
+                this->m_currentHierarchyNode = *bsdfPtrItr;
+            }
+        }
 
 
         ImGui::TreePop();

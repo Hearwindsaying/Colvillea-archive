@@ -38,6 +38,7 @@ set(SOURCE_LIST
 	"${CMAKE_CURRENT_SOURCE_DIR}/Application/GlobalDefs.cpp"
 	"${CMAKE_CURRENT_SOURCE_DIR}/Application/SceneGraph.h"
 	"${CMAKE_CURRENT_SOURCE_DIR}/Application/TWAssert.h"
+	"${CMAKE_CURRENT_SOURCE_DIR}/Application/GUIHelper.h"
 	
 	"${CMAKE_CURRENT_SOURCE_DIR}/Device/Camera/PinholeCamera.cu"
 	"${CMAKE_CURRENT_SOURCE_DIR}/Device/Camera/SphericalSkybox.cu"
@@ -167,6 +168,7 @@ OPTIX_add_sample_executable( colvillea
 	${CMAKE_CURRENT_SOURCE_DIR}/Application/GlobalDefs.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/Application/SceneGraph.h
 	${CMAKE_CURRENT_SOURCE_DIR}/Application/TWAssert.h
+	${CMAKE_CURRENT_SOURCE_DIR}/Application/GUIHelper.h
 	
 	${CMAKE_CURRENT_SOURCE_DIR}/Device/Camera/PinholeCamera.cu
 	${CMAKE_CURRENT_SOURCE_DIR}/Device/Camera/SphericalSkybox.cu

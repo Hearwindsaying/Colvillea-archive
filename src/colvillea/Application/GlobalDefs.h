@@ -66,11 +66,13 @@ public:
         QuadLight,
 
         QuadGeometry,
-        TriangleMeshGeometry
+        TriangleMeshGeometry,
+
+        BSDF
     };
 
 protected:
-    IEditableObject(const std::string & name, IEditableObjectType &objectType) : m_name(name), m_objectType(objectType)
+    IEditableObject(const std::string & name, IEditableObjectType objectType) : m_name(name), m_objectType(objectType)
     {
         this->m_id = IEditableObject::IEditableObjectId++;
     }
