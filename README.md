@@ -55,7 +55,7 @@ Here are some motivations and objectives of building Colvillea:
  - A easy to use host side API for renderer.
 
 ## Build
-Building **Colvillea** requires OptiX 6.0 (6.5 is preferred) and CUDA 9.0 or above installed. For graphics driver on Windows platform, driver version 436.02 or later is required. All NVIDIA GPUs of Compute Capability 3.0 (Kepler) or higher are supported but those with Turing architecture is required to access RTX hardware acceleration.
+Building **Colvillea** requires OptiX 6.0 (6.5 is preferred) and CUDA 9.0 or above installed. For graphics driver on Windows platform, driver version 436.02 or later is required. All NVIDIA GPUs of Compute Capability 5.0 (Maxwell) or higher are supported but those with Turing architecture is required to access RTX hardware acceleration.
 
 **Colvillea** currently builds on Windows only using [CMake](http://www.cmake.org/download/) and could be built using MSVC successfully. It's recommeded that create a separte directory in the same level folder as src folder. Note that you are required to use VS2015 or above targeted for 64-bit as CUDA_HOST_COMPILER in configuration step.
 For better layout to support interactive rendering, please put imgui.ini file to the same directory as colvillea.vcxproj.
