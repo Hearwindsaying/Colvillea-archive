@@ -4,6 +4,8 @@
 #include "colvillea/Device/Toolkit/CommonStructs.h"
 #include "colvillea/Device/Toolkit/Utility.h"
 
+class LightPool;
+
 /**
  * @brief PointLight describes a infinitesimal
  * point uniformly emitting light in all directions.
@@ -23,31 +25,48 @@ public:
      * @param[in] application
      * @param[in] context
      * @param[in] programsMap  map to store Programs
+     * @param[in] color        light color
      * @param[in] intensity    light intensity
-     * @param[in] lightToWorld
+     * @param[in] lightPosition
      */
-    static std::unique_ptr<PointLight> createPointLight(optix::Context context, const std::map<std::string, optix::Program> &programsMap, const optix::float3 intensity, const optix::Matrix4x4 &lightToWorld)
+    static std::unique_ptr<PointLight> createPointLight(optix::Context context, const std::map<std::string, optix::Program> &programsMap, const optix::float3& color, float intensity, const optix::float3 &lightPosition, LightPool *lightPool)
     {
-        std::unique_ptr<PointLight> pointLight = std::make_unique<PointLight>(context, programsMap, intensity);
-        pointLight->initializeLight(lightToWorld);
+        std::unique_ptr<PointLight> pointLight = std::make_unique<PointLight>(context, programsMap, color, intensity, lightPosition, lightPool);
         return pointLight;
     }
 
-    PointLight(optix::Context context, const std::map<std::string, optix::Program> &programsMap, const optix::float3 intensity) : Light(context, programsMap, "Point")
+    PointLight(optix::Context context, const std::map<std::string, optix::Program> &programsMap, const optix::float3& color, float intensity, const optix::float3 &lightPosition, LightPool *lightPool) :
+        Light(context, programsMap, "Point", "Point Light", IEditableObject::IEditableObjectType::PointLight),
+        m_intensity(intensity), m_color(color), m_lightPool(lightPool)
     {
-        this->m_csPointLight.intensity = optix::make_float4(intensity.x, intensity.y, intensity.z, 1.f);
-    }
+        optix::float3 csIntensity = this->m_intensity * this->m_color;
 
-
-    void initializeLight(const optix::Matrix4x4 &lightToWorld) override
-    { 
-        this->m_lightToWorld = lightToWorld;
-
-        /* Create PointLight Struct for GPU program. */
+        /* Setup CommonStructs::PointLight Struct for GPU program. */
         this->m_csPointLight.lightType = CommonStructs::LightType::PointLight;
-        this->m_csPointLight.lightPos = TwUtil::xfmPoint(optix::make_float3(0.f, 0.f, 0.f), lightToWorld);
+        this->m_csPointLight.intensity = optix::make_float4(csIntensity.x, csIntensity.y, csIntensity.z, 1.0f);
+        this->m_csPointLight.lightPos = lightPosition;
     }
 
+    optix::float3 getLightPosition() const
+    {
+        return this->m_csPointLight.lightPos;
+    }
+
+    void setLightPosition(const optix::float3 &lightPosition);
+
+    float getLightIntensity() const
+    {
+        return this->m_intensity;
+    }
+
+    void setLightIntensity(float intensity);
+
+    optix::float3 getLightColor() const
+    {
+        return this->m_color;
+    }
+
+    void setLightColor(const optix::float3 &color);
 
 
     const CommonStructs::PointLight &getCommonStructsLight() const
@@ -56,8 +75,12 @@ public:
     }
 
 private:
+    LightPool *m_lightPool;
+
     CommonStructs::PointLight m_csPointLight;
 
-    /// lightToWorld doesn't exist in CommonStructs::PointLight
-    optix::Matrix4x4 m_lightToWorld;
+    /// Color (host only)
+    optix::float3 m_color;
+    /// Intensity (host only)
+    float m_intensity;
 };

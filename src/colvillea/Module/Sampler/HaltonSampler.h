@@ -28,7 +28,7 @@ public:
         return haltonSampler;
     }
 
-    HaltonSampler(optix::Context context, optix::int2 filmResolution) : Sampler(context),
+    HaltonSampler(optix::Context context, optix::int2 filmResolution) : Sampler(context, CommonStructs::SamplerType::HaltonQMCSampler),
         m_filmResolution(filmResolution)
     {
 

@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2016, NVIDIA CORPORATION. All rights reserved.
+# Copyright (c) 2018, NVIDIA CORPORATION. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -26,18 +26,27 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
+# Locate the OptiX distribution.  Search relative to the SDK first, then look in the system.
 
-# Adjust the library search path based on the bit-ness of the build.  
-# (i.e. 64: bin64, lib64; 32: bin, lib).  
-# Note that on Mac, the OptiX library is a universal binary, so we
+# Our initial guess will be within the SDK.
+set(OptiX_INSTALL_DIR "${CMAKE_SOURCE_DIR}/../" CACHE PATH "Path to OptiX installed location.")
+
+# The distribution contains only 64 bit libraries.  Error when we have been mis-configured.
+if(NOT CMAKE_SIZEOF_VOID_P EQUAL 8)
+  if(WIN32)
+    message(SEND_ERROR "Make sure when selecting the generator, you select one with Win64 or x64.")
+  endif()
+  message(FATAL_ERROR "OptiX only supports builds configured for 64 bits.")
+endif()
+
+# search path based on the bit-ness of the build.  (i.e. 64: bin64, lib64; 32:
+# bin, lib).  Note that on Mac, the OptiX library is a universal binary, so we
 # only need to look in lib and not lib64 for 64 bit builds.
-if(CMAKE_SIZEOF_VOID_P EQUAL 8 AND NOT APPLE)
+if(NOT APPLE)
   set(bit_dest "64")
 else()
   set(bit_dest "")
 endif()
-
-set(OptiX_INSTALL_DIR "" CACHE PATH "Path to OptiX installed location.")
 
 macro(OPTIX_find_api_library name version)
   find_library(${name}_LIBRARY
@@ -60,37 +69,9 @@ macro(OPTIX_find_api_library name version)
   endif()
 endmacro()
 
-# OptiX SDKs before 5.1.0 named the library optix.1.lib
-# Linux handles this via symlinks and doesn't need changes to the library name.
-set(OptiX_version "1")
-
-# The OptiX library is named with the major and minor digits since OptiX 5.1.0.
-# Dynamically find the matching library name by parsing the OptiX_INSTALL_DIR.
-# This only works if the installation retained the original folder format "OptiX SDK major.minor.micro".
-# We want the concatenated major and minor numbers if the version is greater or equal to 5.1.0.
-if(WIN32)
-  if(OptiX_INSTALL_DIR)
-    string(REPLACE " " ";" OptiX_install_dir_list ${OptiX_INSTALL_DIR})
-    list(LENGTH OptiX_install_dir_list OptiX_install_dir_list_length)
-    if(${OptiX_install_dir_list_length} GREATER 0)
-      # Get the last list element, something like "5.1.0".
-      list(GET OptiX_install_dir_list -1 OptiX_version_string)
-      # Component-wise integer version number comparison (version format is major[.minor[.patch[.tweak]]]).
-      if(${OptiX_version_string} VERSION_GREATER_EQUAL "5.1.0")
-        set(OptiX_version "")
-        string(REPLACE "." ";" OptiX_major_minor_micro_list ${OptiX_version_string})
-        foreach(index RANGE 0 1)
-          list(GET OptiX_major_minor_micro_list ${index} number)
-          string(APPEND OptiX_version ${number})
-        endforeach()
-      endif()
-    endif()
-  endif()
-endif(WIN32)
-
-OPTIX_find_api_library(optix ${OptiX_version})
-OPTIX_find_api_library(optixu 1)
-OPTIX_find_api_library(optix_prime 1)
+OPTIX_find_api_library(optix 6.5.0)
+OPTIX_find_api_library(optixu 6.5.0)
+OPTIX_find_api_library(optix_prime 6.5.0)
 
 # Include
 find_path(OptiX_INCLUDE
@@ -103,9 +84,12 @@ find_path(OptiX_INCLUDE
   )
 
 # Check to make sure we found what we were looking for
-function(OptiX_report_error error_message required)
+function(OptiX_report_error error_message required component )
+  if(DEFINED OptiX_FIND_REQUIRED_${component} AND NOT OptiX_FIND_REQUIRED_${component})
+    set(required FALSE)
+  endif()
   if(OptiX_FIND_REQUIRED AND required)
-    message(FATAL_ERROR "${error_message}")
+    message(FATAL_ERROR "${error_message}  Please locate before proceeding.")
   else()
     if(NOT OptiX_FIND_QUIETLY)
       message(STATUS "${error_message}")
@@ -114,13 +98,13 @@ function(OptiX_report_error error_message required)
 endfunction()
 
 if(NOT optix_LIBRARY)
-  OptiX_report_error("OptiX library not found. Please set OptiX_INSTALL_DIR to locate it automatically." TRUE)
+  OptiX_report_error("optix library not found." TRUE libraries )
 endif()
 if(NOT OptiX_INCLUDE)
-  OptiX_report_error("OptiX headers (optix.h and friends) not found. Please set OptiX_INSTALL_DIR to locate them automatically." TRUE)
+  OptiX_report_error("OptiX headers (optix.h and friends) not found." TRUE headers )
 endif()
 if(NOT optix_prime_LIBRARY)
-  OptiX_report_error("OptiX Prime library not found. Please set OptiX_INSTALL_DIR to locate it automatically." FALSE)
+  OptiX_report_error("optix Prime library not found." TRUE libraries )
 endif()
 
 # Macro for setting up dummy targets
@@ -161,8 +145,8 @@ endfunction()
 
 # Sets up a dummy target
 OptiX_add_imported_library(optix "${optix_LIBRARY}" "${optix_DLL}" "${OPENGL_LIBRARIES}")
-OptiX_add_imported_library(optixu "${optixu_LIBRARY}" "${optixu_DLL}" "")
-OptiX_add_imported_library(optix_prime "${optix_prime_LIBRARY}" "${optix_prime_DLL}" "")
+OptiX_add_imported_library(optixu   "${optixu_LIBRARY}"   "${optixu_DLL}"   "")
+OptiX_add_imported_library(optix_prime "${optix_prime_LIBRARY}"  "${optix_prime_DLL}"  "")
 
 macro(OptiX_check_same_path libA libB)
   if(_optix_path_to_${libA})
@@ -194,3 +178,4 @@ if(APPLE)
   set( optix_rpath ${_optix_rpath} ${_optixu_rpath} ${_optix_prime_rpath} )
   list(REMOVE_DUPLICATES optix_rpath)
 endif()
+

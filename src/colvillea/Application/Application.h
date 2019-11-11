@@ -1,5 +1,6 @@
 #pragma once
 
+#include <chrono>
 #include <functional>
 #include <iostream>
 #include <iomanip>
@@ -10,16 +11,19 @@
 #include <optixu/optixpp_namespace.h>
 #include <optixu_matrix_namespace.h>
 
-#define  CL_CHECK_MEMORY_LEAKS
-#ifdef CL_CHECK_MEMORY_LEAKS
-#define _CRTDBG_MAP_ALLOC
-#include <stdlib.h>
-#include <crtdbg.h>
-#define CL_CHECK_MEMORY_LEAKS_NEW new(_NORMAL_BLOCK, __FILE__, __LINE__)
-#define new CL_CHECK_MEMORY_LEAKS_NEW
-#endif
+//#define  CL_CHECK_MEMORY_LEAKS
+//#ifdef CL_CHECK_MEMORY_LEAKS
+//#define _CRTDBG_MAP_ALLOC
+//#include <stdlib.h>
+//#include <crtdbg.h>
+//#define CL_CHECK_MEMORY_LEAKS_NEW new(_NORMAL_BLOCK, __FILE__, __LINE__)
+//#define new CL_CHECK_MEMORY_LEAKS_NEW
+//#endif
 
 class SceneGraph;
+class LightPool;
+class IEditableObject;
+
 struct GLFWwindow;
 
 class CameraController;
@@ -44,7 +48,7 @@ public:
      * 
      * @see Application::buildSceneGraph()
      */
-    Application(GLFWwindow* glfwWindow, const uint32_t filmWidth, const uint32_t filmHeight, const int optixReportLevel, const uint32_t optixStackSize);
+    Application(GLFWwindow* glfwWindow, const uint32_t filmWidth, const uint32_t filmHeight, const int optixReportLevel);
 
     /**
      * @brief Destroy context and release resouces.
@@ -57,7 +61,7 @@ public:
      * before calling Application::render().
      */
     void buildSceneGraph(std::shared_ptr<SceneGraph> &sceneGraph);
-    
+
     /**
      * @brief Use widgets from Dear ImGui to draw User Interface.
      */
@@ -83,6 +87,32 @@ private:
      */
     void drawRenderView();
 
+    /**
+     * @brief Draw DockSpace.
+     * 
+     * @note This is from Dear ImGui Demo.
+     */
+    void drawDockSpace();
+
+    /**
+     * @brief Draw Settings window.
+     */
+    void drawSettings();
+
+    /**
+     * @brief Draw Inspector window.
+     */
+    void drawInspector();
+
+    /**
+     * @brief Draw Hierarchy window.
+     */
+    void drawHierarchy();
+
+    /**
+     * @brief Draw Material Hierarchy window.
+     */
+    void drawMaterialHierarchy();
 
 public:
     /**
@@ -220,7 +250,6 @@ private:
 private:
     /// OptiX environment settings
     optix::Context m_context;
-    RTsize         m_stackSize;
     int            m_optixReportLevel;
     OptixUsageReportLogger m_optixUsageReportLogger;
 
@@ -235,11 +264,21 @@ private:
     unsigned int   m_filmWidth, m_filmHeight;
     bool           m_resetRenderParamsNotification;
 
+    friend class LightPool;
+    friend class MaterialPool;
+
     /// Scene related variables
     unsigned int                      m_sysIterationIndex;
     std::shared_ptr<SceneGraph>       m_sceneGraph;
+    std::shared_ptr<LightPool>        m_lightPool;
+    std::shared_ptr<MaterialPool>     m_materialPool;
     std::unique_ptr<CameraController> m_cameraController;
 
     /// Function object to store preprocessor using OptiX launch 
     std::function<void()> m_preprocessFunc;
+
+    /// Current holding IEditableObject:
+    std::shared_ptr<IEditableObject> m_currentHierarchyNode;
+
+    std::chrono::time_point<std::chrono::system_clock> currentTime;
 };

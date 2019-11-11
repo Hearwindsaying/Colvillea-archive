@@ -26,7 +26,7 @@ public:
         return sobolSampler;
     }
 
-    SobolSampler(optix::Context context, optix::int2 filmResolution) : Sampler(context), m_filmResolution(filmResolution)
+    SobolSampler(optix::Context context, optix::int2 filmResolution) : Sampler(context, CommonStructs::SamplerType::SobolQMCSampler), m_filmResolution(filmResolution)
     {
 
     }

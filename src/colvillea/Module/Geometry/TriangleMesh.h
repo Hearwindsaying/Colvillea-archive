@@ -5,7 +5,7 @@
 #include <optix_host.h>
 #include <optixu_math_namespace.h>
 
-#include "colvillea/Module/Geometry/Shape.h"
+#include "colvillea/Module/Geometry/GeometryTrianglesShape.h"
 #include "tinyobjloader/tiny_obj_loader.h"
 
 class Application;
@@ -13,7 +13,7 @@ class Application;
 /** @brief TriangleMesh class serves as an auxiliary host class
  *  to help loading wavefront .obj mesh into device.
  */
-class TriangleMesh : public Shape
+class TriangleMesh : public GeometryTrianglesShape
 {
 private:
 	struct MeshBuffer
@@ -57,17 +57,25 @@ public:
 	 * @param filename filename with path
 	 */
 	TriangleMesh(optix::Context context, const std::map<std::string, optix::Program> &programsMap, const std::string &filename, optix::Material integrator, const int materialIndex):
-		Shape(context, programsMap, "TriangleMesh", integrator, materialIndex),
+		GeometryTrianglesShape(context, programsMap, "TriangleMesh", integrator, materialIndex),
         m_filename(filename),m_verticesCount(-1),hasNormals(false),hasTexcoords(false)
 	{
 
 	}
 
+    std::string getTriangleMeshFilename() const
+    {
+        return this->m_filename;
+    }
+
 	
 	void initializeShape() override;
 
 private:
-    void setupGeometry(const MeshBuffer &meshBuffer); //note: not override to setupGeometry
+    /**
+     * @note This is not override to GeometryTrianglesShape::setupGeometry().
+     */
+    void setupGeometry(const MeshBuffer &meshBuffer); 
 
 	/**
 	 * @brief Parse TriangleMesh from wavefront obj file using
@@ -98,64 +106,4 @@ private:
 	uint32_t m_verticesCount;
 
     bool hasNormals, hasTexcoords;
-
-	//////////////////////////////////////////////////////////////////////////
-	//Old Code
-
-
-	//void loadTriangleMesh(const std::string & objFilename);
-
-	void attachOpacityMaskProfile();
-
-	/*we can safely use optix::Material as return type benefit by high level optix wrapper class using reference counting.*/
-	//optix::Material getMaterial() const{ return this->material; };
-	//optix::GeometryInstance getGeometryInstance() const{ return this->geometryInstance; };
-
-	//friend class Application;
-private:
-	//void scanTriangleMesh();
-	//void allocateBuffers();//this function also send Mesh to Buffers(use map to binding)
-	//void extractImplMesh();
-	//void initGeometry();
-	//void unmapBuffers();//this function also unmap Buffers
-
-	//bool validateMesh() const;
-
-private:
-// 	struct Mesh
-// 	{
-// 		int32_t             num_vertices;   // number of triangle vertices
-// 		float*              positions;      // vertex position array (len num_vertices)
-// 
-// 		bool                has_normals;    //
-// 		float*              normals;        // vertex normal array (len 0 or num_vertices)
-// 
-// 		bool                has_texcoords;  //
-// 		float*              texcoords;      // vertex uv array (len 0 or num_vertices)
-// 
-// 
-// 		int32_t             num_triangles;  // number of triangles
-// 		int32_t*            tri_indices;    // index array into positions, normals, texcoords
-// 
-// 	public:
-// 		Mesh() :num_triangles(0), num_vertices(0), positions(nullptr), normals(nullptr), texcoords(nullptr), tri_indices(nullptr), has_normals(false), has_texcoords(false) { }
-// 	};
-
-private:
-	//const Application * application;
-
-	//Mesh mesh;//never get accessed to this struct once finish loading objMesh
-	//std::vector<tinyobj::shape_t> m_shapes;
-	//std::vector<tinyobj::material_t> m_materials;//useless obj parsing output in current implementation
-
-// 	optix::Buffer triangleIndicesBuffer;
-// 	optix::Buffer positionsBuffer;
-// 	optix::Buffer normalsBuffer;
-// 	optix::Buffer texcoordsBuffer;
-
-	//optix::Material material;
-	//optix::Geometry geometry;
-	//optix::GeometryInstance geometryInstance;
-
-	int alphaTextureID;
 };

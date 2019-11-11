@@ -8,6 +8,8 @@
 #include <memory>
 
 #include "colvillea/Application/TWAssert.h"
+#include "colvillea/Application/GlobalDefs.h"
+#include "colvillea/Device/Toolkit/CommonStructs.h"
 
 /**
  * @brief Integrator class serves as a helper class
@@ -26,7 +28,8 @@ public:
      * For this reason, you should not call the constructor directly
      * and use factory method Integrator::createIntegrator()
      */
-	Integrator(const optix::Context context, const std::map<std::string, optix::Program> &programsMap, const std::string &integratorClassName):m_context(context), m_programsMap(programsMap)
+	Integrator(const optix::Context context, const std::map<std::string, optix::Program> &programsMap, const std::string &integratorClassName, IntegratorType integratorType) : 
+        m_context(context), m_programsMap(programsMap),m_integratorType(integratorType)
 	{
 		std::cout << "[Info] Derived class name from Integrator is: " << integratorClassName << std::endl;
 
@@ -38,9 +41,9 @@ public:
 		this->m_closestHitProgram = programItr->second;
 
 		/* Load any hit program for shadow ray, same for all shapes. */
-		programItr = this->m_programsMap.find("AnyHit_ShadowRay_Shape");
+		programItr = this->m_programsMap.find("ClosestHit_ShadowRay_GeometryTriangles");
 		TW_ASSERT(programItr != this->m_programsMap.end());
-		this->m_anyHitShadowRayProgram = programItr->second;
+		this->m_closestHit_ShadowRayProgram = programItr->second;
 	}
 
 	/**
@@ -51,7 +54,17 @@ public:
 	 * @note Remember that the integrator is represented as Material
 	 * node in SceneGraph.
 	 */
-	virtual optix::Material initializeIntegratorMaterialNode();
+    virtual optix::Material initializeIntegratorMaterialNode()
+    {
+        TW_ASSERT(this->m_closestHitProgram && this->m_closestHit_ShadowRayProgram);
+
+        this->m_integratorMaterial = this->m_context->createMaterial();
+        this->m_integratorMaterial->setClosestHitProgram(toUnderlyingValue(CommonStructs::RayType::Radiance), this->m_closestHitProgram);
+        //this->m_integratorMaterial->setAnyHitProgram(toUnderlyingValue(CommonStructs::RayType::Shadow), this->m_anyHitShadowRayProgram);
+        this->m_integratorMaterial->setClosestHitProgram(toUnderlyingValue(CommonStructs::RayType::Shadow), this->m_closestHit_ShadowRayProgram);
+
+        return this->m_integratorMaterial;
+    }
 
 	/**
 	 * @brief Getter for |m_integratorMaterial|. Note that this could
@@ -64,12 +77,20 @@ public:
         return this->m_integratorMaterial;
     }
 
+    IntegratorType getIntegratorType() const
+    {
+        return this->m_integratorType;
+    }
+
 protected:
     optix::Context m_context;
     const std::map<std::string, optix::Program> &m_programsMap;
 
+    IntegratorType m_integratorType;
+
 	optix::Program m_closestHitProgram;
-	optix::Program m_anyHitShadowRayProgram;
+	//optix::Program m_anyHitShadowRayProgram;
+    optix::Program m_closestHit_ShadowRayProgram;
 private:
 	optix::Material m_integratorMaterial; //todo:perhaps not needed?
 };

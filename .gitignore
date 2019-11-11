@@ -263,4 +263,5 @@ __pycache__/
 
 !/examples/Cornell/*.*
 /examples/Cornell/lucy.obj
+!/examples/Dining-room/models/*.*
 *.ma

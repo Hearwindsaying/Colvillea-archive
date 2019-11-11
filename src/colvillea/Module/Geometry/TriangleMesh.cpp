@@ -28,25 +28,29 @@ void TriangleMesh::initializeShape()
 
 	/* Finally, create nodes for SceneGraph and initialize. */
 	this->setupGeometry(meshBuffer);
-	this->setupGeometryInstance(this->m_integrator);
+	GeometryTrianglesShape::setupGeometryInstance(this->m_integrator);
 
 	this->setMaterialIndex(this->m_materialIndex);
-    this->m_geometryInstance["reverseOrientation"]->setInt(0);
+    this->m_geometryInstance["reverseOrientation"]->setInt(0); //todo:enable this usage
     this->m_geometryInstance["quadLightIndex"]->setInt(-1); //todo:fix this
 }
 
 void TriangleMesh::setupGeometry(const MeshBuffer &meshBuffer)
 {
-    this->m_geometry = this->m_context->createGeometry();
+    this->m_geometryTriangles = this->m_context->createGeometryTriangles();
 
-	this->m_geometry["vertexBuffer"]->setBuffer(meshBuffer.vertexBuffer);
-	this->m_geometry["normalBuffer"]->setBuffer(meshBuffer.normalBuffer);
-	this->m_geometry["texcoordBuffer"]->setBuffer(meshBuffer.texcoordBuffer);
-	this->m_geometry["vertexIndexBuffer"]->setBuffer(meshBuffer.vertexIndexBuffer);
-	this->m_geometry["normalIndexBuffer"]->setBuffer(meshBuffer.normalIndexBuffer);
-	this->m_geometry["texcoordIndexBuffer"]->setBuffer(meshBuffer.texcoordIndexBuffer);
+	this->m_geometryTriangles["vertexBuffer"]->setBuffer(meshBuffer.vertexBuffer);
+	this->m_geometryTriangles["normalBuffer"]->setBuffer(meshBuffer.normalBuffer);
+	this->m_geometryTriangles["texcoordBuffer"]->setBuffer(meshBuffer.texcoordBuffer);
+	this->m_geometryTriangles["vertexIndexBuffer"]->setBuffer(meshBuffer.vertexIndexBuffer);
+	this->m_geometryTriangles["normalIndexBuffer"]->setBuffer(meshBuffer.normalIndexBuffer);
+	this->m_geometryTriangles["texcoordIndexBuffer"]->setBuffer(meshBuffer.texcoordIndexBuffer);
 
-	Shape::setupGeometry();
+    /* Setup GeometryTriangles specific parameters. */
+    this->m_geometryTriangles->setTriangleIndices(meshBuffer.vertexIndexBuffer, RT_FORMAT_UNSIGNED_INT3); //todo:fix vertexIndexBuffer type:INT3
+    this->m_geometryTriangles->setVertices(this->m_verticesCount, meshBuffer.vertexBuffer, RT_FORMAT_FLOAT3);
+
+	GeometryTrianglesShape::setupGeometry();
 }
 
 void TriangleMesh::parseTriangleMesh(tinyobj::attrib_t &outAttrib, std::vector<tinyobj::shape_t> &outShapes, std::vector<tinyobj::material_t> &outMaterials)

@@ -6,8 +6,6 @@
 #pragma comment(lib,LIBPATH(SAMPLES_DIR, "\\dependencies\\FreeImage.lib"))
 #pragma comment(lib,LIBPATH(SAMPLES_DIR, "\\dependencies\\FreeImagePlus.lib"))
 
-#include "freeImage/FreeImagePlus.h"
-
 #include <optix_world.h>
 #include <optix_host.h>
 #include <optixu_math_namespace.h>

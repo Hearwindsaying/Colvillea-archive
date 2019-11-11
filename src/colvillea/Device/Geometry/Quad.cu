@@ -50,7 +50,6 @@ RT_PROGRAM void Intersect_Quad(int primIdx)
         if (rtPotentialIntersection(tHit)) /* Not necessarily ignoring tHit ourselves. */
         {
             /* Fill in DifferentialGeomery and [nGeometry]. */
-            dgShading.rayEpsilon = 1e-3f * tHit;
             dgShading.uv = make_float2((localHitPoint.x + 1.f) / 2.f, (localHitPoint.y + 1.f) / 2.f);
             dgShading.dpdu = TwUtil::xfmVector(make_float3(2.f, 0.f, 0.f), objectToWorld);
             dgShading.dpdv = TwUtil::xfmVector(make_float3(0.f, 2.f, 0.f), objectToWorld);

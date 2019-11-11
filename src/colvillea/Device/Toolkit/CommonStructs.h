@@ -151,10 +151,16 @@ namespace CommonStructs
 									      --offset(of the i_th sample for current pixel) in global sequence */
     };
 
+    struct IndependentSampler
+    {
+        uint32_t seed;           /* Random Sampler seed. */
+    };
+
     union GPUSampler
     {
-        SobolSampler  sobolSampler;
-        HaltonSampler haltonSampler;
+        SobolSampler       sobolSampler;
+        HaltonSampler      haltonSampler;
+        IndependentSampler independentSampler; 
     };
 
 
@@ -162,12 +168,67 @@ namespace CommonStructs
     {
         HaltonQMCSampler,  // low discrepancy sampler: Halton sequence
         SobolQMCSampler,   // low discrepancy sampler: Sobol sequence
+        IndependentSampler,// independent random sampler
 
         CountOfType
     };
 
 
 
+    /**
+    * @brief Supported filter types.
+    */
+    enum class FilterType : unsigned int
+    {
+        BoxFilter,
+        GaussianFilter,
+
+        CountOfType
+    };
+
+    /**
+    * @brief Common properties for all GPUFilter types.
+    */
+    struct GPUFilterBase
+    {
+        /// Filter radius >= 1.0f
+        float      radius;
+    };
+
+    /**
+     * @brief A simple box filter.
+     */
+    struct BoxFilter : public GPUFilterBase
+    {
+
+    };
+
+    /**
+     * @brief Gaussian filter.
+     */
+    struct GaussianFilter : public GPUFilterBase
+    {
+        /// Gaussian parameter alpha
+        float alpha;
+
+        /// exp(-alpha*radius*radius)
+        float gaussianExp;
+    };
+
+    /**
+     * @brief Union to store one specific GPUFilter.
+     * @note Virtual functions are not supported by OptiX so
+     * union type is employed here for containing "base" filter
+     * struct.
+     */
+    union GPUFilter
+    {
+        BoxFilter      boxFilter;
+        GaussianFilter gaussianFilter;
+    };
+
+
+    
     enum BSDFType : unsigned int
     {
         Lambert         = 0,
@@ -190,7 +251,6 @@ namespace CommonStructs
                              -- also use float4 for padding and sync with nGeometry 
                              to avoid make_float conversion	*/
         optix::float3 tn; /* tangent = cross(dpdu, nn) where dpdu,nn are both normalized */
-        float rayEpsilon;
 
         optix::float2 uv;
         optix::float3 dpdu; /* secondary tangent(i.e. sn), need to be normalized while initializing */

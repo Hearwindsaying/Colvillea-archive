@@ -4,20 +4,26 @@
 #include <optixu/optixpp_namespace.h>
 #include <optixu_matrix_namespace.h>
 
+#include <algorithm>
 #include <map>
 #include <memory>
 
-#include "../Module/Integrator/DirectLighting.h"
-#include "../Module/Integrator/PathTracing.h"
-#include "../Module/Geometry/TriangleMesh.h"
-#include "../Module/Geometry/Quad.h"
-#include "../Module/Sampler/HaltonSampler.h"
-#include "../Module/Sampler/SobolSampler.h"
-#include "../Module/Camera/Camera.h"
-#include "GlobalDefs.h"
+#include "colvillea/Module/Integrator/DirectLighting.h"
+#include "colvillea/Module/Integrator/PathTracing.h"
+#include "colvillea/Module/Geometry/TriangleMesh.h"
+#include "colvillea/Module/Geometry/Quad.h"
+#include "colvillea/Module/Sampler/HaltonSampler.h"
+#include "colvillea/Module/Sampler/SobolSampler.h"
+#include "colvillea/Module/Sampler/IndependentSampler.h"
+
+#include "colvillea/Module/Filter/BoxFilter.h"
+#include "colvillea/Module/Filter/GaussianFilter.h"
+
+#include "colvillea/Module/Camera/Camera.h"
+#include "colvillea/Application/GlobalDefs.h"
 
 class Application;
-
+class BSDF;
 
 
 /**
@@ -34,7 +40,10 @@ public:
         m_programsMap(programsMap), m_context(context),
         m_filmWidth(filmWidth), m_filmHeight(filmHeight), m_application(application)
 	{
-		this->initGraph();
+		this->initializeGraph();
+        this->initializeLoadingIntegrators();
+        this->initializeLoadingDefaultSampler();
+        this->initializeLoadingFilters();
 	}
 
 private:
@@ -45,44 +54,106 @@ private:
     /**
      * @brief Initialize OptiX Graph nodes that should be set once.
      */
-    void initGraph()
+    void initializeGraph()
     {
-        /* Create top geometryGroup and top Acceleration structure. */
+        /* Create GeometryGroups, containing GeometryTriangles and Geometry, respectively. */
         auto& context = this->m_context;
-        this->m_topGeometryGroup = context->createGeometryGroup();
+        this->m_topGeometryGroup_GeometryTriangles = context->createGeometryGroup();
+        this->m_topGeometryGroup_Geometry          = context->createGeometryGroup();
 
-        this->m_topAcceleration = context->createAcceleration("Trbvh");//todo:use enum
-        this->m_topAcceleration->setProperty("chunk_size", "-1");
-        this->m_topAcceleration->setProperty("vertex_buffer_name", "vertexBuffer");
-        this->m_topAcceleration->setProperty("index_buffer_name", "indexBuffer");
+        /* Create Top Group containing GeometryGroups. */
+        this->m_topGroup = context->createGroup();
 
-        this->m_topGeometryGroup->setAcceleration(this->m_topAcceleration);
+        /* Disable anyhits for GeometryGroups. */
+        this->m_topGeometryGroup_GeometryTriangles->setFlags(RTinstanceflags::RT_INSTANCE_FLAG_DISABLE_ANYHIT);
+        this->m_topGeometryGroup_Geometry->setFlags(RTinstanceflags::RT_INSTANCE_FLAG_DISABLE_ANYHIT);
+
+
+        /* Create Accelerations for GeometryGroups and Top Group. */
+        optix::Acceleration geometryTrianglesAccel = context->createAcceleration("Trbvh");
+                            geometryTrianglesAccel->setProperty("chunk_size", "-1");
+                            geometryTrianglesAccel->setProperty("vertex_buffer_name", "vertexBuffer");
+                            geometryTrianglesAccel->setProperty("index_buffer_name",  "indexBuffer");
+        optix::Acceleration geometryAccel     = context->createAcceleration("Trbvh");
+        optix::Acceleration groupAccel = context->createAcceleration("Trbvh");
+        
+
+        /* Set accelerations. */
+        this->m_topGeometryGroup_GeometryTriangles->setAcceleration(geometryTrianglesAccel);
+        this->m_topGeometryGroup_Geometry->setAcceleration(geometryAccel);
+        this->m_topGroup->setAcceleration(groupAccel);
+
+
+        /* Add GeometryTriangles GeometryGroup and Geometry GeometryGroup to top Group. */
+        this->m_topGroup->addChild(this->m_topGeometryGroup_GeometryTriangles);
+        this->m_topGroup->addChild(this->m_topGeometryGroup_Geometry);
+
+        this->m_context["sysTopObject"]->set(this->m_topGroup);
+        this->m_context["sysTopShadower"]->set(this->m_topGroup);
+    }
+
+    /**
+     * @brief Creating integrators and add to integrators map for later use.
+     * It is slightly different from Samplers that we load all integrators
+     * initially. 
+     * @note Default behavior: If no integrator is specified in hard code, 
+     * DirectLighting integrator will be used.
+     * @todo The default parameters for creating integrators should be done with 
+     * config file.
+     */
+    void initializeLoadingIntegrators()
+    {
+        std::shared_ptr<Integrator> integrator = DirectLighting::createIntegrator(this->m_context, this->m_programsMap);
+        TW_ASSERT(this->m_integratorsMap.insert({ IntegratorType::DirectLighting, integrator }).second);
+        this->m_integrator = integrator;
+
+        /* Default values. */
+        constexpr bool enableRoussianRoulette = true;
+        constexpr int  maxDepth = 5;
+        integrator = PathTracing::createIntegrator(this->m_context, this->m_programsMap, enableRoussianRoulette, maxDepth);
+        TW_ASSERT(this->m_integratorsMap.insert({ IntegratorType::PathTracing, integrator }).second);
+    }
+
+    /**
+     * @brief Load a default sampler which could be overrided in hard code.
+     * @note Default behavior: If no sampler is specified in hard code,
+     * IndependentSampler will be used.
+     * @todo The default parameters for creating integrators should be done with
+     * config file.
+     */
+    void initializeLoadingDefaultSampler()
+    {
+        /* SceneGraph::createSampler() create corresponding sampler and apply to
+         * |m_sampler|. */
+        this->createSampler(CommonStructs::SamplerType::IndependentSampler);
+    }
+
+    /**
+     * @brief Creating filters and add to filters map for later use.
+     * It is slightly different from Samplers that we load all filters
+     * initially.
+     * @note Default behavior: If no filter is specified in hard code,
+     * BoxFilter with radius = 0.5f will be used.
+     * @todo The default parameters for creating integrators should be done with
+     * config file.
+     */
+    void initializeLoadingFilters()
+    {
+        /* Default values. */
+        constexpr float radius = 0.5f;
+        std::shared_ptr<Filter> filter = BoxFilter::createBoxFilter(radius); 
+        TW_ASSERT(this->m_filtersMap.insert({ CommonStructs::FilterType::BoxFilter, filter }).second);
+        this->updateCurrentFilter(filter);
+
+        constexpr float gaussianAlpha = 2.0f;
+        filter = GaussianFilter::createGaussianFilter(radius, gaussianAlpha);
+        TW_ASSERT(this->m_filtersMap.insert({ CommonStructs::FilterType::GaussianFilter, filter }).second);
     }
 
 public:
     /************************************************************************/
     /*                 Scene configuration creating functions               */
     /************************************************************************/ 
-
-    /**
-     * @brief Create an integrator and add to sceneGraph.
-     * 
-     * @see DirectLighting::Integrator()
-     */
-    void createDirectLightingIntegrator()
-    {
-        this->m_integrator = DirectLighting::createIntegrator(this->m_context, this->m_programsMap);
-    }
-
-    /**
-     * @brief Create an integrator and add to sceneGraph.
-     *
-     * @see PathTracing::Integrator()
-     */
-    void createPathTracingIntegrator(bool enableRoussianRoulette, int maxDepth)
-    {
-        this->m_integrator = PathTracing::createIntegrator(this->m_context, this->m_programsMap, enableRoussianRoulette, maxDepth);
-    }
 
 	/**
 	 * @brief Create TriangleMesh and add to SceneGraph shape
@@ -91,17 +162,11 @@ public:
 	 * 
 	 * @param[in] meshFilename wavefront obj filename with path
 	 * @param[in] materialIndex material index to materialBuffer
+	 * @param[in] bsdf
 	 * 
-	 * @note Note that this operation doesn't invoke buildGraph()
-	 * which is necessary to call explicitly eventually.
+	 * @todo Remove materialIndex and use MaterialPool::m_bsdfs.size() instead.
 	 */
-	void createTriangleMesh(const std::string & meshFileName, const int materialIndex)
-	{
-        /* Converting unique_ptr to shared_ptr. */
-        std::shared_ptr<TriangleMesh> triMesh = TriangleMesh::createTriangleMesh(this->m_context, this->m_programsMap, meshFileName, this->m_integrator->getIntegratorMaterial(), materialIndex);
-
-		m_shapes.push_back(triMesh);
-	}
+    void createTriangleMesh(const std::string & meshFileName, int materialIndex, const std::shared_ptr<BSDF> &bsdf);
 
     /**
      * @brief Create a single quad and add to SceneGraph shape
@@ -109,24 +174,12 @@ public:
      * loadShape().
      *
      * @param[in] materialIndex material index to materialBuffer
-     * @param[in] objectToWorld transform matrix that does not have
-     * a z-component scale
+     * @param[in] position
+     * @param[in] rotation      XYZ rotation angle in radian
+     * @param[in] scale         Z-component is zero
      * @param[in] flipNormal    flip quad's normal
-     *
-     * @note Note that this operation doesn't invoke buildGraph()
-     * which is necessary to call explicitly eventually.
      */
-    std::shared_ptr<Quad> createQuad(const int materialIndex, const optix::Matrix4x4 &objectToWorld, bool flipNormal = false)
-    {
-        //todo:assert that quad is not assigned with Emissive BSDF.//todo:delete emissive?
-        //todo:review copy of Quad
-        std::shared_ptr<Quad> quad = Quad::createQuad(this->m_context, this->m_programsMap, objectToWorld, this->m_integrator->getIntegratorMaterial(), materialIndex);
-        if(flipNormal)
-            quad->flipGeometryNormal();
-        m_shapes.push_back(quad);
-
-        return quad;
-    }
+    std::shared_ptr<Quad> createQuad(SceneGraph *sceneGraph, const int materialIndex, const optix::float3 &position, const optix::float3 &rotation, const optix::float3 &scale, const std::shared_ptr<BSDF> &bsdf, bool flipNormal = false);
 
     /**
      * @brief Create a quad for quadLight and add to SceneGraph shape
@@ -134,52 +187,138 @@ public:
      * loadShape().
      *
      * @param[in] materialIndex  material index to materialBuffer
-     * @param[in] objectToWorld  transform matrix that does not have
-     * a z-component scale
+     * @param[in] position
+     * @param[in] rotation      XYZ rotation angle in radian
+     * @param[in] scale         Z-component is zero
      * @param[in] quadLightIndex index to |quadLightBuffer|
      * @param[in] flipNormal     flip quad's normal
-     *
-     * @note Note that this operation doesn't invoke buildGraph()
-     * which is necessary to call explicitly eventually.
      */
-    std::shared_ptr<Quad> createQuad(const int materialIndex, const optix::Matrix4x4 &objectToWorld, int quadLightIndex, bool flipNormal = false)
-    {
-        //todo:assert that quad is not assigned with Emissive BSDF.//todo:delete emissive?
-        //todo:review copy of Quad
-        std::shared_ptr<Quad> quad = Quad::createQuad(this->m_context, this->m_programsMap, objectToWorld, quadLightIndex, this->m_integrator->getIntegratorMaterial(), materialIndex);
-        if(flipNormal)
-            quad->flipGeometryNormal();
-        m_shapes.push_back(quad);
-
-        return quad;
-    }
-
-    
+    std::shared_ptr<Quad> createQuad(const int materialIndex, const optix::float3 &position, const optix::float3 &rotation, const optix::float3 &scale, int quadLightIndex, const std::shared_ptr<BSDF> &bsdf, bool flipNormal = false);
 
 
     /**
-     * @brief Create a sampler object and use in rendering. Only
-     * one instance of smapler object is permitted currently.
+     * @brief Remove a Geometry from graph.
+     * @param[in] geometryShape GeometryShape to be removed
+     * @note This is for Geometry only, not for GeometryTriangles.
+     */
+    void removeGeometry(const std::shared_ptr<GeometryShape> &geometryShape)
+    {
+        /* Remove child node from OptiX Graph. */
+        this->m_topGeometryGroup_Geometry->removeChild(geometryShape->getGeometryInstance());
+
+        auto findItr = std::find_if(this->m_shapes_Geometry.cbegin(), this->m_shapes_Geometry.cend(), 
+            [&geometryShape](const auto& geometryShapePtr)
+        {
+            return geometryShapePtr.get() == geometryShape.get();
+        });
+
+        /* Erase GeometryShape. */
+        TW_ASSERT(findItr != this->m_shapes_Geometry.cend());
+        this->m_shapes_Geometry.erase(findItr);
+
+        this->rebuildGeometry();
+    }
+
+    /**
+     * @brief Remove a GeometryTriangles from graph.
+     * @param[in] geometryTrianglesShape GeometryTrianglesShape to be removed
+     * @note This is for GeometryTriangles only, not for Geometry.
+     */
+    void removeGeometryTriangles(const std::shared_ptr<GeometryTrianglesShape> &geometryTrianglesShape)
+    {
+        /* Remove child node from OptiX Graph. */
+        this->m_topGeometryGroup_GeometryTriangles->removeChild(geometryTrianglesShape->getGeometryInstance());
+        
+        auto findItr = std::find_if(this->m_shapes_GeometryTriangles.cbegin(), this->m_shapes_GeometryTriangles.cend(),
+            [&geometryTrianglesShape](const auto& geometryTrianglesShapePtr)
+        {
+            return geometryTrianglesShapePtr.get() == geometryTrianglesShape.get();
+        });
+
+        /* Erase GeometryTrianglesShape. */
+        TW_ASSERT(findItr != this->m_shapes_GeometryTriangles.cend());
+        this->m_shapes_GeometryTriangles.erase(findItr);
+
+        this->rebuildGeometryTriangles();
+    }
+
+    /**
+     * @brief Expect to rebuild |m_topGeometryGroup_Geometry| Acceleration Structure.
+     */
+    void rebuildGeometry()
+    {
+        this->m_topGeometryGroup_Geometry->getAcceleration()->markDirty();
+
+        /* Update top group as well. */
+        this->m_topGroup->getAcceleration()->markDirty();
+
+        std::cout << "[Info] AS of m_topGeometryGroup_Geometry and m_topGroup has been marked dirty." << std::endl;
+    }
+
+    /**
+     * @brief Expect to rebuild |m_topGeometryGroup_GeometryTriangles| Acceleration Structure.
+     */
+    void rebuildGeometryTriangles()
+    {
+        this->m_topGeometryGroup_GeometryTriangles->getAcceleration()->markDirty();
+
+        /* Update top group as well. */
+        this->m_topGroup->getAcceleration()->markDirty();
+        std::cout << "[Info] AS of m_topGeometryGroup_GeometryTriangles and m_topGroup has been marked dirty." << std::endl;
+    }
+
+
+
+    /**
+     * @brief Create a sampler object and use in rendering.
+     * |m_samplersMap| stores all types of samplers supported in renderer.
+     * 
+     * @note This method could be used for changing sampler type in Colvillea.
+     * If the expected sampler is not created, it's created and added to the
+     * |m_samplersMap| for later use. Otherwise, the sampler will be got from
+     * |m_samplersMap|. In either case, |m_sampler| will be updated to store
+     * current used sampler.
+     * 
+     * @param[in] samplerType  the expected sampler type for rendering
      */
     void createSampler(const CommonStructs::SamplerType &samplerType)
     {
-        optix::int2 filmResolution = optix::make_int2(this->m_filmWidth, this->m_filmHeight);
-        switch (samplerType)
+        /* Search |m_samplersMap| for the sampler we want. */
+        auto samplerItr = this->m_samplersMap.find(samplerType);
+        if (samplerItr == this->m_samplersMap.end())
         {
+            optix::int2 filmResolution = optix::make_int2(this->m_filmWidth, this->m_filmHeight);
+            switch (samplerType)
+            {
             case CommonStructs::SamplerType::HaltonQMCSampler:
-                this->m_sampler = HaltonSampler::createHaltonSampler(this->m_context, filmResolution);
+            {
+                //this->m_sampler = HaltonSampler::createHaltonSampler(this->m_context, filmResolution);
+                std::cout << "[Info] An issue is found when using OptiX 6.5 to implement Halton QMC sampler using fast permuation table. Currently this sampler will fallback to Sobol QMC Sampler" << std::endl;
+                this->m_sampler = SobolSampler::createSobolSampler(this->m_context, filmResolution);
+            } 
                 break;
             case CommonStructs::SamplerType::SobolQMCSampler:
                 this->m_sampler = SobolSampler::createSobolSampler(this->m_context, filmResolution);
                 break;
+            case CommonStructs::SamplerType::IndependentSampler:
+                this->m_sampler = IndependentSampler::createIndependentSampler(this->m_context);
             default:
                 std::cerr << "[Error] Expected sampler is not supported." << std::endl;
                 break;
+            }
+            /* Insert newly created sampler type into samplers map. */
+            TW_ASSERT(this->m_samplersMap.insert({ samplerType, this->m_sampler }).second);
+        }
+        else
+        {
+            /* Update current sampler. */
+            this->m_sampler = samplerItr->second;
         }
 
         /* Setup sampler index for GPU program. */
         this->m_context["sysSamplerType"]->setInt(toUnderlyingValue(samplerType));
     }
+
 
     /**
      * @brief Create a camera object and 
@@ -201,27 +340,8 @@ public:
         this->m_camera = std::make_shared<Camera>(this->m_context, this->m_programsMap, /*resetRenderParam,*/this->m_application, cam2world, fov, filmWidth, filmHeight);
     }
 
-	/**
-	 * @brief Collect all related nodes and build graph for OptiX.
-	 * This function should be called once all shapes are created.
-	 * 
-	 * @note In current implementation, it's not supported instancing
-	 * so we gather all geometryInstance to share a parent of 
-	 * geometryGroup and one acceleration structure without any
-	 * transform nodes availiable.
-	 */
-	void buildGraph()
-	{
-		/* Iterate all shapes for adding to geometryGroup. */
-		for (const auto& shape : this->m_shapes)
-		{
-			this->m_topGeometryGroup->addChild(shape->getGeometryInstance());
-		}
 
-        this->m_context["sysTopObject"]->set(this->m_topGeometryGroup);
-        this->m_context["sysTopShadower"]->set(this->m_topGeometryGroup);
-	}
-
+    
 
 
     /************************************************************************/
@@ -232,6 +352,135 @@ public:
         return this->m_camera;
     }
 
+    /**
+     * @brief Return currently used integrator.
+     */
+    std::shared_ptr<Integrator> getIntegrator() const
+    {
+        return this->m_integrator;
+    }
+
+    /**
+     * @brief Get DirectLighting Integrator from integrators map.
+     */
+    std::shared_ptr<DirectLighting> getDirectLighting() const
+    {
+        auto integratorItr = this->m_integratorsMap.find(IntegratorType::DirectLighting);
+        TW_ASSERT(integratorItr != this->m_integratorsMap.end());
+        return std::static_pointer_cast<DirectLighting>(integratorItr->second);
+    }
+
+    /**
+     * @brief Get DirectLighting Integrator from integrators map.
+     */
+    std::shared_ptr<PathTracing> getPathTracing() const
+    {
+        auto integratorItr = this->m_integratorsMap.find(IntegratorType::PathTracing);
+        TW_ASSERT(integratorItr != this->m_integratorsMap.end());
+        return std::static_pointer_cast<PathTracing>(integratorItr->second);
+    }
+
+    /**
+     * @brief Change current used integrator.
+     * @param[in] integratorType  Expected integrator type to use
+     */
+    void changeIntegrator(IntegratorType integratorType)
+    {
+        auto integratorItr = this->m_integratorsMap.find(integratorType);
+        TW_ASSERT(integratorItr != this->m_integratorsMap.end());
+        this->m_integrator = integratorItr->second;
+
+        for (const auto& shape : this->m_shapes_GeometryTriangles)
+        {
+            shape->changeIntegrator(this->m_integrator->getIntegratorMaterial());
+        }
+
+        /* Iterate all GeometryShape for adding to |m_topGeometryGroup_Geometry|. */
+        for (const auto& shape : this->m_shapes_Geometry)
+        {
+            shape->changeIntegrator(this->m_integrator->getIntegratorMaterial());
+        }
+    }
+
+    /**
+     * @brief Getter for currently used sampler.
+     */
+    std::shared_ptr<Sampler> getSampler() const
+    {
+        return this->m_sampler;
+    }
+
+    /**
+     * @brief Getter for currently used filter.
+     */
+    std::shared_ptr<Filter> getFilter() const
+    {
+        return this->m_filter;
+    }
+
+    /**
+     * @brief Get Box Filter from filters map.
+     */
+    std::shared_ptr<BoxFilter> getBoxFilter() const
+    {
+        auto filterItr = this->m_filtersMap.find(CommonStructs::FilterType::BoxFilter);
+        TW_ASSERT(filterItr != this->m_filtersMap.end());
+        return std::static_pointer_cast<BoxFilter>(filterItr->second);
+    }
+
+    /**
+     * @brief Get Gaussian Filter from filters map.
+     */
+    std::shared_ptr<GaussianFilter> getGaussianFilter() const
+    {
+        auto filterItr = this->m_filtersMap.find(CommonStructs::FilterType::GaussianFilter);
+        TW_ASSERT(filterItr != this->m_filtersMap.end());
+        return std::static_pointer_cast<GaussianFilter>(filterItr->second);
+    }
+
+    /**
+     * @brief Switch to the expected type of filter.
+     * @param[in] filterType  Expected filter type to use
+     */
+    void changeFilter(CommonStructs::FilterType filterType)
+    { 
+        auto filterItr = this->m_filtersMap.find(filterType);
+        TW_ASSERT(filterItr != this->m_filtersMap.end());
+
+        /* Update current filter to expected filter instance. */
+        this->updateCurrentFilter(filterItr->second);
+    }
+
+    /**
+     * @brief Get |m_shapes_Geometry|.
+     */
+    const std::vector<std::shared_ptr<GeometryShape>> &getShapes_Geometry() const
+    {
+        return this->m_shapes_Geometry;
+    }
+
+    /**
+     * @brief Get |m_shapes_GeometryTriangles|.
+     */
+    const std::vector<std::shared_ptr<GeometryTrianglesShape>> &getShapes_GeometryTriangles() const
+    {
+        return this->m_shapes_GeometryTriangles;
+    }
+
+
+private:
+    /************************************************************************/
+    /*                             Update functions                         */
+    /************************************************************************/
+    void updateCurrentFilter(const std::shared_ptr<Filter> &filter)
+    {
+        this->m_filter = filter;
+
+        /* Activate filter: update Context variables. */
+        this->m_context["sysFilterType"]->setInt(toUnderlyingValue(filter->getFilterType()));
+        CommonStructs::GPUFilter gpuFilter = this->m_filter->getCommonStructsGPUFilter();
+        this->m_context["sysGPUFilter"]->setUserData(sizeof(CommonStructs::GPUFilter), &gpuFilter);
+    }
 
 private:
     Application *m_application;
@@ -239,12 +488,24 @@ private:
     optix::Context                               m_context;
     unsigned int m_filmWidth, m_filmHeight;
 
-	std::vector<std::shared_ptr<Shape>>          m_shapes;
+    std::map<CommonStructs::SamplerType, std::shared_ptr<Sampler>> m_samplersMap;
+    std::map<IntegratorType, std::shared_ptr<Integrator>>          m_integratorsMap;
+    std::map<CommonStructs::FilterType, std::shared_ptr<Filter>>   m_filtersMap;
 
-    std::unique_ptr<Integrator> m_integrator;
-    std::unique_ptr<Sampler>    m_sampler;   // todo:We could only hold one instance
-    std::shared_ptr<Camera>     m_camera;    // todo:We could only hold one instance
+    /// Current used integrator
+    std::shared_ptr<Integrator> m_integrator;
+    /// Current used sampler
+    std::shared_ptr<Sampler>    m_sampler;  
+    /// Current used filter
+    std::shared_ptr<Filter>     m_filter;
+    /// Current camera (only one camera instance is supported)
+    std::shared_ptr<Camera>     m_camera;   
 
-	optix::GeometryGroup  m_topGeometryGroup;
-	optix::Acceleration   m_topAcceleration;
+
+    std::vector<std::shared_ptr<GeometryTrianglesShape>> m_shapes_GeometryTriangles;
+    std::vector<std::shared_ptr<GeometryShape>>          m_shapes_Geometry;
+
+	optix::GeometryGroup  m_topGeometryGroup_GeometryTriangles;
+    optix::GeometryGroup  m_topGeometryGroup_Geometry;
+    optix::Group          m_topGroup;
 };

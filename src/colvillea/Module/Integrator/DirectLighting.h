@@ -23,7 +23,7 @@ public:
         return directLighting;
     }
 
-	DirectLighting(const optix::Context context, const std::map<std::string, optix::Program> &programsMap) : Integrator(context, programsMap, "DirectLighting")
+	DirectLighting(const optix::Context context, const std::map<std::string, optix::Program> &programsMap) : Integrator(context, programsMap, "DirectLighting", IntegratorType::DirectLighting)
 	{
 
 	}

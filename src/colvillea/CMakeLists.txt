@@ -28,13 +28,18 @@
 
 include_directories(${SAMPLES_INCLUDE_DIR})
 
+SET( CMAKE_EXE_LINKER_FLAGS_DEBUG "${CMAKE_EXE_LINKER_FLAGS_DEBUG} /NODEFAULTLIB:\"msvcrt.lib\"" )
+
 set(SOURCE_LIST
     "${CMAKE_CURRENT_SOURCE_DIR}/Application/Application.cpp"
 	"${CMAKE_CURRENT_SOURCE_DIR}/Application/Application.h"
 	"${CMAKE_CURRENT_SOURCE_DIR}/Application/Colvillea.cpp"
 	"${CMAKE_CURRENT_SOURCE_DIR}/Application/GlobalDefs.h"
+	"${CMAKE_CURRENT_SOURCE_DIR}/Application/GlobalDefs.cpp"
 	"${CMAKE_CURRENT_SOURCE_DIR}/Application/SceneGraph.h"
+	"${CMAKE_CURRENT_SOURCE_DIR}/Application/SceneGraph.cpp"
 	"${CMAKE_CURRENT_SOURCE_DIR}/Application/TWAssert.h"
+	"${CMAKE_CURRENT_SOURCE_DIR}/Application/GUIHelper.h"
 	
 	"${CMAKE_CURRENT_SOURCE_DIR}/Device/Camera/PinholeCamera.cu"
 	"${CMAKE_CURRENT_SOURCE_DIR}/Device/Camera/SphericalSkybox.cu"
@@ -53,6 +58,9 @@ set(SOURCE_LIST
 	"${CMAKE_CURRENT_SOURCE_DIR}/Device/Sampler/HaltonSampler_Common.h"
 	"${CMAKE_CURRENT_SOURCE_DIR}/Device/Sampler/Sampler.h"
 	"${CMAKE_CURRENT_SOURCE_DIR}/Device/Sampler/SobolSampler.h"
+
+	"${CMAKE_CURRENT_SOURCE_DIR}/Device/Filter/Filter.h"
+
 	"${CMAKE_CURRENT_SOURCE_DIR}/Device/Shader/Emissive.cu"
 	"${CMAKE_CURRENT_SOURCE_DIR}/Device/Shader/Fresnel.h"
 	"${CMAKE_CURRENT_SOURCE_DIR}/Device/Shader/FrostedMetal.cu"
@@ -77,8 +85,11 @@ set(SOURCE_LIST
 	"${CMAKE_CURRENT_SOURCE_DIR}/Module/Camera/CameraController.h"
 	
 	"${CMAKE_CURRENT_SOURCE_DIR}/Module/Geometry/Quad.h"
+	"${CMAKE_CURRENT_SOURCE_DIR}/Module/Geometry/Quad.cpp"
 	"${CMAKE_CURRENT_SOURCE_DIR}/Module/Geometry/Shape.cpp"
 	"${CMAKE_CURRENT_SOURCE_DIR}/Module/Geometry/Shape.h"
+	"${CMAKE_CURRENT_SOURCE_DIR}/Module/Geometry/GeometryTrianglesShape.h"
+	"${CMAKE_CURRENT_SOURCE_DIR}/Module/Geometry/GeometryShape.h"
 	"${CMAKE_CURRENT_SOURCE_DIR}/Module/Geometry/TriangleMesh.cpp"
 	"${CMAKE_CURRENT_SOURCE_DIR}/Module/Geometry/TriangleMesh.h"
 	
@@ -96,9 +107,12 @@ set(SOURCE_LIST
 	"${CMAKE_CURRENT_SOURCE_DIR}/Module/Light/Light.h"
 	"${CMAKE_CURRENT_SOURCE_DIR}/Module/Light/LightPool.h"
 	"${CMAKE_CURRENT_SOURCE_DIR}/Module/Light/PointLight.h"
+	"${CMAKE_CURRENT_SOURCE_DIR}/Module/Light/PointLight.cpp"
 	"${CMAKE_CURRENT_SOURCE_DIR}/Module/Light/QuadLight.h"
+	"${CMAKE_CURRENT_SOURCE_DIR}/Module/Light/QuadLight.cpp"
 	
 	"${CMAKE_CURRENT_SOURCE_DIR}/Module/Material/MaterialPool.h"
+	"${CMAKE_CURRENT_SOURCE_DIR}/Module/Material/MaterialPool.cpp"
 	
 	"${CMAKE_CURRENT_SOURCE_DIR}/Module/Sampler/HaltonSampler.cpp"
 	"${CMAKE_CURRENT_SOURCE_DIR}/Module/Sampler/HaltonSampler.h"
@@ -107,18 +121,22 @@ set(SOURCE_LIST
 	"${CMAKE_CURRENT_SOURCE_DIR}/Module/Sampler/SobolMatrices.h"
 	"${CMAKE_CURRENT_SOURCE_DIR}/Module/Sampler/SobolSampler.cpp"
 	"${CMAKE_CURRENT_SOURCE_DIR}/Module/Sampler/SobolSampler.h"
+	"${CMAKE_CURRENT_SOURCE_DIR}/Module/Sampler/IndependentSampler.h"
+
+	"${CMAKE_CURRENT_SOURCE_DIR}/Module/Filter/Filter.h"
+	"${CMAKE_CURRENT_SOURCE_DIR}/Module/Filter/BoxFilter.h"
+	"${CMAKE_CURRENT_SOURCE_DIR}/Module/Filter/GaussianFilter.h"
 )
 
 set(SOURCE_LIST_LIB
-    "${CMAKE_CURRENT_SOURCE_DIR}/../gl/glew.c"
-	"${CMAKE_CURRENT_SOURCE_DIR}/../gl/glew.h"
-	"${CMAKE_CURRENT_SOURCE_DIR}/../gl/wglew.h"
-	
 	"${CMAKE_CURRENT_SOURCE_DIR}/../freeImage/FreeImage.h"
 	"${CMAKE_CURRENT_SOURCE_DIR}/../freeImage/FreeImagePlus.h"
 	
 	"${CMAKE_CURRENT_SOURCE_DIR}/../tinyobjloader/tiny_obj_loader.cc"
 	"${CMAKE_CURRENT_SOURCE_DIR}/../tinyobjloader/tiny_obj_loader.h"
+
+	"${CMAKE_CURRENT_SOURCE_DIR}/../tinyfiledialogs/tinyfiledialogs.c"
+	"${CMAKE_CURRENT_SOURCE_DIR}/../tinyfiledialogs/tinyfiledialogs.h"
 )
 
 if(OPENGL_FOUND)
@@ -149,8 +167,11 @@ OPTIX_add_sample_executable( colvillea
 	${CMAKE_CURRENT_SOURCE_DIR}/Application/Application.h
 	${CMAKE_CURRENT_SOURCE_DIR}/Application/Colvillea.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/Application/GlobalDefs.h
+	${CMAKE_CURRENT_SOURCE_DIR}/Application/GlobalDefs.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/Application/SceneGraph.h
+	${CMAKE_CURRENT_SOURCE_DIR}/Application/SceneGraph.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/Application/TWAssert.h
+	${CMAKE_CURRENT_SOURCE_DIR}/Application/GUIHelper.h
 	
 	${CMAKE_CURRENT_SOURCE_DIR}/Device/Camera/PinholeCamera.cu
 	${CMAKE_CURRENT_SOURCE_DIR}/Device/Camera/SphericalSkybox.cu
@@ -169,6 +190,9 @@ OPTIX_add_sample_executable( colvillea
 	${CMAKE_CURRENT_SOURCE_DIR}/Device/Sampler/HaltonSampler_Common.h
 	${CMAKE_CURRENT_SOURCE_DIR}/Device/Sampler/Sampler.h
 	${CMAKE_CURRENT_SOURCE_DIR}/Device/Sampler/SobolSampler.h
+	
+	${CMAKE_CURRENT_SOURCE_DIR}/Device/Filter/Filter.h
+
 	${CMAKE_CURRENT_SOURCE_DIR}/Device/Shader/Emissive.cu
 	${CMAKE_CURRENT_SOURCE_DIR}/Device/Shader/Fresnel.h
 	${CMAKE_CURRENT_SOURCE_DIR}/Device/Shader/FrostedMetal.cu
@@ -193,8 +217,11 @@ OPTIX_add_sample_executable( colvillea
 	${CMAKE_CURRENT_SOURCE_DIR}/Module/Camera/CameraController.h
 	
 	${CMAKE_CURRENT_SOURCE_DIR}/Module/Geometry/Quad.h
+	${CMAKE_CURRENT_SOURCE_DIR}/Module/Geometry/Quad.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/Module/Geometry/Shape.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/Module/Geometry/Shape.h
+	${CMAKE_CURRENT_SOURCE_DIR}/Module/Geometry/GeometryTrianglesShape.h
+	${CMAKE_CURRENT_SOURCE_DIR}/Module/Geometry/GeometryShape.h
 	${CMAKE_CURRENT_SOURCE_DIR}/Module/Geometry/TriangleMesh.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/Module/Geometry/TriangleMesh.h
 	
@@ -213,8 +240,11 @@ OPTIX_add_sample_executable( colvillea
 	${CMAKE_CURRENT_SOURCE_DIR}/Module/Light/LightPool.h
 	${CMAKE_CURRENT_SOURCE_DIR}/Module/Light/PointLight.h
 	${CMAKE_CURRENT_SOURCE_DIR}/Module/Light/QuadLight.h
+	${CMAKE_CURRENT_SOURCE_DIR}/Module/Light/PointLight.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/Module/Light/QuadLight.cpp
 	
 	${CMAKE_CURRENT_SOURCE_DIR}/Module/Material/MaterialPool.h
+	${CMAKE_CURRENT_SOURCE_DIR}/Module/Material/MaterialPool.cpp
 	
 	${CMAKE_CURRENT_SOURCE_DIR}/Module/Sampler/HaltonSampler.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/Module/Sampler/HaltonSampler.h
@@ -223,15 +253,20 @@ OPTIX_add_sample_executable( colvillea
 	${CMAKE_CURRENT_SOURCE_DIR}/Module/Sampler/SobolMatrices.h
 	${CMAKE_CURRENT_SOURCE_DIR}/Module/Sampler/SobolSampler.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/Module/Sampler/SobolSampler.h
+	${CMAKE_CURRENT_SOURCE_DIR}/Module/Sampler/IndependentSampler.h
 
-	${CMAKE_CURRENT_SOURCE_DIR}/../gl/glew.c
-	${CMAKE_CURRENT_SOURCE_DIR}/../gl/glew.h
-	${CMAKE_CURRENT_SOURCE_DIR}/../gl/wglew.h
-	
+	${CMAKE_CURRENT_SOURCE_DIR}/Module/Filter/Filter.h
+	${CMAKE_CURRENT_SOURCE_DIR}/Module/Filter/BoxFilter.h
+	${CMAKE_CURRENT_SOURCE_DIR}/Module/Filter/GaussianFilter.h
+
 	${CMAKE_CURRENT_SOURCE_DIR}/../freeImage/FreeImage.h
 	${CMAKE_CURRENT_SOURCE_DIR}/../freeImage/FreeImagePlus.h
 	
 	${CMAKE_CURRENT_SOURCE_DIR}/../tinyobjloader/tiny_obj_loader.cc
 	${CMAKE_CURRENT_SOURCE_DIR}/../tinyobjloader/tiny_obj_loader.h
+
+	${CMAKE_CURRENT_SOURCE_DIR}/../tinyfiledialogs/tinyfiledialogs.c
+	${CMAKE_CURRENT_SOURCE_DIR}/../tinyfiledialogs/tinyfiledialogs.h
+
     )
 

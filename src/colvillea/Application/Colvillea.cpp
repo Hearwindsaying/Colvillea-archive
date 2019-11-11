@@ -1,13 +1,10 @@
+#include <iostream>
+#include <locale>
+#include <string>
+
 #include <imgui/imgui.h>
-#include <imgui/imgui_impl_glfw_gl2.h> 
-
-
-#include <GL/glew.h>
-#if defined( _WIN32 )
-#include <GL/wglew.h>
-#endif
-
-#include <GLFW/glfw3.h>
+#include <imgui/imgui_impl_glfw.h>
+#include <imgui/imgui_impl_opengl3.h>
 
 #include "colvillea/Application/Application.h"
 #include "colvillea/Device/Toolkit/CommonStructs.h"
@@ -15,92 +12,152 @@
 #include "colvillea/Module/Light/LightPool.h"
 #include "colvillea/Application/SceneGraph.h"
 
-#include <iostream>
-#include <locale>
-#include <string>
+// About Desktop OpenGL function loaders:
+//  Modern desktop OpenGL doesn't have a standard portable header file to load OpenGL function pointers.
+//  Helper libraries are often used for this purpose! We use glew here.
+
+#include <gl/glew.h>
+
+// Include glfw3.h after our OpenGL definitions
+#include <GLFW/glfw3.h>
+
+
 
 using namespace optix;
 
 /* Create Cornellbox. */
-void create_CornellBoxScene(std::shared_ptr<SceneGraph> &sceneGraph, std::unique_ptr<LightPool> &lightPool, std::unique_ptr<Application> &application, std::unique_ptr<MaterialPool> &materialPool, const std::string & basePath)
+void create_CornellBoxScene(std::shared_ptr<SceneGraph> &sceneGraph, std::shared_ptr<LightPool> &lightPool, std::unique_ptr<Application> &application, std::shared_ptr<MaterialPool> &materialPool, const std::string & basePath)
 {
-    /* Create integator. */
-
-    /* For finding a better position to look at CornellBox. */
-    //lightPool->createHDRILight(basePath + "HDRI\\uffizi-large.hdr", Matrix4x4::identity());
-
-    sceneGraph->createDirectLightingIntegrator();
-    //sceneGraph->createPathTracingIntegrator(true, 5);
-
-    /* Create sampler. */
-    sceneGraph->createSampler(CommonStructs::SamplerType::HaltonQMCSampler);// define USE_HALTON_SAMPLER to enable Halton
-
     /* Create triangle mesh. */
-    sceneGraph->createTriangleMesh(
-        basePath + "Cornell\\green.obj",
-        materialPool->createLambertMaterial(optix::make_float4(0.63f, 0.065f, 0.05f, 1.f)));
+    std::shared_ptr<BSDF> lamBSDF;
+    int lamIdx = materialPool->createLambertMaterial(optix::make_float4(0.63f, 0.065f, 0.05f, 1.f), lamBSDF);
     sceneGraph->createTriangleMesh(
         basePath + "Cornell\\red.obj",
-        materialPool->createLambertMaterial(optix::make_float4(0.14f, 0.45f, 0.091f, 1.f)));
+        lamIdx, lamBSDF);
+
+    std::shared_ptr<BSDF> lamBSDF_green;
+    int lamIdx_green = materialPool->createLambertMaterial(optix::make_float4(0.14f, 0.45f, 0.091f, 1.f), lamBSDF_green);
+    sceneGraph->createTriangleMesh(
+        basePath + "Cornell\\green.obj",
+        lamIdx_green, lamBSDF_green);
+
+    std::shared_ptr<BSDF> lamBSDF_grey;
+    int lamIdx_grey = materialPool->createLambertMaterial(optix::make_float4(0.725f, 0.71f, 0.68f, 1.f), lamBSDF_grey);
     sceneGraph->createTriangleMesh(
         basePath + "Cornell\\grey.obj",
-        materialPool->createLambertMaterial(optix::make_float4(0.725f, 0.71f, 0.68f, 1.f)));
+        lamIdx_grey, lamBSDF_grey);
 
     /* Create light. */
+    std::shared_ptr<BSDF> emissiveBSDF;
+    int emissiveIdx = materialPool->getEmissiveMaterial(emissiveBSDF);
     lightPool->createQuadLight(
-         Matrix4x4::translate(make_float3(0.f, 0.f, 11.7f)) * 
-         Matrix4x4::scale(make_float3(3.25f, 2.625f, 1.f)),
-        make_float3(17.f, 12.f, 4.f), materialPool->createEmissiveMaterial(), true);
+         make_float3(0.f, 0.f, 11.7f), make_float3(0.f),
+         make_float3(3.25f, 2.625f, 1.f),
+        make_float3(17.f, 12.f, 4.f)/17.f, 17.f, emissiveIdx, emissiveBSDF, true);
 }
 
 /* Create test scene. */
-void create_TestScene(std::shared_ptr<SceneGraph> &sceneGraph, std::unique_ptr<LightPool> &lightPool, std::unique_ptr<Application> &application, std::unique_ptr<MaterialPool> &materialPool, const std::string & basePath)
+void create_TestScene(std::shared_ptr<SceneGraph> &sceneGraph, std::shared_ptr<LightPool> &lightPool, std::unique_ptr<Application> &application, std::shared_ptr<MaterialPool> &materialPool, const std::string & basePath)
 {
-    sceneGraph->createDirectLightingIntegrator();
-    //sceneGraph->createPathTracingIntegrator(true, 5);
-    lightPool->createHDRILight(basePath + "HDRI\\uffizi-large.hdr", Matrix4x4::identity());
-    sceneGraph->createSampler(CommonStructs::SamplerType::SobolQMCSampler);// todo:ifdef USE_HALTON_SAMPLER to enable Halton
+    lightPool->createHDRILight(basePath + "HDRI\\uffizi-large.hdr", optix::make_float3(0.f,0.f,0.f));
+    sceneGraph->createSampler(CommonStructs::SamplerType::IndependentSampler);// todo:ifdef USE_HALTON_SAMPLER to enable Halton
 
-    /* TriangleMesh is created with the help of MaterialPool. */
-    //std::unique_ptr<MaterialPool> materialPool = std::make_unique<MaterialPool>(application->getProgramsMap(), application->getContext());
+    std::shared_ptr<BSDF> roughmetal_bsdf;
+    int roughmetalIdx = materialPool->createRoughMetalMaterial(roughmetal_bsdf, 0.01f, make_float4(1.66f, 0.95151f, 0.7115f, 0.f), make_float4(8.0406f, 6.3585f, 5.1380f, 0.f));
+    auto quadShapeB = sceneGraph->createQuad(sceneGraph.get(),
+        roughmetalIdx,
+        make_float3(0.f),make_float3(0.f),make_float3(1.f,1.f,1.f), roughmetal_bsdf);
 
-    //sceneGraph->createTriangleMesh(
-    //    "D:\\Project\\Twilight\\GraphicsRes\\Colvillea\\sofa.obj", 
-    //    materialPool->createLambertMaterial(optix::make_float4(.8f)));
-
-    //auto quadShape = sceneGraph->createQuad(
-    //    materialPool->createRoughMetalMaterial(0.03f, make_float4(1.66f,0.95151f,0.7115f,0.f), make_float4(8.0406f,6.3585f,5.1380f,0.f)), 
-    //    /*materialPool->createLambertMaterial(optix::make_float4(0.8f)),*/
-    //       /*Matrix4x4::translate(make_float3(0.f,0.f,4.f)) * */Matrix4x4::rotate(TwUtil::deg2rad(45.f), make_float3(1.f,0.f,0.f)));
-    //quadShape->flipGeometryNormal();
-
-    auto quadShapeB = sceneGraph->createQuad(
-        materialPool->createRoughMetalMaterial(0.03f, make_float4(1.66f, 0.95151f, 0.7115f, 0.f), make_float4(8.0406f, 6.3585f, 5.1380f, 0.f)),
-        /*materialPool->createLambertMaterial(optix::make_float4(0.8f)),*/
-        Matrix4x4::identity());
-    //quadShapeB->flipGeometryNormal();
-
-    //sceneGraph->createTriangleMesh("D:\\Project\\Twilight\\GraphicsRes\\Colvillea\\roughmetal.obj",
-    //    materialPool->createRoughMetalMaterial(0.03f, make_float4(1.66f, 0.95151f, 0.7115f, 0.f), 
-    //    make_float4(8.0406f, 6.3585f, 5.1380f, 0.f)));
-    //sceneGraph->createTriangleMesh("D:\\Project\\Twilight\\GraphicsRes\\Colvillea\\sphere.obj", 
-    //    /*materialPool->createRoughMetalMaterial(0.03f, make_float4(1.66f, 0.95151f, 0.7115f, 0.f), make_float4(8.0406f, 6.3585f, 5.1380f, 0.f))*/
-    //    materialPool->createLambertMaterial(optix::make_float4(0.8f))
-    //    /*materialPool->createSmoothGlassMaterial(1.46f)*/);
-    int emissiveMaterial = materialPool->createEmissiveMaterial();
-
+    std::shared_ptr<BSDF> emissiveBSDF;
+    int emissiveIdx = materialPool->getEmissiveMaterial(emissiveBSDF);
     lightPool->createQuadLight(
-        Matrix4x4::translate(make_float3(-0.5f, 0.f, 1.5f))
-        /**Matrix4x4::scale(make_float3(0.5f,0.5f,1.f))
-        *Matrix4x4::rotate(TwUtil::deg2rad(-45.f), make_float3(1.f, 0.f, 0.f))*/,
-        make_float3(4.f, 0.f, 0.f), emissiveMaterial, true);
-    lightPool->createQuadLight(
-        Matrix4x4::translate(make_float3(0.5f, 0.f, 1.5f))
-        /**Matrix4x4::scale(make_float3(0.5f, 0.5f, 1.f))
-        *Matrix4x4::rotate(TwUtil::deg2rad(45.f), make_float3(1.f, 0.f, 0.f))*/,
-        make_float3(0.f, 0.f, 4.f), emissiveMaterial, true);
+        (make_float3(-0.5f, 0.f, 1.5f)),make_float3(0.f),make_float3(0.5f,0.5f,1.f),
+        make_float3(1.f, 0.f, 0.f), 4.0f, emissiveIdx, emissiveBSDF, true);
+    /*lightPool->createQuadLight(
+        (make_float3(0.5f, 0.f, 1.5f)), make_float3(0.f), make_float3(0.5f, 0.5f, 1.f),
+        make_float3(0.f, 0.f, 1.f), 4.0f, emissiveIdx, emissiveBSDF, true);*/
 }
 
+/* Create Dining Room scene. */
+void create_DiningRoom(std::shared_ptr<SceneGraph> &sceneGraph, std::shared_ptr<LightPool> &lightPool, std::unique_ptr<Application> &application, std::shared_ptr<MaterialPool> &materialPool, const std::string & basePath)
+{
+    /* Specify Integrator. */
+    //sceneGraph->changeIntegrator(IntegratorType::PathTracing);
+    /* Create HDRProbe. */
+    lightPool->createHDRILight(basePath + "Dining-room\\textures\\Skydome.hdr", optix::make_float3(0.f, 0.f, 0.f));
+
+    /* Create Sampler. */
+    sceneGraph->createSampler(CommonStructs::SamplerType::IndependentSampler);
+
+    /* Create BSDFs and Triangle Meshes. */
+    std::shared_ptr<BSDF> whiteplastic;
+    int whiteplasticId = materialPool->createPlasticMaterial(0.1f, 1.5f, make_float4(1.0f), make_float4(0.04f), whiteplastic);
+    sceneGraph->createTriangleMesh(basePath + "Dining-room\\models\\whiteplastic.obj", whiteplasticId, whiteplastic);
+
+    std::shared_ptr<BSDF> chrome;
+    int chromeId = materialPool->createRoughMetalMaterial(chrome, 0.05f, make_float4(4.369683, 2.916703, 1.654701, 0.0f), make_float4(5.206434, 4.231365, 3.754947, 0.0f));
+    sceneGraph->createTriangleMesh(basePath + "Dining-room\\models\\chrome.obj", chromeId, chrome);
+
+    std::shared_ptr<BSDF> blackrubber;
+    int blackrubberId = materialPool->createPlasticMaterial(0.1f, 1.5f, make_float4(0.05f), make_float4(0.04f), blackrubber);
+    sceneGraph->createTriangleMesh(basePath + "Dining-room\\models\\blackrubber.obj", blackrubberId, blackrubber);
+
+    std::shared_ptr<BSDF> walls;
+    int wallsId = materialPool->createLambertMaterial(make_float4(0.2f), walls);
+    sceneGraph->createTriangleMesh(basePath + "Dining-room\\models\\walls.obj", wallsId, walls);
+
+    std::shared_ptr<BSDF> artwork;
+    int artworkId = materialPool->createLambertMaterial(basePath + "Dining-room\\textures\\picture3.tga", artwork);
+    sceneGraph->createTriangleMesh(basePath + "Dining-room\\models\\artwork.obj", artworkId, artwork);
+
+    std::shared_ptr<BSDF> none;
+    int noneId = materialPool->createLambertMaterial(make_float4(0.0f), none);
+    sceneGraph->createTriangleMesh(basePath + "Dining-room\\models\\none.obj", noneId, none);
+
+    std::shared_ptr<BSDF> floortiles;
+    int floortilesId = materialPool->createLambertMaterial(basePath + "Dining-room\\textures\\tiles.tga", floortiles);
+    sceneGraph->createTriangleMesh(basePath + "Dining-room\\models\\floortiles.obj", floortilesId, floortiles);
+
+    std::shared_ptr<BSDF> blackpaint;
+    int blackpaintId = materialPool->createPlasticMaterial(0.2f, 1.5f, make_float4(0.01f), make_float4(0.04f), blackpaint);
+    sceneGraph->createTriangleMesh(basePath + "Dining-room\\models\\blackpaint.obj", blackpaintId, blackpaint);
+
+    std::shared_ptr<BSDF> whitemarble;
+    int whitemarbleId = materialPool->createLambertMaterial(make_float4(0.325037f), whitemarble);
+    sceneGraph->createTriangleMesh(basePath + "Dining-room\\models\\whitemarble.obj", whitemarbleId, whitemarble);
+
+    std::shared_ptr<BSDF> gold;
+    int goldId = materialPool->createRoughMetalMaterial(gold, 0.1f, make_float4(0.143119, 0.374957, 1.442479, 0.0f), make_float4(3.983160, 2.385721, 1.603215, 0.0f));
+    sceneGraph->createTriangleMesh(basePath + "Dining-room\\models\\gold.obj", goldId, gold);
+
+    std::shared_ptr<BSDF> ceramic;
+    int ceramicId = materialPool->createPlasticMaterial(0.01f, 1.5f, make_float4(1.0f), make_float4(0.04f), ceramic);
+    sceneGraph->createTriangleMesh(basePath + "Dining-room\\models\\ceramic.obj", ceramicId, ceramic);
+
+    std::shared_ptr<BSDF> roughmetal;
+    int roughmetalId = materialPool->createRoughMetalMaterial(roughmetal, 0.1f, make_float4(1.657460, 0.880369, 0.521229, 0.0f), make_float4(9.223869, 6.269523, 4.837001, 0.0f));
+    sceneGraph->createTriangleMesh(basePath + "Dining-room\\models\\roughmetal.obj", roughmetalId, roughmetal);
+
+    std::shared_ptr<BSDF> paintedceramic;
+    int paintedceramicId = materialPool->createPlasticMaterial(0.01f, 1.5f, basePath + "Dining-room\\textures\\teacup.tga", make_float4(0.04f), paintedceramic);
+    sceneGraph->createTriangleMesh(basePath + "Dining-room\\models\\paintedceramic.obj", paintedceramicId, paintedceramic);
+
+    std::shared_ptr<BSDF> skirtwood;
+    int skirtwoodId = materialPool->createPlasticMaterial(0.01f, 1.5f, make_float4(0.684615f), make_float4(0.04f), skirtwood);
+    sceneGraph->createTriangleMesh(basePath + "Dining-room\\models\\skirtwood.obj", skirtwoodId, skirtwood);
+
+    std::shared_ptr<BSDF> frostedglass;
+    int frostedglassId = materialPool->createPlasticMaterial(0.01f, 1.5f, make_float4(0.793110f), make_float4(0.04f), frostedglass);
+    sceneGraph->createTriangleMesh(basePath + "Dining-room\\models\\frostedglass.obj", frostedglassId, frostedglass);
+
+    /* Create light. */
+    std::shared_ptr<BSDF> emissiveBSDF;
+    int emissiveIdx = materialPool->getEmissiveMaterial(emissiveBSDF);
+    lightPool->createQuadLight(
+        make_float3(1.0f, 0.0f, 7.0f), make_float3(0.f),
+        make_float3(3.0f, 3.0f, 1.f),
+        make_float3(1.f, 1.f, 1.f), 18.f, emissiveIdx, emissiveBSDF, true);
+}
 
 
 int main(int argc, char *argv[])
@@ -131,6 +188,8 @@ int main(int argc, char *argv[])
     }
 
     glfwMakeContextCurrent(glfwWindow);
+    /* Disable vsync. */
+    glfwSwapInterval(0);
 
     if (glewInit() != GL_NO_ERROR)
     {
@@ -151,51 +210,84 @@ int main(int argc, char *argv[])
     };
 
     const std::string examplesBasePath = getExampleDirectoryPath();
-
     
+
     /* Create scene. */ 
 
     /* Parameters shared by camera and application. */
-    //const uint32_t filmWidth = 1280, filmHeight = 720;
-    const uint32_t filmWidth = 1024, filmHeight = 1024;
-    const float fov = 60.f;
+    const uint32_t filmWidth = 1280, filmHeight = 720;
+    //const uint32_t filmWidth = 1024, filmHeight = 1024;
+    /*const float fov = 60.f;*/
+    const float fov = 45.f;
 
     /* Create application instance first.*/
-    std::unique_ptr<Application> application = std::make_unique<Application>(glfwWindow, filmWidth, filmHeight, 0, 1200);
+    std::unique_ptr<Application> application = std::make_unique<Application>(glfwWindow, filmWidth, filmHeight, 0);
 
     /* Create sceneGraph instance. */
     std::shared_ptr<SceneGraph> sceneGraph = std::make_unique<SceneGraph>(application.get(), application->getProgramsMap(), application->getContext(), filmWidth, filmHeight);
 
     /* Create materialPool instance. */
-    std::unique_ptr<MaterialPool> materialPool = std::make_unique<MaterialPool>(application->getProgramsMap(), application->getContext());
+    std::shared_ptr<MaterialPool> materialPool = MaterialPool::createMaterialPool(application.get(), application->getProgramsMap(), application->getContext());
 
     /* Create lightPool instance. */
-    std::unique_ptr<LightPool> lightPool = std::make_unique<LightPool>(application.get(), application->getProgramsMap(), application->getContext(), sceneGraph);
+    std::shared_ptr<LightPool> lightPool = LightPool::createLightPool(application.get(), application->getProgramsMap(), application->getContext(), sceneGraph);
+
 
     /* Create scene using sceneGraph::createXXX methods. */
     sceneGraph->createCamera(Matrix4x4::identity(), fov, filmWidth, filmHeight);
-    create_CornellBoxScene(sceneGraph, lightPool, application, materialPool, examplesBasePath); /* left scene configurations are created... */
+    //create_CornellBoxScene(sceneGraph, lightPool, application, materialPool, examplesBasePath); /* left scene configurations are created... */
     //create_TestScene(sceneGraph, lightPool, application, materialPool, examplesBasePath);
+    create_DiningRoom(sceneGraph, lightPool, application, materialPool, examplesBasePath);
 
     /* Finally initialize scene and prepare for launch. */
     application->buildSceneGraph(sceneGraph);
 
     /* Main loop for Colvillea. */
+    ImGuiIO& io = ImGui::GetIO();
     while (!glfwWindowShouldClose(glfwWindow))
     {
+        // Poll and handle events (inputs, window resize, etc.)
         glfwPollEvents();
 
-        ImGui_ImplGlfwGL2_NewFrame();
+        // Start the Dear ImGui frame
+        ImGui_ImplOpenGL3_NewFrame();
+        ImGui_ImplGlfw_NewFrame();
+        ImGui::NewFrame();
 
+        /* Draw ImGui widgets. */
         application->drawWidget();
+
+        /* Launch renderer. */
         application->render();
 
+        /* Launch ImGui rendering. */
         ImGui::Render();
-        ImGui_ImplGlfwGL2_RenderDrawData(ImGui::GetDrawData());
+        int display_w, display_h;
+        glfwGetFramebufferSize(glfwWindow, &display_w, &display_h);
+        glViewport(0, 0, display_w, display_h);
+        //glClearColor(0.45f, 0.55f, 0.60f, 1.0f);
+        glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT);
+        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+
+        /* Update and Render additional Platform Windows. */
+        if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
+        {
+            GLFWwindow* backup_current_context = glfwGetCurrentContext();
+            ImGui::UpdatePlatformWindows();
+            ImGui::RenderPlatformWindowsDefault();
+            glfwMakeContextCurrent(backup_current_context);
+        }
 
         glfwSwapBuffers(glfwWindow);
     }
 
+    /* Destroy OpenGL objects. */
+    ImGui_ImplOpenGL3_Shutdown();
+    ImGui_ImplGlfw_Shutdown();
+    ImGui::DestroyContext();
+
+    glfwDestroyWindow(glfwWindow);
     glfwTerminate();
 
     _CrtDumpMemoryLeaks();

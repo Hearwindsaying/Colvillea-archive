@@ -7,6 +7,7 @@
 #include <map>
 
 #include "colvillea/Application/TWAssert.h"
+#include "colvillea/Application/GlobalDefs.h"
 
 
 
@@ -16,36 +17,29 @@
  * provide fundamental function to prepare geometry for
  * rendering on GPU.
  */
-class Shape
+class Shape : public IEditableObject
 {
 public:
 	/**
 	 * @brief constructor for Shape class, collect all necessary
 	 * parameters to initialize and set up GeometryInstance.
 	 */
-	Shape(optix::Context context, const std::map<std::string, optix::Program> &programsMap, const std::string &shapeClassName, optix::Material integrator, const int materialIndex) : 
-        m_context(context), m_programsMap(programsMap), m_primitiveCount(-1), 
-        m_materialIndex(materialIndex), m_integrator(integrator)
+    Shape(optix::Context context, const std::map<std::string, optix::Program> &programsMap, optix::Material integrator, const int materialIndex, const std::string &shapeObjectName, IEditableObject::IEditableObjectType objectType) :
+        IEditableObject(shapeObjectName, objectType),
+        m_context(context), m_programsMap(programsMap), 
+        m_materialIndex(materialIndex), m_integrator(integrator), m_primitiveCount(-1)
 	{
-		std::cout << "[Info] Derived class name from Shape is: " << shapeClassName << std::endl;
-
-		/* Load boundingbox and intersection program */
-        // todo:delegate to loadShape(), if not, it's not possible to construct Shape object at the moment!
-		auto programItr = this->m_programsMap.find("BoundingBox_" + shapeClassName);
-		TW_ASSERT(programItr != this->m_programsMap.end());
-		this->m_boundingBoxProgram = programItr->second;
-
-		programItr = this->m_programsMap.find("Intersect_" + shapeClassName);
-		TW_ASSERT(programItr != this->m_programsMap.end());
-		this->m_intersectionProgram = programItr->second;
+		
 	}
 
 	/**
 	 * @brief Setup shape properties and prepare for SceneGraph.
-	 * @param integrator material node for specifying an integrator
-	 * @param materialIndex index of material parameter stack
 	 */
     virtual void initializeShape() = 0;
+
+    /************************************************************************/
+    /*                         Getters & Setters                            */
+    /************************************************************************/
 
 	/**
 	 * @brief materialIndex setter
@@ -71,7 +65,7 @@ public:
 	 * qualifier is a hint that it should not be 
 	 * modified other place.
 	 */
-	const optix::GeometryInstance getGeometryInstance() const
+	optix::GeometryInstance getGeometryInstance() const
 	{
 		return this->m_geometryInstance;
 	}
@@ -81,41 +75,38 @@ public:
         throw std::runtime_error("Derived shape class method getSurfaceArea() not implemented!");
     }
 
-	/**
-	 * @brief flip computed geometry normal(nGeometry) in Intersect()
-	 * @note need to review, |reverseOrientation| is binded to geometry
-	 * instance such that we could have multiple instance of the same
-	 * geometry with various |reverseOrientation|.
-	 */
-	void flipGeometryNormal()
-	{
-		TW_ASSERT(this->m_geometryInstance);
-
-		this->m_geometryInstance["reverseOrientation"]->setInt(1);
-	}
-
     /**
-     * @brief is current geometry instance's normal flipped?
-     * @return 0 for not flipped, 1 for flipped normal.
+     * @brief Change Integrator type after setting up GeometryInstance.
+     * @note It's named as "change" prefix because it should not be used
+     * during initialization.
+     * @param[in] integratorMaterial  Expected integrator to use
+     * @todo change "change" prefix to "set" which supports both initialization
+     * and later GUI interaction.
      */
-    //[[nodiscard]]
-    int isFlippedGeometryNormal()/* const*/
+    void changeIntegrator(optix::Material integratorMaterial)
     {
-        TW_ASSERT(this->m_geometryInstance);
-
-        return this->m_geometryInstance["reverseOrientation"]->getInt();
+        this->m_integrator = integratorMaterial;
+        this->m_geometryInstance->setMaterial(0, this->m_integrator);
     }
 
-
 protected:
+    /************************************************************************/
+    /*              Helper functions for initialization                     */
+    /************************************************************************/
+
 	/**
 	 * @brief Setup geometry for the shape, including creating
 	 * geometry node, setting bounding box program and intersect
 	 * program, setting appropriate parameters, etc.
 	 *
-	 * This is a part of Shape::loadShape().
+	 * This is a part of Shape::initializeShape().
+	 * 
+	 * @note This is designed to be virtual (a interface) which
+	 * needs further information of the shape's underlying geometry
+	 * type (whether it is GeometryTriangles or Geometry) for
+	 * implementation.
 	 */
-	virtual void setupGeometry();
+    virtual void setupGeometry() = 0;
 
 	/**
 	 * @brief Setup geometryInstance for the shape, including
@@ -133,12 +124,19 @@ protected:
 	 *
 	 * Fetch |m_integrator| program from SceneGraph
 	 *
-	 * This is a part of Shape::loadShape().
+	 * This is a part of Shape::initializeShape().
+	 * 
+     * @note This is designed to be virtual (a interface) which
+     * needs further information of the shape's underlying geometry
+     * type (whether it is GeometryTriangles or Geometry) for
+     * implementation.
 	 */
-	virtual void setupGeometryInstance(optix::Material integrator);
+    virtual void setupGeometryInstance(optix::Material integrator) = 0;
 
 private:
-	
+    /************************************************************************/
+    /*                             Inner Setters                            */
+    /************************************************************************/
 
 	/**
 	 * @brief Setup material parameter by |m_materialIndex|.
@@ -146,7 +144,7 @@ private:
 	 * a variable setting to GeometryInstance node will be
 	 * used instead.
 	 *
-	 * This is a part of Shape::loadShape() and setter
+	 * This is a part of Shape::initializeShape() and setter
 	 * for updating material parameters as well.
 	 */
 	void updateMaterialParameter()
@@ -156,19 +154,19 @@ private:
 		this->m_geometryInstance["materialIndex"]->setInt(this->m_materialIndex);
 	}
 
-
-	
-
 protected:
     optix::Context m_context;
     const std::map<std::string, optix::Program> &m_programsMap;
 
+    /// The holding underlying geometry could be GeometryTriangles or Geometry.
 	optix::GeometryInstance m_geometryInstance;
-	optix::Geometry         m_geometry;
-	optix::Program          m_boundingBoxProgram;
-	optix::Program          m_intersectionProgram;
-	unsigned int            m_primitiveCount;
+	
+    /// Count of the shape.
+    unsigned int    m_primitiveCount;
 
+    /// Integrator for the shape.
     optix::Material m_integrator;
+
+    /// Material index to |materialBuffer|.
 	int             m_materialIndex;
 };

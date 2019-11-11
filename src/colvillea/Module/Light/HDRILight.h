@@ -25,43 +25,98 @@ public:
      * @param[in] context
      * @param[in] programsMap  map to store Programs
      * @param[in] hdriFilename HDRI filename
-     * @param[in] lightToWorld
+     * @param[in] rotation     rotation radian angles in X,Y,Z
      */
-    static std::unique_ptr<HDRILight> createHDRILight(Application *application, optix::Context context, const std::map<std::string, optix::Program> &programsMap, const std::string & hdriFilename, const optix::Matrix4x4 &lightToWorld, /*std::shared_ptr<LightPool>*/LightPool * lightPool)
+    static std::unique_ptr<HDRILight> createHDRILight(Application *application, optix::Context context, const std::map<std::string, optix::Program> &programsMap, const std::string & hdriFilename, const optix::float3 &rotation, /*std::shared_ptr<LightPool>*/LightPool * lightPool)
     {
-        std::unique_ptr<HDRILight> hdriLight = std::make_unique<HDRILight>(application, context, programsMap, hdriFilename, lightPool);
-        hdriLight->initializeLight(lightToWorld);
+        std::unique_ptr<HDRILight> hdriLight = std::make_unique<HDRILight>(application, context, programsMap, hdriFilename, lightPool, rotation);
+        hdriLight->initializeLight();
         return hdriLight;
     }
 
-    HDRILight(Application *application, optix::Context context, const std::map<std::string, optix::Program> &programsMap, const std::string & hdriFilename, /*std::shared_ptr<LightPool>*/LightPool * lightPool);
-
-    void initializeLight(const optix::Matrix4x4 &lightToWorld) override
+    /**
+     * @brief Factory method for creating a dummy HDRILight instance.
+     */
+    static std::unique_ptr<HDRILight> createHDRILight(Application *application, optix::Context context, const std::map<std::string, optix::Program> &programsMap, LightPool * lightPool)
     {
-        /* Load HDRI texture. */
-        auto context = this->m_context;
-        this->m_HDRITextureSampler = ImageLoader::LoadImageTexture(context, this->m_HDRIFilename, optix::make_float4(0.f));
-
-        /* Create HDRILight Struct for GPU program. */
-
-        /* Check whether transform matrix has scale. */
-        if (TwUtil::hasScale(lightToWorld))
-            std::cerr << "[Warning] HDRILight has scale, which could lead to undefined behavior!" << std::endl;
-        std::cout << "[Info] Scale component for HDRILight is: (" << TwUtil::getXScale(lightToWorld) << "," << TwUtil::getYScale(lightToWorld) << "," << TwUtil::getZScale(lightToWorld) << ")." << std::endl;
-
-        this->m_csHDRILight.lightToWorld = lightToWorld;
-        this->m_csHDRILight.worldToLight = lightToWorld.inverse();
-        this->m_csHDRILight.hdriEnvmap   = this->m_HDRITextureSampler->getId();
-        this->m_csHDRILight.lightType    = CommonStructs::LightType::HDRILight;
-
-        /* HDRILight Struct setup can't be done until finish HDRILight::preprocess(). */
-        /*context["hdriLight"]->setUserData(sizeof(CommonStructs::HDRILight), &this->m_csHDRILight);*/
+       return std::make_unique<HDRILight>(application, context, programsMap, lightPool);
     }
+
+    HDRILight(Application *application, optix::Context context, const std::map<std::string, optix::Program> &programsMap, const std::string & hdriFilename, /*std::shared_ptr<LightPool>*/LightPool * lightPool, const optix::float3 &rotation);
+
+    HDRILight(Application *application, optix::Context context, const std::map<std::string, optix::Program> &programsMap, LightPool * lightPool);
+
+    void initializeLight();
 
     const CommonStructs::HDRILight &getCommonStructsLight() const
     {
         return this->m_csHDRILight;
     }
+
+    /**
+     * @brief Set status of Enable/Disable HDRILight.
+     * @param[in]  enable Enable/Disable HDRILight
+     */
+    void setEnableHDRILight(bool enable);
+    
+    
+    /**
+     * @brief Get status of Enable/Disable HDRILight.
+     * @return enable/disable status
+     */
+    bool getEnableHDRILight() const
+    {
+        return this->m_enable;
+    }
+
+    /**
+     * @brief Setter for |m_rotation|.
+     */
+    void setLightRotation(const optix::float3 &rotation);
+
+    /**
+     * @brief Getter for |m_rotation|.
+     */
+    optix::float3 getLightRotation() const
+    {
+        return this->m_rotationRad;
+    }
+
+    /**
+     * @brief Getter for |m_HDRIFilename|.
+     */
+    std::string getHDRIFilename() const
+    {
+        return this->m_HDRIFilename;
+    }
+
+    /**
+     * @brief Setter for change a HDRIFile.
+     */
+    void setHDRIFilename(const std::string &HDRIFilename)
+    {
+        if (!this->m_HDRITextureSampler)
+        {
+            /* This is a dummy HDRILight. After loading HDRI, the light
+             * -- is enabled automatically. */
+            this->m_enable = true;
+        }
+
+        /* Load HDRI texture. */
+        this->m_HDRIFilename = HDRIFilename;
+        /* todo: Note that this could lead to memory leaking because it's creating rtBuffer 
+         * -- each time we want to change a HDRI file but never call *rtRemove... like function
+         * -- to destroy device buffers (Optixpp might not be a RAII-style wrapper...). */
+        this->m_HDRITextureSampler = ImageLoader::LoadImageTexture(this->m_context, HDRIFilename, optix::make_float4(0.f), false);
+
+        this->m_csHDRILight.hdriEnvmap = this->m_HDRITextureSampler->getId();
+
+        /* HDRILight Struct setup can't be done until finish HDRILight::preprocess(). */
+        this->preprocess();
+
+        std::cout << "[Info] " << "Update HDRI file to " << HDRIFilename << std::endl;
+    }
+    
  
 protected:
     /**
@@ -86,7 +141,15 @@ private:
     /*std::weak_ptr<LightPool>*/LightPool *m_lightPool;
 
     optix::TextureSampler m_HDRITextureSampler;
+    /// HDRI Filename (host only)
     std::string           m_HDRIFilename;
 
-    CommonStructs::HDRILight m_csHDRILight;    // storage for struct data used in GPU programs
+    /// Storage for struct data used in GPU programs
+    CommonStructs::HDRILight m_csHDRILight;    
+
+    /// Record status of Enable/Disable HDRILight (host only)
+    bool m_enable;
+
+    /// Record user-friendly transform elements: Rotation angle in radian (host only)
+    optix::float3 m_rotationRad;
 };

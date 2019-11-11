@@ -13,51 +13,16 @@
 #include "HaltonSampler.h"
 #include "SobolSampler.h"
 
-#if 0
-//todo:use template parameterize [phase] parameter to reduce branch
-enum class Phases :unsigned int
-{
-    RayGeneration,
-    ClosestHit,
-
-    CountOfType
-};
-
-template<typename T>
-static __device__ __inline__ T makeGPUSampler(const CommonStructs::SamplerType &samplerType)
-{
-    switch (samplerType)
-    {
-    case CommonStructs::SamplerType::HaltonQMCSampler:
-        return 
-    default:
-        break;
-    }
-}
-
-template<Phases phase>
-static __device__ __inline__ void makeSampler(const CommonStructs::SamplerType &samplerType);
-
-template<Phases phase=Phases::ClosestHit>
-static __device__ __inline__ Sampler makeSampler(const CommonStructs::SamplerType &samplerType)
-{
-    Sampler localSampler;
-    StartSamplingPreprocess_CHit(localSampler);
-}
-
-template<Phases phase = Phases::RayGeneration>
-static __device__ __inline__ void makeSampler()
-{
-    Sampler localSampler;
-    StartSamplingPreprocess_RayGen(localSampler);
-}
-#endif // 0
-
 #ifndef TWRT_DELCARE_SAMPLERTYPE
 #define TWRT_DELCARE_SAMPLERTYPE
 rtDeclareVariable(int, sysSamplerType, , );         /* Sampler type chosen in GPU program.
                                                        --need to fetch underlying value from
                                                          CommonStructs::SamplerType. */
+#endif
+#ifndef TWRT_DECLARE_SYSLAUNCH
+#define TWRT_DECLARE_SYSLAUNCH
+rtDeclareVariable(uint2, sysLaunch_Dim, rtLaunchDim, );
+rtDeclareVariable(uint2, sysLaunch_index, rtLaunchIndex, );
 #endif
 
 #define USE_HALTON_SAMPLER
@@ -121,13 +86,14 @@ static __device__ __inline__ void makeSampler(CommonStructs::RayTracingPipelineP
     switch (static_cast<CommonStructs::SamplerType>(sysSamplerType))
     { 
 #ifdef USE_HALTON_SAMPLER /* disable Halton sampler for faster JIT compilation. */
-        case CommonStructs::SamplerType::HaltonQMCSampler:
+        /*case CommonStructs::SamplerType::HaltonQMCSampler:
         {
             (phase == RayTracingPipelinePhase::RayGeneration) ? 
                 (StartSamplingPreprocess_RayGen(localSampler.haltonSampler)) :
                 (StartSamplingPreprocess_CHit(localSampler.haltonSampler));  
         }
-        break;
+        break;*/
+        case CommonStructs::SamplerType::HaltonQMCSampler:
 #endif
         case CommonStructs::SamplerType::SobolQMCSampler:
         {
@@ -135,6 +101,21 @@ static __device__ __inline__ void makeSampler(CommonStructs::RayTracingPipelineP
                 (StartSamplingPreprocess_RayGen(localSampler.sobolSampler)) :
                 (StartSamplingPreprocess_CHit(localSampler.sobolSampler));
             
+        }
+        break;
+
+        case CommonStructs::SamplerType::IndependentSampler:
+        {
+            /* Hack: it's assumed that exactly two rng() is invoked in ray_generation program. 
+             *  -- we need to synchronize seed variable in ray_generation with that one in closest_hit program. 
+             *  However, if we add seed to per_ray_data, it would be break our abstract design for Sampler interface.
+             *  Todo: add localSampler to per_ray_data structure. */
+            localSampler.independentSampler.seed = tea<64>(sysLaunch_Dim.x*sysLaunch_index.y + sysLaunch_index.x, sysIterationIndex);
+            if (phase != RayTracingPipelinePhase::RayGeneration)
+            {
+                rnd(localSampler.independentSampler.seed);
+                rnd(localSampler.independentSampler.seed);
+            }
         }
         break;
 
@@ -151,19 +132,25 @@ static __device__ __inline__ optix::float2 Get2D(GPUSampler *localSampler)
     switch (static_cast<CommonStructs::SamplerType>(sysSamplerType))
     {
 #ifdef USE_HALTON_SAMPLER
-        case CommonStructs::SamplerType::HaltonQMCSampler:
+        /*case CommonStructs::SamplerType::HaltonQMCSampler:
         {
             return Get2D_Halton(localSampler->haltonSampler);
-        }
+        }*/
+        case CommonStructs::SamplerType::HaltonQMCSampler:
 #endif        
         case CommonStructs::SamplerType::SobolQMCSampler:
         {
             return Get2D_Sobol(localSampler->sobolSampler); 
         }
+        case CommonStructs::SamplerType::IndependentSampler:
+        {
+            return make_float2(rnd(localSampler->independentSampler.seed), rnd(localSampler->independentSampler.seed));
+        }
 
         default:
         {
             rtPrintf("error in Get2D\n");
+            return make_float2(0.f);
         }
         break;
     }
@@ -175,19 +162,26 @@ static __device__ __inline__ float Get1D(GPUSampler *localSampler)
     switch (static_cast<CommonStructs::SamplerType>(sysSamplerType))
     {
 #ifdef USE_HALTON_SAMPLER
-        case CommonStructs::SamplerType::HaltonQMCSampler:
+        /*case CommonStructs::SamplerType::HaltonQMCSampler:
         {
             return Get1D_Halton(localSampler->haltonSampler);
-        }
+        }*/
+        case CommonStructs::SamplerType::HaltonQMCSampler:
 #endif
         case CommonStructs::SamplerType::SobolQMCSampler:
         {
             return Get1D_Sobol(localSampler->sobolSampler); 
         }
 
+        case CommonStructs::SamplerType::IndependentSampler:
+        {
+            return rnd(localSampler->independentSampler.seed);
+        }
+
         default:
         {
             rtPrintf("error in Get1D\n");
+            return 0.f;
         }
         break;
     }

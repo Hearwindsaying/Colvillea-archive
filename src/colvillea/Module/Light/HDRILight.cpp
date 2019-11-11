@@ -13,12 +13,83 @@
 
 using namespace optix;
 
-HDRILight::HDRILight(Application *application, optix::Context context, const std::map<std::string, optix::Program> &programsMap, const std::string & hdriFilename, /*std::shared_ptr<LightPool>*/LightPool * lightPool) : Light(context, programsMap, "HDRI"), m_HDRIFilename(hdriFilename), m_lightPool(lightPool)
+HDRILight::HDRILight(Application *application, optix::Context context, const std::map<std::string, optix::Program> &programsMap, const std::string & hdriFilename, /*std::shared_ptr<LightPool>*/LightPool * lightPool, const optix::float3 &rotation) : 
+    Light(context, programsMap, "HDRI", "HDRI Probe", IEditableObject::IEditableObjectType::HDRILight), 
+    m_HDRIFilename(hdriFilename), m_lightPool(lightPool), m_enable(true), m_rotationRad(rotation)
 {
     TW_ASSERT(application);
     TW_ASSERT(lightPool);
+    TW_ASSERT(rotation.x >= 0.f && rotation.y >= 0.f && rotation.z >= 0.f);
     application->setPreprocessFunc(std::bind(&HDRILight::preprocess, this));
 }
+
+HDRILight::HDRILight(Application * application, optix::Context context, const std::map<std::string, optix::Program>& programsMap, LightPool * lightPool) : 
+    Light(context, programsMap, "HDRI", "HDRI Probe", IEditableObject::IEditableObjectType::HDRILight),
+    m_HDRIFilename(""), m_lightPool(lightPool), m_enable(false), m_rotationRad(optix::make_float3(0.f,0.f,0.f))
+{
+    TW_ASSERT(application);
+    TW_ASSERT(lightPool);
+
+    this->m_csHDRILight.lightToWorld = optix::Matrix4x4::identity();
+    this->m_csHDRILight.worldToLight = optix::Matrix4x4::identity();
+    this->m_csHDRILight.hdriEnvmap = RT_TEXTURE_ID_NULL;
+    this->m_csHDRILight.lightType = CommonStructs::LightType::HDRILight;
+
+    lightPool->updateCurrentHDRILight(this->m_csHDRILight);
+}
+
+void HDRILight::initializeLight()
+{
+    /* Load HDRI texture. */
+    auto context = this->m_context;
+    this->m_HDRITextureSampler = ImageLoader::LoadImageTexture(context, this->m_HDRIFilename, optix::make_float4(0.f));
+
+    /* Create HDRILight Struct for GPU program. */
+    this->m_csHDRILight.lightToWorld = Matrix4x4::rotate(this->m_rotationRad.x, make_float3(1.f,0.f,0.f)) *
+                                       Matrix4x4::rotate(this->m_rotationRad.y, make_float3(0.f,1.f,0.f)) *
+                                       Matrix4x4::rotate(this->m_rotationRad.z, make_float3(0.f,0.f,1.f));
+    this->m_csHDRILight.worldToLight = this->m_csHDRILight.lightToWorld.inverse();
+    this->m_csHDRILight.hdriEnvmap = this->m_HDRITextureSampler->getId();
+    this->m_csHDRILight.lightType = CommonStructs::LightType::HDRILight;
+
+    /* HDRILight Struct setup can't be done until finish HDRILight::preprocess(). */
+    /*context["hdriLight"]->setUserData(sizeof(CommonStructs::HDRILight), &this->m_csHDRILight);*/
+    this->m_lightPool->updateCurrentHDRILight(this->m_csHDRILight);
+}
+
+void HDRILight::setEnableHDRILight(bool enable)
+{
+    this->m_enable = enable;
+
+    if (!this->m_HDRITextureSampler)
+    {
+        /* This is a dummy HDRILight.*/
+        TW_ASSERT(this->m_csHDRILight.hdriEnvmap == RT_TEXTURE_ID_NULL);
+        std::cout << "[Info] " << (enable ? "Enable" : "Disable") << " HDRI Light. This is a dummy HDRILight. Please try to load a HDRI to enable HDRILight." << std::endl;
+        return;
+    }
+
+    /* Setup device variable to enable/disable HDRILight rendering. */
+    this->m_csHDRILight.hdriEnvmap = enable ? this->m_HDRITextureSampler->getId() : RT_TEXTURE_ID_NULL;
+    this->m_lightPool->updateCurrentHDRILight();
+
+    std::cout << "[Info] " << (enable ? "Enable" : "Disable") << " HDRI Light." << std::endl;
+}
+
+void HDRILight::setLightRotation(const optix::float3 & rotation)
+{
+    TW_ASSERT(rotation.x >= 0.f && rotation.y >= 0.f && rotation.z >= 0.f);
+    this->m_rotationRad = rotation;
+
+    this->m_csHDRILight.lightToWorld = Matrix4x4::rotate(this->m_rotationRad.x, make_float3(1.f,0.f,0.f)) *
+                                       Matrix4x4::rotate(this->m_rotationRad.y, make_float3(0.f,1.f,0.f)) *
+                                       Matrix4x4::rotate(this->m_rotationRad.z, make_float3(0.f,0.f,1.f));
+    this->m_csHDRILight.worldToLight = this->m_csHDRILight.lightToWorld.inverse();
+    this->m_lightPool->updateCurrentHDRILight();
+
+    std::cout << "[Info] " << "Updated HDRILight Transform successfully." << std::endl;
+}
+
 
 
 void HDRILight::preprocess()
@@ -28,13 +99,17 @@ void HDRILight::preprocess()
     /* Setup buffer for prefiltering launch. */
     RTsize HDRIWidth, HDRIHeight;
     this->m_HDRITextureSampler->getBuffer()->getSize(HDRIWidth, HDRIHeight);
-    std::cout << "[Info]Getting HDRIWidth: " << HDRIWidth << " HDRIHeight:" << HDRIHeight << std::endl;
+    std::cout << "[Info] Getting HDRIWidth: " << HDRIWidth << " HDRIHeight:" << HDRIHeight << std::endl;
 
     
     optix::Buffer prefilteringLaunchBuffer = context->createBuffer(RT_BUFFER_OUTPUT, RT_FORMAT_FLOAT, HDRIWidth, HDRIHeight);
     CommonStructs::HDRIEnvmapLuminanceBufferWrapper hdriEnvmapLuminanceBufferWrapper;
     hdriEnvmapLuminanceBufferWrapper.HDRIEnvmapLuminanceBuffer = prefilteringLaunchBuffer->getId();
     context["sysHDRIEnvmapLuminanceBufferWrapper"]->setUserData(sizeof(CommonStructs::HDRIEnvmapLuminanceBufferWrapper), &hdriEnvmapLuminanceBufferWrapper);
+
+    /* Before launching, we need to update sysLightBuffers.hdriLight.hdriEnvmap
+     * -- which will be later used by preprocessing OptiX launch. */
+    this->m_lightPool->updateCurrentHDRILight();
 
     /* Launch prefiltering HDRI. */
     auto currentTime = std::chrono::system_clock::now();
@@ -45,8 +120,18 @@ void HDRILight::preprocess()
     std::chrono::duration<double> diff = end - currentTime;
     std::cout << "[Info]Prefiltering launching time elapsed: " << (diff).count() << std::endl;
 
-    /* Test:write result buffer to image
-      ImageLoader::SaveLuminanceBufferToImage(this->context["hdriEnvmapLuminance"]->getBuffer(), "hdriEnvmapLuminance.exr");*/
+    #if 0
+    {
+        /* Test for writing result buffer to image. */
+        CommonStructs::HDRIEnvmapLuminanceBufferWrapper outWrapper;
+        context["sysHDRIEnvmapLuminanceBufferWrapper"]->getUserData(sizeof(CommonStructs::HDRIEnvmapLuminanceBufferWrapper), &outWrapper);
+        TW_ASSERT(outWrapper.HDRIEnvmapLuminanceBuffer.getId() >= 0 && outWrapper.HDRIEnvmapLuminanceBuffer.getId() != RT_BUFFER_ID_NULL);
+        
+        ImageLoader::SaveLuminanceBufferToImage(
+            context->getBufferFromId(outWrapper.HDRIEnvmapLuminanceBuffer.getId()), 
+            "hdriEnvmapLuminance.exr");
+    }
+    #endif 
 
     /* Compute Distribution data for HDRILight*/ //todo:should be a part of HDRILight
     currentTime = std::chrono::system_clock::now();
@@ -114,7 +199,7 @@ void HDRILight::preprocess()
     /* Setup HDRILight Struct is done by LightPool. */
 //     auto lightPool = this->m_lightPool.lock();
 //     TW_ASSERT(lightPool);
-    this->m_lightPool->setCSHDRILight(this->m_csHDRILight);
+    this->m_lightPool->updateCurrentHDRILight();
 
     /* Do not forget unmapping prefiltering buffer we mapped before! */
     prefilteringLaunchBuffer->unmap();

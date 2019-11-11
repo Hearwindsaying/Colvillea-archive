@@ -5,6 +5,7 @@
 #include "colvillea/Module/Camera/Camera.h"
 #include "colvillea/Application/GlobalDefs.h"
 #include "colvillea/Application/TWAssert.h"
+#include "colvillea/Device/Toolkit/Utility.h"
 
 #include <optixu_math_namespace.h>
 
@@ -40,11 +41,8 @@ private:
         float trackSpeed;
         float minimumRadialDistance = 1e-4f;
 
-        // Mark dirty and needed to be updated
-        bool isChanged; // todo:delete this
-
     public:
-        CameraInfo() : isChanged(true), //todo:review
+        CameraInfo() : 
             basePosition(optix::make_int2(0,0)), deltaValue(optix::make_int2(0,0)),
             phi(.88f), theta(.64f), trackSpeed(25.f), radialDistance(5.f)
         {
@@ -94,7 +92,40 @@ public:
         this->updateCameraInfo();
     }
 
+    CameraInfo getCameraInfo() const
+    {
+        return this->m_cameraInfo;
+    }
+    void setCameraInfo(CameraInfo &cameraInfo)
+    {
+        /* Update |eye| and |lookAtDestination| from cameraInfo paramter. */
+        this->m_cameraInfo.eye               = cameraInfo.eye;
+        this->m_cameraInfo.lookAtDestination = cameraInfo.lookAtDestination;
 
+        /* Compute the corresponding |phi|, |theta| and |radialDistance| from |eye| and |lookAtDestination|. */
+        this->m_cameraInfo.radialDistance = TwUtil::distance(this->m_cameraInfo.eye, this->m_cameraInfo.lookAtDestination);
+        /* We need to map |phi| and |theta| fro radians to linear [0,1] to be compatible with mouse interaction. */
+        this->m_cameraInfo.phi   = TwUtil::sphericalPhi(TwUtil::safe_normalize(this->m_cameraInfo.eye - this->m_cameraInfo.lookAtDestination)) / (2.0f * M_PIf);
+        this->m_cameraInfo.theta = TwUtil::sphericalTheta(TwUtil::safe_normalize(this->m_cameraInfo.eye - this->m_cameraInfo.lookAtDestination)) / M_PIf;
+
+        /* Update camera transformation using |eye| and |lookAtDestination|. */
+        this->m_camera->setCameraToWorld(this->m_cameraInfo.eye, this->m_cameraInfo.lookAtDestination);
+
+        /* Fetching feedback vectors after setting cameraToWorld. */
+        this->m_cameraInfo.left = this->m_camera->GetLeftVector();
+        this->m_cameraInfo.up = this->m_camera->GetUpVector();
+    }
+
+    /**
+     * @brief Save cameraInfo to file.
+     * @return True if succeeded, false if failed.
+     */
+    bool cameraInfoToFile() const;
+    /**
+     * @brief Load cameraInfo from file.
+     * @return True if succeeded, false if failed.
+     */
+    bool cameraInfoFromFile();
     
 
     /**
@@ -109,8 +140,7 @@ public:
 private:
     /**
      * @brief Update mouse position and delta value
-     * relative to the last position given |screenPos|
-     * and mark dirty by setting |isChanged|.
+     * relative to the last position given |screenPos|.
      * @return Whether the mouse position has changed.
      */
 	inline bool updateMouseInfo(optix::int2 screenPos);
@@ -124,12 +154,11 @@ private:
 
     inline void updateCameraInfo();
 
-private:
-    CameraInfo m_cameraInfo;
-    CameraMotionType m_cameraMotionType;
-    std::shared_ptr<Camera> m_camera;
 
-    
+private:
+    CameraInfo              m_cameraInfo;
+    CameraMotionType        m_cameraMotionType;
+    std::shared_ptr<Camera> m_camera;
 
     // todo:get a pointer to Application and fetch film resolution from it
     int m_filmWidth, m_filmHeight;
@@ -141,7 +170,6 @@ inline bool CameraController::updateMouseInfo(optix::int2 screenPos)
 	{
         this->m_cameraInfo.deltaValue = screenPos - this->m_cameraInfo.basePosition;
         this->m_cameraInfo.basePosition = screenPos;
-        this->m_cameraInfo.isChanged = true;
 		return true; 
 	}
 	return false;
@@ -216,17 +244,14 @@ inline void CameraController::dolly(optix::int2 screenPos)
 
 inline void CameraController::updateCameraInfo()
 {
-	const float cosPhi =   cosf(this->m_cameraInfo.phi * 2.0f * M_PIf);
-	const float sinPhi =   sinf(this->m_cameraInfo.phi * 2.0f * M_PIf);
+	const float cosPhi   = cosf(this->m_cameraInfo.phi * 2.0f * M_PIf);
+	const float sinPhi   = sinf(this->m_cameraInfo.phi * 2.0f * M_PIf);
 	const float cosTheta = cosf(this->m_cameraInfo.theta * M_PIf);
 	const float sinTheta = sinf(this->m_cameraInfo.theta * M_PIf);
 
 	optix::float3 normal = optix::make_float3(sinTheta * cosPhi, sinTheta * sinPhi, cosTheta);
 	//optix::float3 normal = optix::make_float3(cosPhi * sinTheta, cosTheta, sinPhi * sinTheta); // "normal", unit vector from origin to spherical coordinates (phi, theta)
 	this->m_cameraInfo.eye = this->m_cameraInfo.lookAtDestination + this->m_cameraInfo.radialDistance * normal;
-
-	//Reset |isChanged| state todo:redundant code for isChanged property
-	this->m_cameraInfo.isChanged = false;
 
     this->m_camera->setCameraToWorld(this->m_cameraInfo.eye, this->m_cameraInfo.lookAtDestination);
 

@@ -1,10 +1,11 @@
 #include <optix_world.h>
 #include <optix_device.h>
 
-#include "../Toolkit/NvRandom.h"
-#include "../Toolkit/Utility.h"
-#include "../Toolkit/CommonStructs.h"
-#include "../Sampler/Sampler.h"
+#include "colvillea/Device/Toolkit/NvRandom.h"
+#include "colvillea/Device/Toolkit/Utility.h"
+#include "colvillea/Device/Toolkit/CommonStructs.h"
+#include "colvillea/Device/Sampler/Sampler.h"
+#include "colvillea/Device/Filter/Filter.h"
 
 
 using namespace optix;
@@ -23,8 +24,8 @@ rtBuffer<float4, 2>         sysCurrResultBuffer;     /*the sum of weighted radia
 rtBuffer<float, 2>          sysCurrWeightedSumBuffer;/*weightedSum buffer with respect to the current
 												       iteration*/
 
-rtDeclareVariable(float,    sysFilterGaussianAlpha, ,) = 0.25f;//Gaussian filter alpha paramter
-rtDeclareVariable(float,    sysFilterWidth, ,) = 1.f;//Gaussian filter width
+//rtDeclareVariable(float,    sysFilterGaussianAlpha, ,) = 0.25f;//Gaussian filter alpha paramter
+//rtDeclareVariable(float,    sysFilterWidth, ,) = 1.f;//Gaussian filter width>=1.f
 
 rtDeclareVariable(float,    sysSceneEpsilon, , );
 rtDeclareVariable(rtObject, sysTopObject, , );
@@ -44,64 +45,6 @@ rtDeclareVariable(Matrix4x4, CameraToWorld, , );
 
 namespace TwUtil
 {
-	/**
-	 * @brief Evaluate GaussianFilter for given deltaX and deltaY.This version computes filter weight precisely and doesn't employ approximation techniques to optimize computation.
-	 * @param dx relative position deltaX to the filter kernel
-	 * @param dy relative position deltaY to the filter kernel
-	 * @return (e^(-alpha*dx*dx)-e^(-alpha*width*width)) * (e^(-alpha*dy*dy)-e^(-alpha*width*width))
-	 */
-	static __device__ __inline__ float evaluateFilter(const float dx, const float dy)
-	{
-		/*todo:prevent from float precision error;
-		 *     optimize calculation*/
-		float gaussian_exp = expf(-sysFilterGaussianAlpha * sysFilterWidth * sysFilterWidth);
-		return fmaxf(0.f, expf(-sysFilterGaussianAlpha * dx*dx) - gaussian_exp) *
-			fmaxf(0.f, expf(-sysFilterGaussianAlpha * dy*dy) - gaussian_exp);
-		//return 1.f;
-	}
-
-	/*
-	 * @brief ceilf function for float2
-	 * @param val input value
-	 * @return the ceiling float2 number for the given value
-	 **/
-	static __device__ __inline__ float2 ceilf2(const float2 &val)
-	{
-		return make_float2(ceilf(val.x), ceilf(val.y));
-	}
-
-	/*
-	 * @brief floorf function for float2
-	 * @param val input value
-	 * @return the floor float2 number for the given value
-	 **/
-	static __device__ __inline__ float2 floorf2(const float2 &val)
-	{
-		return make_float2(floorf(val.x), floorf(val.y));
-	}
-
-	/*
-	 * @brief ceil function for float2 and cast to int2
-	 * @param val input value
-	 * @return the ceiling float2 number for the given value, after casting to int2
-	 * @see ceilf2()
-	 **/
-	static __device__ __inline__ int2 ceilf2i(const float2 &val)
-	{
-		return make_int2(static_cast<int>(ceilf(val.x)), static_cast<int>(ceilf(val.y)));
-	}
-
-	/*
-	 * @brief floor function for float2 and cast to int2
-	 * @param val input value
-	 * @return the floor float2 number for the given value, after casting to int2
-	 * @see floorf2()
-	 **/
-	static __device__ __inline__ int2 floorf2i(const float2 &val)
-	{
-		return make_int2(static_cast<int>(floorf(val.x)), static_cast<int>(floorf(val.y)));
-	}
-
 	/*
 	 * @brief degamma function converts linear color to sRGB color
 	 * for display
@@ -177,51 +120,70 @@ RT_PROGRAM void RayGeneration_PinholeCamera()
     CommonStructs::PerRayData_radiance prdRadiance;
 	prdRadiance.radiance = make_float4(0.f);
 
-	rtTrace<CommonStructs::PerRayData_radiance>(sysTopObject, ray, prdRadiance);
+	rtTrace<CommonStructs::PerRayData_radiance>(sysTopObject, ray, prdRadiance, RT_VISIBILITY_ALL, RT_RAY_FLAG_DISABLE_ANYHIT);
 
 	/*--------------------------------------------------------------------------------*/
 	/*----Perform filtering and reconstruction so as to write to the output buffer----*/
 	/*--------------------------------------------------------------------------------*/
-	// todo: use faster filtering technique without atomic ops when width<.5f
 
-	/*compute pFilm's raster extent
-	 *--1.get film sample's discrete coordinates*/
-	float2 dCoordsSample = pFilm - .5f;
+    /* If filter width <= 0.5f, one sample could only contribute to one pixel
+       -- and there is no chance that two samples not in the same pixel will
+       -- contribute to the same pixel. So atomic operation could be saved for
+       -- efficenciy. */
+    float filterWidth = GetFilterWidth();
+    if(filterWidth <= 0.5f)
+    {
+        float currentWeight = EvaluateFilter(qmcSamples.x - 0.5f, qmcSamples.y - 0.5f);
 
-	/*--2.search around the filterWidth for raster pixel boundary*/
-	int2 pMin = TwUtil::ceilf2i(dCoordsSample - sysFilterWidth);
-	int2 pMax = TwUtil::floorf2i(dCoordsSample + sysFilterWidth);
+        float4 &currLi = prdRadiance.radiance;
+        /*ignore alpha channel*/
+        sysCurrResultBuffer[sysLaunch_index].x    += currLi.x * currentWeight;
+        sysCurrResultBuffer[sysLaunch_index].y    += currLi.y * currentWeight;
+        sysCurrResultBuffer[sysLaunch_index].z    += currLi.z * currentWeight;
+        sysCurrWeightedSumBuffer[sysLaunch_index] += currentWeight;
+    }
+    else
+    {
+        /* Compute pFilm's raster extent
+         * --1.get film sample's discrete coordinates. */
+        float2 dCoordsSample = pFilm - 0.5f;
 
-	/*--3.check for film extent*/
-	pMin.x = max(pMin.x, 0);                   pMin.y = max(pMin.y, 0);
-	pMax.x = min(pMax.x, sysLaunch_Dim.x - 1); pMax.y = min(pMax.y, sysLaunch_Dim.y - 1);
-	
-	/*note that assert() only supports in NVRTC*/
-	if (pMax.x - pMin.x < 0 || pMax.y - pMin.y < 0)
-		rtPrintf("[ERROR]Assert failed at \"filtering\" \n");
+        /*--2.search around the filterWidth for raster pixel boundary*/
+        int2 pMin = TwUtil::ceilf2i(dCoordsSample - filterWidth);
+        int2 pMax = TwUtil::floorf2i(dCoordsSample + filterWidth);
 
-	/*loop over raster pixel and add sample with filtering operation*/
-	for (int y = pMin.y; y <= pMax.y; ++y)
-	{
-		for (int x = pMin.x; x <= pMax.x; ++x)
-		{
-			/*not necessary to distinguish first iteration, because one sample
-			 *could possibly contribute to multiple pixels so the 0th iteration doesn't
-			 *have a specialized meaning. Instead, we use the modified version of progressive
-			 *weighted average formula.*/
+        /*--3.check for film extent*/
+        pMin.x = max(pMin.x, 0);                       pMin.y = max(pMin.y, 0);
+        pMax.x = min(pMax.x, sysLaunch_Dim.x - 1);     pMax.y = min(pMax.y, sysLaunch_Dim.y - 1);
 
-			/*Pass 1:accumulate sysCurrResultBuffer with f(dx,dy)*Li and sysCurrWeightedSumBuffer with f(dx,dy)*/
-			uint2 pixelIndex = make_uint2(x, y);
-			float currentWeight = TwUtil::evaluateFilter(x - dCoordsSample.x, y - dCoordsSample.y);
+        if ((pMax.x - pMin.x) < 0 || (pMax.y - pMin.y) < 0)
+        {
+            rtPrintf("invalid samples:%f %f\n", dCoordsSample.x, dCoordsSample.y);
+        }
 
-			float4 &currLi = prdRadiance.radiance;
-			/*ignore alpha channel*/
-			atomicAdd(&sysCurrResultBuffer[pixelIndex].x, currLi.x * currentWeight);
-			atomicAdd(&sysCurrResultBuffer[pixelIndex].y, currLi.y * currentWeight);
-			atomicAdd(&sysCurrResultBuffer[pixelIndex].z, currLi.z * currentWeight);
-			atomicAdd(&sysCurrWeightedSumBuffer[pixelIndex], currentWeight);
-		}
-	}
+        /* Loop over raster pixel and add sample with filtering operation. */
+        for (int y = pMin.y; y <= pMax.y; ++y)
+        {
+            for (int x = pMin.x; x <= pMax.x; ++x)
+            {
+                /*not necessary to distinguish first iteration, because one sample
+                 *could possibly contribute to multiple pixels so the 0th iteration doesn't
+                 *have a specialized meaning. Instead, we use the modified version of progressive
+                 *weighted average formula.*/
+
+                 /*Pass 1:accumulate sysCurrResultBuffer with f(dx,dy)*Li and sysCurrWeightedSumBuffer with f(dx,dy)*/
+                uint2 pixelIndex = make_uint2(x, y);
+                float currentWeight = EvaluateFilter(x - dCoordsSample.x, y - dCoordsSample.y);
+
+                float4 &currLi = prdRadiance.radiance;
+                /*ignore alpha channel*/
+                atomicAdd(&sysCurrResultBuffer[pixelIndex].x, currLi.x * currentWeight);
+                atomicAdd(&sysCurrResultBuffer[pixelIndex].y, currLi.y * currentWeight);
+                atomicAdd(&sysCurrResultBuffer[pixelIndex].z, currLi.z * currentWeight);
+                atomicAdd(&sysCurrWeightedSumBuffer[pixelIndex], currentWeight);
+            }
+        }
+    }
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -236,18 +198,52 @@ RT_PROGRAM void RayGeneration_InitializeFilter()
 //Perform filtering
 RT_PROGRAM void RayGeneration_Filter()
 {
-	/*perform gamma correction to resolve correct linear color for computation.*/
+	/* Perform gamma correction to resolve correct linear color for computation. */
 	sysOutputBuffer[sysLaunch_index] = convertsRGBToLinear(sysOutputBuffer[sysLaunch_index]);
+	sysOutputBuffer[sysLaunch_index] = (sysOutputBuffer[sysLaunch_index] * sysSampleWeightedSum[sysLaunch_index] + sysCurrResultBuffer[sysLaunch_index]) / 
+                                       (sysSampleWeightedSum[sysLaunch_index] + sysCurrWeightedSumBuffer[sysLaunch_index]);
+    sysHDRBuffer[sysLaunch_index]    = (sysHDRBuffer[sysLaunch_index] * sysSampleWeightedSum[sysLaunch_index] + sysCurrResultBuffer[sysLaunch_index]) / 
+                                       (sysSampleWeightedSum[sysLaunch_index] + sysCurrWeightedSumBuffer[sysLaunch_index]);
 
-	sysOutputBuffer[sysLaunch_index] = (sysOutputBuffer[sysLaunch_index] * sysSampleWeightedSum[sysLaunch_index] + sysCurrResultBuffer[sysLaunch_index]) / (sysSampleWeightedSum[sysLaunch_index] + sysCurrWeightedSumBuffer[sysLaunch_index]);
-    sysHDRBuffer[sysLaunch_index]    = (sysHDRBuffer[sysLaunch_index] * sysSampleWeightedSum[sysLaunch_index] + sysCurrResultBuffer[sysLaunch_index]) / (sysSampleWeightedSum[sysLaunch_index] + sysCurrWeightedSumBuffer[sysLaunch_index]);
 	sysSampleWeightedSum[sysLaunch_index] += sysCurrWeightedSumBuffer[sysLaunch_index];
+
+    /* Ensure w component of output buffer is 1.0f in case of being transparent
+     * -- in RenderView. */
+    sysOutputBuffer[sysLaunch_index].w = 1.f;
+    sysHDRBuffer[sysLaunch_index].w    = 1.f;
+
+    /* Prevent from precision error. Note that some filters (such as Gaussian)
+     * -- could have zero sample weight to a pixel, which may cause that for some
+     * -- pixels, they couldn't have any sample weight contribution at all at first
+     * -- launch (almost only one sample distributes sparsely per pixel in the situation).
+     * But after a few iterations, all pixels are able to have sample weight contribution.
+     * For this reason, we skip the NaN values in output buffer to give a chance for
+     * later accumulation. */
+    if (isnan(sysOutputBuffer[sysLaunch_index].x) || isnan(sysOutputBuffer[sysLaunch_index].y) || isnan(sysOutputBuffer[sysLaunch_index].z) || 
+        isnan(sysHDRBuffer[sysLaunch_index].x)    || isnan(sysHDRBuffer[sysLaunch_index].y)    || isnan(sysHDRBuffer[sysLaunch_index].z))
+    {
+        sysOutputBuffer[sysLaunch_index] = make_float4(0.0f, 0.0f, 0.0f, 1.0f);
+        sysHDRBuffer[sysLaunch_index]    = make_float4(0.0f, 0.0f, 0.0f, 1.0f);
+    }
+
+    #if 0
+    if (isnan(sysOutputBuffer[sysLaunch_index].x) || isnan(sysOutputBuffer[sysLaunch_index].y) || isnan(sysOutputBuffer[sysLaunch_index].z) || (sysOutputBuffer[sysLaunch_index].x < 0.f || sysOutputBuffer[sysLaunch_index].y < 0.f || sysOutputBuffer[sysLaunch_index].z < 0.f))
+    {
+        rtPrintf("%d %d out=%f * %f + %f / (%f + %f)\n", sysLaunch_index.x,sysLaunch_index.y,
+            sysOutputBuffer[sysLaunch_index].x,
+            sysSampleWeightedSum[sysLaunch_index], 
+            sysCurrResultBuffer[sysLaunch_index].x, 
+            sysSampleWeightedSum[sysLaunch_index], 
+            sysCurrWeightedSumBuffer[sysLaunch_index]);
+    }
+#endif // 
+    
 
 	/*clear current buffer for next iteration*/
 	sysCurrResultBuffer[sysLaunch_index] = make_float4(0.0f, 0.0f, 0.0f, 1.0f);
 	sysCurrWeightedSumBuffer[sysLaunch_index] = 0.0f;
 
-	/*perform "degamma" operation converting linear color to sRGB for diplaying in RenderView*/
+	/* Perform "degamma" operation converting linear color to sRGB for diplaying in RenderView. */
 	sysOutputBuffer[sysLaunch_index] = convertFromLinearTosRGB(sysOutputBuffer[sysLaunch_index]);
 }
 
