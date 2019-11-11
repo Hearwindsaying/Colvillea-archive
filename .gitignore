@@ -262,3 +262,5 @@ __pycache__/
 /build
 
 !/examples/Cornell/*.*
+/examples/Cornell/lucy.obj
+*.ma
