@@ -1,5 +1,5 @@
 # Colvillea
-![Living room scene by benedikt-bitterli](https://github.com/Hearwindsaying/Colvillea/raw/master/examples/Gallery/7200spp.jpg)
+![Dining-room](https://github.com/Hearwindsaying/Colvillea/blob/master/examples/Gallery/dining-room_interactive.jpg)
 
 ## Overview
 **Colvillea** is a physically based global illumination renderer running on GPU. It relies on [Nvidia's OptiX](https://developer.nvidia.com/optix) to achieve parallelism by leveraging GPU resources, resulting in high performance ray tracing rendering.
