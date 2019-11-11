@@ -63,6 +63,11 @@ public:
 
 	}
 
+    std::string getTriangleMeshFilename() const
+    {
+        return this->m_filename;
+    }
+
 	
 	void initializeShape() override;
 

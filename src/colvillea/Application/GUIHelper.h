@@ -6,6 +6,7 @@
 
 namespace GUIHelper
 {
+    
     /**
       * @brief Helper function in Application::drawInspector() for
       * showing BSDF editable reflectance parameter.
@@ -171,4 +172,81 @@ namespace GUIHelper
             application->resetRenderParams();
         }
     }
+
+
+    /**
+     * @brief Helper function in Application::drawInspector() for
+     * sharing Material Collapsing Header between Material IEditableObject
+     * and Geometry IEditableObject.
+     */
+    inline void drawInspector_MaterialCollapsingHeader(const std::shared_ptr<BSDF> &bsdf, Application *application)
+    {
+        int currentBSDFTypeIdx = MaterialPool::CommonStructsBSDFTypeToComboBSDFType(bsdf->getBSDFType());
+
+        ImGui::AlignTextToFramePadding();
+        ImGui::Text("                                  BSDF"); ImGui::SameLine(200.f);
+        ImGui::SetNextItemWidth(165);
+        /* Note that we hide Emissive BSDF to user, which is used for AreaLight. */
+
+        if (ImGui::Combo("##BSDF", &currentBSDFTypeIdx, "Lambert\0RoughMetal\0RoughDielectric\0SmoothGlass\0Plastic\0SmoothMirror\0FrostedMetal\0\0"))
+        {
+            bsdf->setBSDFType(MaterialPool::comboBSDFTypeToCommonStructsBSDFType(currentBSDFTypeIdx));
+            application->resetRenderParams();
+        }
+
+
+        switch (currentBSDFTypeIdx)
+        {
+        case MaterialPool::comboBSDFType_Lambert:
+        {
+            GUIHelper::drawInspector_MaterialCollapsingHeader_Reflectance(bsdf, application);
+        }
+        break;
+        case MaterialPool::comboBSDFType_RoughMetal:
+        {
+            GUIHelper::drawInspector_MaterialCollapsingHeader_Roughness(bsdf, application);
+            GUIHelper::drawInspector_MaterialCollapsingHeader_Specular(bsdf, application);
+            GUIHelper::drawInspector_MaterialCollapsingHeader_Eta(bsdf, application);
+            GUIHelper::drawInspector_MaterialCollapsingHeader_Kappa(bsdf, application);
+        }
+        break;
+        case MaterialPool::comboBSDFType_RoughDielectric:
+        {
+            /* todo: support reflectance texture in device code for RoughDielectric BSDF. */
+            GUIHelper::drawInspector_MaterialCollapsingHeader_Reflectance(bsdf, application);
+            GUIHelper::drawInspector_MaterialCollapsingHeader_Specular(bsdf, application);
+            GUIHelper::drawInspector_MaterialCollapsingHeader_Roughness(bsdf, application);
+            GUIHelper::drawInspector_MaterialCollapsingHeader_IOR(bsdf, application);
+        }
+        break;
+        case MaterialPool::comboBSDFType_SmoothGlass:
+        {
+            GUIHelper::drawInspector_MaterialCollapsingHeader_IOR(bsdf, application);
+        }
+        break;
+        case MaterialPool::comboBSDFType_Plastic:
+        {
+            GUIHelper::drawInspector_MaterialCollapsingHeader_Reflectance(bsdf, application);
+            GUIHelper::drawInspector_MaterialCollapsingHeader_Specular(bsdf, application);
+            GUIHelper::drawInspector_MaterialCollapsingHeader_Roughness(bsdf, application);
+            GUIHelper::drawInspector_MaterialCollapsingHeader_IOR(bsdf, application);
+        }
+        break;
+        case MaterialPool::comboBSDFType_SmoothMirror:
+        {
+
+        }
+        break;
+        case MaterialPool::comboBSDFType_FrostedMetal:
+        {
+
+        }
+        break;
+        default:
+            std::cerr << "[Error] Unsupported BSDF" << std::endl;
+            break;
+        }
+    }
+
+
 }

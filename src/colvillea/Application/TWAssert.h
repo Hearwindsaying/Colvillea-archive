@@ -8,6 +8,10 @@
 #endif
 #endif
 
+#ifdef NDEBUG
+#define TW_ASSERT(expr) (expr)
+#endif
+
 #define RT_CHECK_ERROR_NO_CONTEXT( func ) \
   do { \
     RTresult code = func; \

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <chrono>
 #include <functional>
 #include <iostream>
 #include <iomanip>
@@ -85,6 +86,13 @@ private:
      * This function is called by Application::render().
      */
     void drawRenderView();
+
+    /**
+     * @brief Draw DockSpace.
+     * 
+     * @note This is from Dear ImGui Demo.
+     */
+    void drawDockSpace();
 
     /**
      * @brief Draw Settings window.
@@ -271,4 +279,6 @@ private:
 
     /// Current holding IEditableObject:
     std::shared_ptr<IEditableObject> m_currentHierarchyNode;
+
+    std::chrono::time_point<std::chrono::system_clock> currentTime;
 };

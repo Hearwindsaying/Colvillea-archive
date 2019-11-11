@@ -125,27 +125,7 @@ void Application::drawWidget()
     this->drawHierarchy();
     this->drawMaterialHierarchy();
 
-    static uint32_t frame_count = 0; // todo:use iteration index
-
-
-    //{
-    //    static const ImGuiWindowFlags window_flags = 0;
-
-    //    //ImGui::SetNextWindowPos(ImVec2(2.0f, 40.0f));
-    //    ImGui::SetNextWindowSize(ImVec2(550, 680), ImGuiCond_FirstUseEver);
-    //    if (!ImGui::Begin("Hierarchy", NULL, window_flags))
-    //    {
-    //        // Early out if the window is collapsed, as an optimization.
-    //        ImGui::End();
-    //        return;
-    //    }
-    //    ImGui::PushItemWidth(-140);
-
-    //    ImGui::Spacing();
-
-    //    ImGui::End();
-    //}
-
+    static uint32_t frame_count = 0;
     {
         static const ImGuiWindowFlags window_flags = ImGuiWindowFlags_None;
 
@@ -197,14 +177,16 @@ void Application::drawWidget()
         };
 
         float currfps = GetFPS(frame_count++);
-        ImGui::Text("FPS(frame per second):%.2f\nAverage Rendering Time(per launch):%.5fms", currfps, 1000.f / currfps);
+        ImGui::Text("FPS:%.2f", currfps);
+        ImGui::Text("Average Rendering Time(per launch):%.5fms", 1000.f / currfps);
 
-        if (ImGui::Button("Save Current Result"))
+        if (ImGui::Button("Export HDR"))
         {
             ImageLoader::saveHDRBufferToImage(this->m_sysHDRBuffer, (GetCurrentDateTime() + ".exr").c_str());
-            //             double currentRenderingTime = sutil::currentTime();
-            //             double renderingTimeElapse = currentRenderingTime - this->startRenderingTime;
-            //             std::cout << "[Info]currentFrame:" << sysIterationIndex << " time elapsed:" << renderingTimeElapse << std::endl;
+
+            auto end = std::chrono::system_clock::now();
+            std::chrono::duration<double> diff = end - currentTime;
+            std::cout << "Time consumed for: " << this->m_sysIterationIndex <<" " << (diff).count() << "s" << std::endl;
         }
 
         ImGui::End();
@@ -220,6 +202,8 @@ void Application::render()
             this->m_sysIterationIndex = 0;
             this->m_context->launch(toUnderlyingValue(RayGenerationEntryType::InitFilter), this->m_filmWidth, this->m_filmHeight);
             this->m_resetRenderParamsNotification = false;
+
+            this->currentTime = std::chrono::system_clock::now();
         }
 
         this->m_context->launch(toUnderlyingValue(RayGenerationEntryType::Render), this->m_filmWidth, this->m_filmHeight);
@@ -345,9 +329,63 @@ void Application::drawRenderView()
     ImGui::End();
 }
 
+void Application::drawDockSpace()
+{
+    static bool opt_fullscreen_persistant = true;
+    bool opt_fullscreen = opt_fullscreen_persistant;
+    static ImGuiDockNodeFlags dockspace_flags = ImGuiDockNodeFlags_None;
+
+    // We are using the ImGuiWindowFlags_NoDocking flag to make the parent window not dockable into,
+    // because it would be confusing to have two docking targets within each others.
+    ImGuiWindowFlags window_flags = ImGuiWindowFlags_NoDocking;
+    if (opt_fullscreen)
+    {
+        ImGuiViewport* viewport = ImGui::GetMainViewport();
+        ImGui::SetNextWindowPos(viewport->Pos);
+        ImGui::SetNextWindowSize(viewport->Size);
+        ImGui::SetNextWindowViewport(viewport->ID);
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
+        window_flags |= ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove;
+        window_flags |= ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus;
+    }
+
+    // When using ImGuiDockNodeFlags_PassthruCentralNode, DockSpace() will render our background and handle the pass-thru hole, so we ask Begin() to not render a background.
+    if (dockspace_flags & ImGuiDockNodeFlags_PassthruCentralNode)
+        window_flags |= ImGuiWindowFlags_NoBackground;
+
+    // Important: note that we proceed even if Begin() returns false (aka window is collapsed).
+    // This is because we want to keep our DockSpace() active. If a DockSpace() is inactive,
+    // all active windows docked into it will lose their parent and become undocked.
+    // We cannot preserve the docking relationship between an active window and an inactive docking, otherwise
+    // any change of dockspace/settings would lead to windows being stuck in limbo and never being visible.
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
+    ImGui::Begin("DockSpace Demo", 0, window_flags);
+    ImGui::PopStyleVar();
+
+    if (opt_fullscreen)
+        ImGui::PopStyleVar(2);
+
+    // DockSpace
+    ImGuiIO& io = ImGui::GetIO();
+    if (io.ConfigFlags & ImGuiConfigFlags_DockingEnable)
+    {
+        ImGuiID dockspace_id = ImGui::GetID("MyDockSpace");
+        ImGui::DockSpace(dockspace_id, ImVec2(0.0f, 0.0f), dockspace_flags);
+    }
+    else
+    {
+        /*ShowDockingDisabledMessage();*/
+    }
+
+    ImGui::End();
+}
+
 void Application::drawSettings()
 {
-    static const ImGuiWindowFlags window_flags = ImGuiWindowFlags_None;
+    this->drawDockSpace();
+
+    static const ImGuiWindowFlags window_flags = ImGuiWindowFlags_NoCollapse;
 
     if (!ImGui::Begin("Settings", NULL, window_flags))
     {
@@ -589,7 +627,7 @@ void Application::drawSettings()
 
 void Application::drawInspector()
 {
-    static const ImGuiWindowFlags window_flags_inspector = ImGuiWindowFlags_None;
+    static const ImGuiWindowFlags window_flags_inspector = 0;
     if (!ImGui::Begin("Inspector", NULL, window_flags_inspector))
     {
         ImGui::End();
@@ -1085,6 +1123,21 @@ void Application::drawInspector()
             }
         }
         
+        /* Get underlying BSDF from Quad Shape. */
+        const std::shared_ptr<BSDF> &bsdf = this->m_materialPool->getBSDF(quad->getMaterialIndex());
+        TW_ASSERT(bsdf);
+
+        /*std::string bsdfName = bsdf->getName();
+        if (ImGui::InputText("##Object Name Quad BSDF", &bsdfName))
+        {
+            bsdf->setName(bsdfName);
+        }*/
+        if (ImGui::CollapsingHeader("Material##Quad Geometry BSDF", ImGuiTreeNodeFlags_CollapsingHeader))
+        {
+            GUIHelper::drawInspector_MaterialCollapsingHeader(bsdf, this);
+        }
+
+
         /* Public Remove Button */
         ImGui::BeginGroup();
 
@@ -1095,6 +1148,7 @@ void Application::drawInspector()
         if (ImGui::Button("Remove Object"))
         {
             this->m_sceneGraph->removeGeometry(quad);
+            this->m_materialPool->removeBSDF(bsdf);
             this->m_currentHierarchyNode.reset();
             this->resetRenderParams();
         }
@@ -1103,7 +1157,52 @@ void Application::drawInspector()
     }
     else if (objectType == IEditableObject::IEditableObjectType::TriangleMeshGeometry)
     {
+        std::shared_ptr<TriangleMesh> triMesh = std::static_pointer_cast<TriangleMesh>(this->m_currentHierarchyNode);
+        TW_ASSERT(triMesh);
 
+        std::string triMeshName = triMesh->getName();
+        if (ImGui::InputText("##Object Name", &triMeshName))
+        {
+            triMesh->setName(triMeshName);
+        }
+
+        ImGui::Separator();
+
+        /* Get underlying BSDF from Quad Shape. */
+        const std::shared_ptr<BSDF> &bsdf = this->m_materialPool->getBSDF(triMesh->getMaterialIndex());
+        TW_ASSERT(bsdf);
+
+        if (ImGui::CollapsingHeader("General##TriangleMesh Geometry", ImGuiTreeNodeFlags_CollapsingHeader))
+        {
+            std::string TriangleMeshFilename = triMesh->getTriangleMeshFilename();
+
+            ImGui::AlignTextToFramePadding();
+            ImGui::Text("                                  Mesh"); ImGui::SameLine(200.f);
+            ImGui::SetNextItemWidth(165);
+            ImGui::Button(TriangleMeshFilename.c_str()/*, ImVec2(165.f, 0.0f)*/);
+        }
+        if (ImGui::CollapsingHeader("Material##TriangleMesh Geometry BSDF", ImGuiTreeNodeFlags_CollapsingHeader))
+        {
+            GUIHelper::drawInspector_MaterialCollapsingHeader(bsdf, this);
+        }
+
+
+        /* Public Remove Button */
+        ImGui::BeginGroup();
+
+        ImGui::BeginChild("RemoveObjectSpaceChild", ImVec2(0, -ImGui::GetFrameHeightWithSpacing())); // Leave room for 1 line below us
+        ImGui::EndChild();
+
+        /* Last line of Inspector window. */
+        if (ImGui::Button("Remove Object"))
+        {
+            this->m_sceneGraph->removeGeometryTriangles(triMesh);
+            this->m_materialPool->removeBSDF(bsdf);
+            this->m_currentHierarchyNode.reset();
+            this->resetRenderParams();
+        }
+
+        ImGui::EndGroup();
     }
     else if (objectType == IEditableObject::IEditableObjectType::BSDF)
     {
@@ -1111,7 +1210,7 @@ void Application::drawInspector()
         TW_ASSERT(bsdf);
 
         std::string bsdfName = bsdf->getName();
-        if (ImGui::InputText("##Object Name", &bsdfName))
+        if (ImGui::InputText("##Object Name BSDF", &bsdfName))
         {
             bsdf->setName(bsdfName);
         }
@@ -1120,71 +1219,7 @@ void Application::drawInspector()
 
         if (ImGui::CollapsingHeader("Material##BSDF", ImGuiTreeNodeFlags_CollapsingHeader))
         {
-            int currentBSDFTypeIdx = MaterialPool::CommonStructsBSDFTypeToComboBSDFType(bsdf->getBSDFType());
-
-            ImGui::AlignTextToFramePadding();
-            ImGui::Text("                                  BSDF"); ImGui::SameLine(200.f);
-            ImGui::SetNextItemWidth(165);
-            /* Note that we hide Emissive BSDF to user, which is used for AreaLight. */
-
-            if (ImGui::Combo("##BSDF", &currentBSDFTypeIdx, "Lambert\0RoughMetal\0RoughDielectric\0SmoothGlass\0Plastic\0SmoothMirror\0FrostedMetal\0\0"))
-            {
-                bsdf->setBSDFType(MaterialPool::comboBSDFTypeToCommonStructsBSDFType(currentBSDFTypeIdx));
-                this->resetRenderParams();
-            }
-
-
-            switch (currentBSDFTypeIdx)
-            {
-            case MaterialPool::comboBSDFType_Lambert:
-            {
-                GUIHelper::drawInspector_MaterialCollapsingHeader_Reflectance(bsdf, this);
-            }
-            break;
-            case MaterialPool::comboBSDFType_RoughMetal:
-            {
-                GUIHelper::drawInspector_MaterialCollapsingHeader_Roughness(bsdf, this);
-                GUIHelper::drawInspector_MaterialCollapsingHeader_Specular(bsdf, this);
-                GUIHelper::drawInspector_MaterialCollapsingHeader_Eta(bsdf, this);
-                GUIHelper::drawInspector_MaterialCollapsingHeader_Kappa(bsdf, this);
-            }
-            break;
-            case MaterialPool::comboBSDFType_RoughDielectric:
-            {
-                /* todo: support reflectance texture in device code for RoughDielectric BSDF. */
-                GUIHelper::drawInspector_MaterialCollapsingHeader_Reflectance(bsdf, this);
-                GUIHelper::drawInspector_MaterialCollapsingHeader_Specular(bsdf, this);
-                GUIHelper::drawInspector_MaterialCollapsingHeader_Roughness(bsdf, this);
-                GUIHelper::drawInspector_MaterialCollapsingHeader_IOR(bsdf, this);
-            }
-            break;
-            case MaterialPool::comboBSDFType_SmoothGlass:
-            {
-                GUIHelper::drawInspector_MaterialCollapsingHeader_IOR(bsdf, this);
-            }
-            break;
-            case MaterialPool::comboBSDFType_Plastic:
-            {
-                GUIHelper::drawInspector_MaterialCollapsingHeader_Reflectance(bsdf, this);
-                GUIHelper::drawInspector_MaterialCollapsingHeader_Specular(bsdf, this);
-                GUIHelper::drawInspector_MaterialCollapsingHeader_Roughness(bsdf, this);
-                GUIHelper::drawInspector_MaterialCollapsingHeader_IOR(bsdf, this);
-            }
-            break;
-            case MaterialPool::comboBSDFType_SmoothMirror:
-            {
-
-            }
-            break;
-            case MaterialPool::comboBSDFType_FrostedMetal:
-            {
-
-            }
-            break;
-            default:
-                std::cerr << "[Error] Unsupported BSDF" << std::endl;
-                break;
-            }
+            GUIHelper::drawInspector_MaterialCollapsingHeader(bsdf, this);
         }
 
         
@@ -1226,7 +1261,9 @@ void Application::drawHierarchy()
                 }
                 if (ImGui::MenuItem("QuadLight"))
                 {
-                    this->m_lightPool->createQuadLight(make_float3(0.f), make_float3(0.f), make_float3(1.f, 1.f, 1.f), make_float3(1.f), 5.f, this->m_materialPool->getEmissiveMaterial(), false);
+                    std::shared_ptr<BSDF> emissiveBSDF;
+                    int emissiveIdx = this->m_materialPool->getEmissiveMaterial(emissiveBSDF);
+                    this->m_lightPool->createQuadLight(make_float3(0.f), make_float3(0.f), make_float3(1.f, 1.f, 1.f), make_float3(1.f), 5.f, emissiveIdx, emissiveBSDF, false);
                     this->resetRenderParams();
                 }
                 ImGui::EndMenu();
@@ -1235,10 +1272,23 @@ void Application::drawHierarchy()
             {
                 if (ImGui::MenuItem("Quad"))
                 {
-                    this->m_sceneGraph->createQuad(this->m_sceneGraph.get(), this->m_materialPool->getEmissiveMaterial(), make_float3(0.f), make_float3(0.f), make_float3(1.0f, 1.0f, 1.0f));
+                    std::shared_ptr<BSDF> lamBSDF;
+                    int lamIdx = this->m_materialPool->createLambertMaterial(optix::make_float4(0.5f, 0.5f, 0.5f, 1.f), lamBSDF);
+                    this->m_sceneGraph->createQuad(this->m_sceneGraph.get(), lamIdx, make_float3(0.f), make_float3(0.f), make_float3(1.0f, 1.0f, 1.0f), lamBSDF);
                     this->resetRenderParams();
                 }
-                ImGui::MenuItem("TriangleMesh");
+                if (ImGui::MenuItem("TriangleMesh"))
+                {
+                    static char const * lFilterPatterns[2] = { "*.obj" };
+                    const char * OBJFilename_c_str = tinyfd_openFileDialog("Select an obj mesh", "", 1, lFilterPatterns, "Mesh Files(*.obj)", 0);
+                    if (OBJFilename_c_str != NULL)
+                    {
+                        std::shared_ptr<BSDF> lamBSDF;
+                        int lamIdx = this->m_materialPool->createLambertMaterial(optix::make_float4(0.5f, 0.5f, 0.5f, 1.f), lamBSDF);
+                        this->m_sceneGraph->createTriangleMesh(OBJFilename_c_str, lamIdx, lamBSDF);
+                        this->resetRenderParams();
+                    } 
+                }
                 ImGui::EndMenu();
             }
 
@@ -1359,7 +1409,7 @@ void Application::drawHierarchy()
 
 void Application::drawMaterialHierarchy()
 {
-    static const ImGuiWindowFlags window_flags_inspector = ImGuiWindowFlags_MenuBar;
+    static const ImGuiWindowFlags window_flags_inspector = ImGuiWindowFlags_None;
     if (!ImGui::Begin("Material", NULL, window_flags_inspector))
     {
         ImGui::End();
@@ -1667,7 +1717,7 @@ void Application::initializeContext()
     }
     
     /* Disable exceptions. */
-    /* this->m_context->setExceptionEnabled(RT_EXCEPTION_ALL, true); */
+     /* this->m_context->setExceptionEnabled(RT_EXCEPTION_ALL, true); */
 
     /* Setup launch entries. */
     this->m_context->setEntryPointCount(toUnderlyingValue(RayGenerationEntryType::CountOfType));

@@ -23,7 +23,7 @@
 #include "colvillea/Application/GlobalDefs.h"
 
 class Application;
-
+class BSDF;
 
 
 /**
@@ -162,18 +162,11 @@ public:
 	 * 
 	 * @param[in] meshFilename wavefront obj filename with path
 	 * @param[in] materialIndex material index to materialBuffer
+	 * @param[in] bsdf
+	 * 
+	 * @todo Remove materialIndex and use MaterialPool::m_bsdfs.size() instead.
 	 */
-	void createTriangleMesh(const std::string & meshFileName, const int materialIndex)
-	{
-        /* Converting unique_ptr to shared_ptr. */
-        std::shared_ptr<TriangleMesh> triMesh = TriangleMesh::createTriangleMesh(this->m_context, this->m_programsMap, meshFileName, this->m_integrator->getIntegratorMaterial(), materialIndex);
-
-        this->m_shapes_GeometryTriangles.push_back(triMesh);
-
-        /* Update OptiX Graph. */
-        this->m_topGeometryGroup_GeometryTriangles->addChild(triMesh->getGeometryInstance());
-        this->rebuildGeometryTriangles();
-	}
+    void createTriangleMesh(const std::string & meshFileName, int materialIndex, const std::shared_ptr<BSDF> &bsdf);
 
     /**
      * @brief Create a single quad and add to SceneGraph shape
@@ -186,21 +179,7 @@ public:
      * @param[in] scale         Z-component is zero
      * @param[in] flipNormal    flip quad's normal
      */
-    std::shared_ptr<Quad> createQuad(SceneGraph *sceneGraph, const int materialIndex, const optix::float3 &position, const optix::float3 &rotation, const optix::float3 &scale, bool flipNormal = false)
-    {
-        //todo:assert that quad is not assigned with Emissive BSDF.//todo:delete emissive?
-        //todo:review copy of Quad
-        std::shared_ptr<Quad> quad = Quad::createQuad(sceneGraph, this->m_context, this->m_programsMap, position, rotation, scale, this->m_integrator->getIntegratorMaterial(), materialIndex);
-        if(flipNormal)
-            quad->flipGeometryNormal();
-        this->m_shapes_Geometry.push_back(quad);
-
-        /* Update OptiX Graph. */
-        this->m_topGeometryGroup_Geometry->addChild(quad->getGeometryInstance());
-        this->rebuildGeometry();
-
-        return quad;
-    }
+    std::shared_ptr<Quad> createQuad(SceneGraph *sceneGraph, const int materialIndex, const optix::float3 &position, const optix::float3 &rotation, const optix::float3 &scale, const std::shared_ptr<BSDF> &bsdf, bool flipNormal = false);
 
     /**
      * @brief Create a quad for quadLight and add to SceneGraph shape
@@ -214,21 +193,7 @@ public:
      * @param[in] quadLightIndex index to |quadLightBuffer|
      * @param[in] flipNormal     flip quad's normal
      */
-    std::shared_ptr<Quad> createQuad(const int materialIndex, const optix::float3 &position, const optix::float3 &rotation, const optix::float3 &scale, int quadLightIndex, bool flipNormal = false)
-    {
-        //todo:assert that quad is not assigned with Emissive BSDF.//todo:delete emissive?
-        //todo:review copy of Quad
-        std::shared_ptr<Quad> quad = Quad::createQuad(this->m_context, this->m_programsMap, position, rotation, scale, quadLightIndex, this->m_integrator->getIntegratorMaterial(), materialIndex);
-        if(flipNormal)
-            quad->flipGeometryNormal();
-        this->m_shapes_Geometry.push_back(quad);
-
-        /* Update OptiX Graph. */
-        this->m_topGeometryGroup_Geometry->addChild(quad->getGeometryInstance());
-        this->rebuildGeometry();
-
-        return quad;
-    }
+    std::shared_ptr<Quad> createQuad(const int materialIndex, const optix::float3 &position, const optix::float3 &rotation, const optix::float3 &scale, int quadLightIndex, const std::shared_ptr<BSDF> &bsdf, bool flipNormal = false);
 
 
     /**

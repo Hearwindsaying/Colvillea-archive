@@ -131,9 +131,9 @@ public:
      * @note Only adding light is supported.
      * @see MaterialPool::createEmissiveMaterial()
      */
-    void createQuadLight(const optix::float3 &position, const optix::float3 &rotation, const optix::float3 &scale, const optix::float3& color, float intensity, const int materialIndex, bool flipNormal = false)
+    void createQuadLight(const optix::float3 &position, const optix::float3 &rotation, const optix::float3 &scale, const optix::float3& color, float intensity, const int materialIndex, const std::shared_ptr<BSDF> &bsdf, bool flipNormal = false)
     {
-        std::shared_ptr<Quad> lightQuadShape = this->m_sceneGraph->createQuad(materialIndex, position, rotation, scale, this->m_quadLights.size() /* size() is the index we want for the current creating quad */, flipNormal);
+        std::shared_ptr<Quad> lightQuadShape = this->m_sceneGraph->createQuad(materialIndex, position, rotation, scale, this->m_quadLights.size() /* size() is the index we want for the current creating quad */, bsdf, flipNormal);
         std::shared_ptr<QuadLight> quadLight = QuadLight::createQuadLight(this->m_context, this->m_programsMap, color, intensity, lightQuadShape, this);
         this->m_quadLights.push_back(quadLight);
 
