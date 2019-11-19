@@ -1,4 +1,13 @@
 #pragma once
+#define  CL_CHECK_MEMORY_LEAKS
+#ifdef CL_CHECK_MEMORY_LEAKS
+#define _CRTDBG_MAP_ALLOC
+#include <stdlib.h>
+#include <crtdbg.h>
+#define CL_CHECK_MEMORY_LEAKS_NEW new(_NORMAL_BLOCK, __FILE__, __LINE__)
+#define new CL_CHECK_MEMORY_LEAKS_NEW
+#endif
+
 #include <algorithm>
 #include <memory>
 #include <vector>
@@ -259,7 +268,7 @@ public:
      * index.
      * @return Return the corresponding materialIndex pointed to materialBuffer.
      */
-    int getEmissiveMaterial(std::shared_ptr<BSDF> &outBSDF) const 
+    int32_t getEmissiveMaterial(std::shared_ptr<BSDF> &outBSDF) const
     {
         TW_ASSERT(this->m_bsdfs.size() > 0);
         /* First material is always an emissive material served as
@@ -274,7 +283,7 @@ private:
      * @note Use MaterialPool::getEmissiveMaterial() to
      * fetch a Emissive BSDF. This is for internal usage.
      */
-    inline int createEmissiveMaterial(std::shared_ptr<BSDF> &outBSDF)
+    inline int32_t createEmissiveMaterial(std::shared_ptr<BSDF> &outBSDF)
     {//todo,review
         CommonStructs::ShaderParams materialParams;
         MaterialPool::settingMaterialParameters(materialParams, CommonStructs::BSDFType::Emissive, optix::make_float4(1.f, 1.f, 1.f, 1.f));
@@ -289,7 +298,7 @@ public:
 	 * @param reflectance diffuse reflectance
 	 * @return return the material index to materialBuffer
 	 */
-	inline int createLambertMaterial(const optix::float4 & reflectance, std::shared_ptr<BSDF> &outBSDF)
+	inline int32_t createLambertMaterial(const optix::float4 & reflectance, std::shared_ptr<BSDF> &outBSDF)
 	{
 		CommonStructs::ShaderParams materialParams;
 		MaterialPool::settingMaterialParameters(materialParams, CommonStructs::BSDFType::Lambert,
@@ -302,7 +311,7 @@ public:
 	 * @param[in] reflectanceTextureFile  diffuse reflectance
 	 * @return return the created shaderparams object
 	 */
-	inline int createLambertMaterial(const std::string &reflectanceTextureFile, std::shared_ptr<BSDF> &outBSDF)
+	inline int32_t createLambertMaterial(const std::string &reflectanceTextureFile, std::shared_ptr<BSDF> &outBSDF)
 	{
         optix::TextureSampler reflectanceTS = ImageLoader::LoadImageTexture(this->m_context, reflectanceTextureFile, optix::make_float4(0.f));
         int reflectanceMapId = reflectanceTS->getId();
@@ -319,7 +328,7 @@ public:
 	 * @param ior index of refraction of the glass
 	 * @return return the created shaderparams object
 	 */
-	inline int createSmoothGlassMaterial(const float ior, std::shared_ptr<BSDF> &outBSDF)
+	inline int32_t createSmoothGlassMaterial(const float ior, std::shared_ptr<BSDF> &outBSDF)
 	{
 		CommonStructs::ShaderParams materialParams;
 		MaterialPool::settingMaterialParameters(materialParams, CommonStructs::BSDFType::SmoothGlass);
@@ -331,7 +340,7 @@ public:
 	 * @brief create a perfect smooth mirror material for trianglemesh(Fresnel=1)
 	 * @return return the created shaderparams object
 	 */
-	inline int createSmoothMirrorMaterial(std::shared_ptr<BSDF> &outBSDF)
+	inline int32_t createSmoothMirrorMaterial(std::shared_ptr<BSDF> &outBSDF)
 	{
 		CommonStructs::ShaderParams materialParams;
 		MaterialPool::settingMaterialParameters(materialParams, CommonStructs::BSDFType::SmoothMirror);
@@ -346,7 +355,7 @@ public:
 	 * @param k absorption coefficient of rough metal, with wavelength dependent component
 	 * @return return the created shaderparams object
 	 */
-	inline int createRoughMetalMaterial(std::shared_ptr<BSDF> &outBSDF, const float roughness, const optix::float4 &eta, const optix::float4 &k, const optix::float4 & specular = optix::make_float4(1.f))
+	inline int32_t createRoughMetalMaterial(std::shared_ptr<BSDF> &outBSDF, const float roughness, const optix::float4 &eta, const optix::float4 &k, const optix::float4 & specular = optix::make_float4(1.f))
 	{
 		CommonStructs::ShaderParams materialParams;
 		MaterialPool::settingMaterialParameters(materialParams, CommonStructs::BSDFType::RoughMetal);
@@ -366,7 +375,7 @@ public:
 	 * @param reflectance the reflectance of lambertian surface lying on the buttom of the plastic
 	 * @return return the created shaderparams object
 	 */
-	inline int createPlasticMaterial(const float roughness, const float ior, const optix::float4& reflectance, const optix::float4 &specular, std::shared_ptr<BSDF> &outBSDF)
+	inline int32_t createPlasticMaterial(const float roughness, const float ior, const optix::float4& reflectance, const optix::float4 &specular, std::shared_ptr<BSDF> &outBSDF)
 	{
 		CommonStructs::ShaderParams materialParams;
 		MaterialPool::settingMaterialParameters(materialParams, CommonStructs::BSDFType::Plastic);
@@ -386,7 +395,7 @@ public:
 	 * @param[in] specular
 	 * @return return the created shaderparams object
 	 */
-	inline int createPlasticMaterial(const float roughness, const float ior, const std::string &reflectanceTextureFile, const optix::float4 &specular, std::shared_ptr<BSDF> &outBSDF)
+	inline int32_t createPlasticMaterial(const float roughness, const float ior, const std::string &reflectanceTextureFile, const optix::float4 &specular, std::shared_ptr<BSDF> &outBSDF)
 	{
         optix::TextureSampler reflectanceTS = ImageLoader::LoadImageTexture(this->m_context, reflectanceTextureFile, optix::make_float4(0.f));
         int reflectanceMapId = reflectanceTS->getId();
@@ -409,7 +418,7 @@ public:
 	 * @param reflectance the reflectance of rough dielectric
 	 * @return return the created shaderparams object
 	 */
-	inline int createRoughDielectricMaterial(std::shared_ptr<BSDF> &outBSDF, const float roughness, const float ior, const optix::float4& reflectance, const optix::float4& specular = optix::make_float4(1.f))
+	inline int32_t createRoughDielectricMaterial(std::shared_ptr<BSDF> &outBSDF, const float roughness, const float ior, const optix::float4& reflectance, const optix::float4& specular = optix::make_float4(1.f))
 	{
 		CommonStructs::ShaderParams materialParams;
 		MaterialPool::settingMaterialParameters(materialParams, CommonStructs::BSDFType::RoughDielectric);
@@ -423,7 +432,7 @@ public:
 	}
 
     //todo:improv
-    inline int createFrostedMetalMaterial(std::shared_ptr<BSDF> &outBSDF)
+    inline int32_t createFrostedMetalMaterial(std::shared_ptr<BSDF> &outBSDF)
     {
         CommonStructs::ShaderParams materialParams;
         MaterialPool::settingMaterialParameters(materialParams, CommonStructs::BSDFType::FrostedMetal);
@@ -479,7 +488,7 @@ public:
      * @param[in] materialIndex materialIndex from Shape
      * @return BSDF instance
      */
-    const std::shared_ptr<BSDF> &getBSDF(int materialIndex) const
+    const std::shared_ptr<BSDF> &getBSDF(int32_t materialIndex) const
     {
         return this->m_bsdfs[materialIndex];
     }
@@ -539,12 +548,12 @@ private:
 
 	/**
 	 * @brief Add a material to materialBuffer and send to OptiX.
-	 * @return Return the corresponding materialIndex pointed to materialBuffer.
+	 * @return Return the corresponding |materialIndex| (<2^32) pointed to |materialBuffer|.
 	 */
-	int addMaterial(const std::shared_ptr<BSDF> &bsdf)
+	int32_t addMaterial(const std::shared_ptr<BSDF> &bsdf)
 	{
 		this->m_bsdfs.push_back(bsdf);
-        int index = this->m_bsdfs.size() - 1;
+        int32_t index = static_cast<int32_t>(this->m_bsdfs.size() - 1);
 
         /* Update all materials. */
         this->updateAllMaterials(false);
@@ -577,18 +586,19 @@ private:
         /* Setup shaderBuffer for GPU Program */
         auto shaderParamsArray = static_cast<CommonStructs::ShaderParams *>(this->m_shaderBuffer->map());
         TW_ASSERT(this->m_bsdfs.size() >= 1);
-        for (auto itr = this->m_bsdfs.cbegin(); itr != this->m_bsdfs.cend(); ++itr)
+        for (int32_t materialIndex = 0; materialIndex < this->m_bsdfs.size(); ++materialIndex)
         {
             if (updateMaterialIndex)
             {
                 /* For the Emissive BSDF's referencing shape, no need to setMaterialIndex. */
-                if (itr != this->m_bsdfs.cbegin())
+                if (materialIndex)
                 {
-                    (*itr)->getShape()->setMaterialIndex(itr - this->m_bsdfs.cbegin());
+                    /* If materialIndex != 0: */
+                    this->m_bsdfs[materialIndex]->getShape()->setMaterialIndex(materialIndex);
                 }
             }
                 
-            shaderParamsArray[itr - this->m_bsdfs.cbegin()] = (*itr)->getCommonStructsShaderParams();
+            shaderParamsArray[materialIndex] = this->m_bsdfs[materialIndex]->getCommonStructsShaderParams();
         }
 
         this->m_context["shaderBuffer"]->setBuffer(this->m_shaderBuffer);

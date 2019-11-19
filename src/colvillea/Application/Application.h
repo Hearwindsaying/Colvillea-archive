@@ -48,7 +48,7 @@ public:
      * 
      * @see Application::buildSceneGraph()
      */
-    Application(GLFWwindow* glfwWindow, const uint32_t filmWidth, const uint32_t filmHeight, const int optixReportLevel);
+    Application(GLFWwindow* glfwWindow, uint32_t filmWidth, uint32_t filmHeight, int optixReportLevel);
 
     /**
      * @brief Destroy context and release resouces.

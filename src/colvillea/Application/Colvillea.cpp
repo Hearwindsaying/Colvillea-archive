@@ -26,7 +26,7 @@
 using namespace optix;
 
 /* Create Cornellbox. */
-void create_CornellBoxScene(std::shared_ptr<SceneGraph> &sceneGraph, std::shared_ptr<LightPool> &lightPool, std::unique_ptr<Application> &application, std::shared_ptr<MaterialPool> &materialPool, const std::string & basePath)
+void create_CornellBoxScene(std::shared_ptr<SceneGraph> &sceneGraph, std::shared_ptr<LightPool> &lightPool, std::shared_ptr<MaterialPool> &materialPool, const std::string & basePath)
 {
     /* Create triangle mesh. */
     std::shared_ptr<BSDF> lamBSDF;
@@ -57,7 +57,7 @@ void create_CornellBoxScene(std::shared_ptr<SceneGraph> &sceneGraph, std::shared
 }
 
 /* Create test scene. */
-void create_TestScene(std::shared_ptr<SceneGraph> &sceneGraph, std::shared_ptr<LightPool> &lightPool, std::unique_ptr<Application> &application, std::shared_ptr<MaterialPool> &materialPool, const std::string & basePath)
+void create_TestScene(std::shared_ptr<SceneGraph> &sceneGraph, std::shared_ptr<LightPool> &lightPool, std::shared_ptr<MaterialPool> &materialPool, const std::string & basePath)
 {
     lightPool->createHDRILight(basePath + "HDRI\\uffizi-large.hdr", optix::make_float3(0.f,0.f,0.f));
     sceneGraph->createSampler(CommonStructs::SamplerType::IndependentSampler);// todo:ifdef USE_HALTON_SAMPLER to enable Halton
@@ -79,12 +79,20 @@ void create_TestScene(std::shared_ptr<SceneGraph> &sceneGraph, std::shared_ptr<L
 }
 
 /* Create Dining Room scene. */
-void create_DiningRoom(std::shared_ptr<SceneGraph> &sceneGraph, std::shared_ptr<LightPool> &lightPool, std::unique_ptr<Application> &application, std::shared_ptr<MaterialPool> &materialPool, const std::string & basePath)
+void create_DiningRoom(std::shared_ptr<SceneGraph> &sceneGraph, std::shared_ptr<LightPool> &lightPool, std::shared_ptr<MaterialPool> &materialPool, const std::string & basePath)
 {
     /* Specify Integrator. */
     //sceneGraph->changeIntegrator(IntegratorType::PathTracing);
     /* Create HDRProbe. */
     lightPool->createHDRILight(basePath + "Dining-room\\textures\\Skydome.hdr", optix::make_float3(0.f, 0.f, 0.f));
+
+    /* Create light. */
+    /*std::shared_ptr<BSDF> emissiveBSDF;
+    int emissiveIdx = materialPool->getEmissiveMaterial(emissiveBSDF);
+    lightPool->createQuadLight(
+        make_float3(1.0f, 0.0f, 7.0f), make_float3(0.f),
+        make_float3(3.0f, 3.0f, 1.f),
+        make_float3(1.f, 1.f, 1.f), 18.f, emissiveIdx, emissiveBSDF, true);*/
 
     /* Create Sampler. */
     sceneGraph->createSampler(CommonStructs::SamplerType::IndependentSampler);
@@ -95,7 +103,7 @@ void create_DiningRoom(std::shared_ptr<SceneGraph> &sceneGraph, std::shared_ptr<
     sceneGraph->createTriangleMesh(basePath + "Dining-room\\models\\whiteplastic.obj", whiteplasticId, whiteplastic);
 
     std::shared_ptr<BSDF> chrome;
-    int chromeId = materialPool->createRoughMetalMaterial(chrome, 0.05f, make_float4(4.369683, 2.916703, 1.654701, 0.0f), make_float4(5.206434, 4.231365, 3.754947, 0.0f));
+    int chromeId = materialPool->createRoughMetalMaterial(chrome, 0.05f, make_float4(4.369683f, 2.916703f, 1.654701f, 0.0f), make_float4(5.206434f, 4.231365f, 3.754947f, 0.0f));
     sceneGraph->createTriangleMesh(basePath + "Dining-room\\models\\chrome.obj", chromeId, chrome);
 
     std::shared_ptr<BSDF> blackrubber;
@@ -127,7 +135,7 @@ void create_DiningRoom(std::shared_ptr<SceneGraph> &sceneGraph, std::shared_ptr<
     sceneGraph->createTriangleMesh(basePath + "Dining-room\\models\\whitemarble.obj", whitemarbleId, whitemarble);
 
     std::shared_ptr<BSDF> gold;
-    int goldId = materialPool->createRoughMetalMaterial(gold, 0.1f, make_float4(0.143119, 0.374957, 1.442479, 0.0f), make_float4(3.983160, 2.385721, 1.603215, 0.0f));
+    int goldId = materialPool->createRoughMetalMaterial(gold, 0.1f, make_float4(0.143119f, 0.374957f, 1.442479f, 0.0f), make_float4(3.983160f, 2.385721f, 1.603215f, 0.0f));
     sceneGraph->createTriangleMesh(basePath + "Dining-room\\models\\gold.obj", goldId, gold);
 
     std::shared_ptr<BSDF> ceramic;
@@ -135,7 +143,7 @@ void create_DiningRoom(std::shared_ptr<SceneGraph> &sceneGraph, std::shared_ptr<
     sceneGraph->createTriangleMesh(basePath + "Dining-room\\models\\ceramic.obj", ceramicId, ceramic);
 
     std::shared_ptr<BSDF> roughmetal;
-    int roughmetalId = materialPool->createRoughMetalMaterial(roughmetal, 0.1f, make_float4(1.657460, 0.880369, 0.521229, 0.0f), make_float4(9.223869, 6.269523, 4.837001, 0.0f));
+    int roughmetalId = materialPool->createRoughMetalMaterial(roughmetal, 0.1f, make_float4(1.657460f, 0.880369f, 0.521229f, 0.0f), make_float4(9.223869f, 6.269523f, 4.837001f, 0.0f));
     sceneGraph->createTriangleMesh(basePath + "Dining-room\\models\\roughmetal.obj", roughmetalId, roughmetal);
 
     std::shared_ptr<BSDF> paintedceramic;
@@ -149,20 +157,13 @@ void create_DiningRoom(std::shared_ptr<SceneGraph> &sceneGraph, std::shared_ptr<
     std::shared_ptr<BSDF> frostedglass;
     int frostedglassId = materialPool->createPlasticMaterial(0.01f, 1.5f, make_float4(0.793110f), make_float4(0.04f), frostedglass);
     sceneGraph->createTriangleMesh(basePath + "Dining-room\\models\\frostedglass.obj", frostedglassId, frostedglass);
-
-    /* Create light. */
-    std::shared_ptr<BSDF> emissiveBSDF;
-    int emissiveIdx = materialPool->getEmissiveMaterial(emissiveBSDF);
-    lightPool->createQuadLight(
-        make_float3(1.0f, 0.0f, 7.0f), make_float3(0.f),
-        make_float3(3.0f, 3.0f, 1.f),
-        make_float3(1.f, 1.f, 1.f), 18.f, emissiveIdx, emissiveBSDF, true);
 }
 
 
 int main(int argc, char *argv[])
 {
-    //_CrtSetBreakAlloc(3231);
+    /*_CrtSetBreakAlloc(208);*/
+    _CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
 
     /* Setup GLFW/GLEW context. */
     auto glfwErrorFunc = [](int error, const char* description)
@@ -216,6 +217,7 @@ int main(int argc, char *argv[])
 
     /* Parameters shared by camera and application. */
     const uint32_t filmWidth = 1280, filmHeight = 720;
+    //uint32_t filmWidth = 600, filmHeight = 600;
     //const uint32_t filmWidth = 1024, filmHeight = 1024;
     /*const float fov = 60.f;*/
     const float fov = 45.f;
@@ -235,9 +237,9 @@ int main(int argc, char *argv[])
 
     /* Create scene using sceneGraph::createXXX methods. */
     sceneGraph->createCamera(Matrix4x4::identity(), fov, filmWidth, filmHeight);
-    //create_CornellBoxScene(sceneGraph, lightPool, application, materialPool, examplesBasePath); /* left scene configurations are created... */
-    //create_TestScene(sceneGraph, lightPool, application, materialPool, examplesBasePath);
-    create_DiningRoom(sceneGraph, lightPool, application, materialPool, examplesBasePath);
+    //create_CornellBoxScene(sceneGraph, lightPool, materialPool, examplesBasePath); /* left scene configurations are created... */
+    create_TestScene(sceneGraph, lightPool, materialPool, examplesBasePath);
+    //create_DiningRoom(sceneGraph, lightPool, materialPool, examplesBasePath);
 
     /* Finally initialize scene and prepare for launch. */
     application->buildSceneGraph(sceneGraph);
@@ -290,6 +292,6 @@ int main(int argc, char *argv[])
     glfwDestroyWindow(glfwWindow);
     glfwTerminate();
 
-    _CrtDumpMemoryLeaks();
+    //_CrtDumpMemoryLeaks();
     return 0;
 }

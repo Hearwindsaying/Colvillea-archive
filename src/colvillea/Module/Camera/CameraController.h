@@ -1,5 +1,14 @@
 #pragma once
 
+#define  CL_CHECK_MEMORY_LEAKS
+#ifdef CL_CHECK_MEMORY_LEAKS
+#define _CRTDBG_MAP_ALLOC
+#include <stdlib.h>
+#include <crtdbg.h>
+#define CL_CHECK_MEMORY_LEAKS_NEW new(_NORMAL_BLOCK, __FILE__, __LINE__)
+#define new CL_CHECK_MEMORY_LEAKS_NEW
+#endif
+
 #include <memory>
 
 #include "colvillea/Module/Camera/Camera.h"
@@ -43,7 +52,7 @@ private:
 
     public:
         CameraInfo() : 
-            basePosition(optix::make_int2(0,0)), deltaValue(optix::make_int2(0,0)),
+            basePosition(optix::make_int2(0, 0)), deltaValue(optix::make_int2(0, 0)),
             phi(.88f), theta(.64f), trackSpeed(25.f), radialDistance(5.f)
         {
             this->eye = optix::make_float3(1.436f, -1.304f, -0.030f);
@@ -135,7 +144,7 @@ public:
      * 
      * @see orbit(),dolly(),pan()
      */
-    void handleInputGUIEvent(const InputMouseActionType mouseAction, const optix::int2 screenPos);
+    void handleInputGUIEvent(const InputMouseActionType mouseAction, optix::int2 screenPos);
 
 private:
     /**
@@ -215,7 +224,9 @@ inline void CameraController::pan(optix::int2 screenPos)
 	{
         /* Figure out the new looking at destination position. */
 
-        optix::float2 uv = optix::make_float2(this->m_cameraInfo.deltaValue.x, this->m_cameraInfo.deltaValue.y) / this->m_cameraInfo.trackSpeed; // todo:check consistence with orbit's calculation, divided by film resolution.
+        optix::float2 uv = optix::make_float2(
+            static_cast<float>(this->m_cameraInfo.deltaValue.x), static_cast<float>(this->m_cameraInfo.deltaValue.y)) 
+            / this->m_cameraInfo.trackSpeed; // todo:check consistence with orbit's calculation, divided by film resolution.
 		this->m_cameraInfo.lookAtDestination = this->m_cameraInfo.lookAtDestination - 
             uv.x * this->m_cameraInfo.left + uv.y * this->m_cameraInfo.up;
 

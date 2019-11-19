@@ -1,5 +1,14 @@
 #pragma once
 
+#define  CL_CHECK_MEMORY_LEAKS
+#ifdef CL_CHECK_MEMORY_LEAKS
+#define _CRTDBG_MAP_ALLOC
+#include <stdlib.h>
+#include <crtdbg.h>
+#define CL_CHECK_MEMORY_LEAKS_NEW new(_NORMAL_BLOCK, __FILE__, __LINE__)
+#define new CL_CHECK_MEMORY_LEAKS_NEW
+#endif
+
 #include <algorithm>
 #include <map>
 #include <vector>
@@ -131,9 +140,13 @@ public:
      * @note Only adding light is supported.
      * @see MaterialPool::createEmissiveMaterial()
      */
-    void createQuadLight(const optix::float3 &position, const optix::float3 &rotation, const optix::float3 &scale, const optix::float3& color, float intensity, const int materialIndex, const std::shared_ptr<BSDF> &bsdf, bool flipNormal = false)
+    void createQuadLight(const optix::float3 &position, const optix::float3 &rotation, const optix::float3 &scale, const optix::float3& color, float intensity, int32_t materialIndex, const std::shared_ptr<BSDF> &bsdf, bool flipNormal = false)
     {
-        std::shared_ptr<Quad> lightQuadShape = this->m_sceneGraph->createQuad(materialIndex, position, rotation, scale, this->m_quadLights.size() /* size() is the index we want for the current creating quad */, bsdf, flipNormal);
+        std::shared_ptr<Quad> lightQuadShape = this->m_sceneGraph->createQuad(materialIndex, 
+            position, rotation, scale, 
+            static_cast<int32_t>(this->m_quadLights.size()) /* size() is the index we want for the current creating quad */, 
+            bsdf, 
+            flipNormal);
         std::shared_ptr<QuadLight> quadLight = QuadLight::createQuadLight(this->m_context, this->m_programsMap, color, intensity, lightQuadShape, this);
         this->m_quadLights.push_back(quadLight);
 
@@ -310,10 +323,10 @@ private:
 
         /* Setup quadLightBuffer for GPU Program */
         auto quadLightArray = static_cast<CommonStructs::QuadLight *>(quadLightBuffer->map());
-        for (auto itr = this->m_quadLights.begin(); itr != this->m_quadLights.end(); ++itr)
+        for (int32_t quadLightIndex = 0; quadLightIndex < this->m_quadLights.size(); ++quadLightIndex)
         {
-            (*itr)->getQuadShape()->setQuadLightIndex(itr - this->m_quadLights.begin());
-            quadLightArray[itr - this->m_quadLights.begin()] = (*itr)->getCommonStructsLight();
+            this->m_quadLights[quadLightIndex]->getQuadShape()->setQuadLightIndex(quadLightIndex);
+            quadLightArray[quadLightIndex] = this->m_quadLights[quadLightIndex]->getCommonStructsLight();
         }
 
         this->updateLightBuffers();

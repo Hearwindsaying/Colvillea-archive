@@ -6,7 +6,7 @@
 #include <locale>
 #include <string>
 
-void CameraController::handleInputGUIEvent(const InputMouseActionType mouseAction, const optix::int2 screenPos)
+void CameraController::handleInputGUIEvent(const InputMouseActionType mouseAction, optix::int2 screenPos)
 {
     switch (this->m_cameraMotionType)
     {

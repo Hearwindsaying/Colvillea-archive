@@ -1,8 +1,17 @@
+#define  CL_CHECK_MEMORY_LEAKS
+#ifdef CL_CHECK_MEMORY_LEAKS
+#define _CRTDBG_MAP_ALLOC
+#include <stdlib.h>
+#include <crtdbg.h>
+#define CL_CHECK_MEMORY_LEAKS_NEW new(_NORMAL_BLOCK, __FILE__, __LINE__)
+#define new CL_CHECK_MEMORY_LEAKS_NEW
+#endif
+
 #include "colvillea/Application/SceneGraph.h"
 
 #include "colvillea/Module/Material/MaterialPool.h"
 
-void SceneGraph::createTriangleMesh(const std::string & meshFileName, int materialIndex, const std::shared_ptr<BSDF> &bsdf)
+void SceneGraph::createTriangleMesh(const std::string & meshFileName, int32_t materialIndex, const std::shared_ptr<BSDF> &bsdf)
 {
     /* Converting unique_ptr to shared_ptr. */
     std::shared_ptr<TriangleMesh> triMesh = TriangleMesh::createTriangleMesh(this->m_context, this->m_programsMap, meshFileName, this->m_integrator->getIntegratorMaterial(), materialIndex);
@@ -16,7 +25,7 @@ void SceneGraph::createTriangleMesh(const std::string & meshFileName, int materi
     this->rebuildGeometryTriangles();
 }
 
-std::shared_ptr<Quad> SceneGraph::createQuad(SceneGraph *sceneGraph, const int materialIndex, const optix::float3 &position, const optix::float3 &rotation, const optix::float3 &scale, const std::shared_ptr<BSDF> &bsdf, bool flipNormal)
+std::shared_ptr<Quad> SceneGraph::createQuad(SceneGraph *sceneGraph, int32_t materialIndex, const optix::float3 &position, const optix::float3 &rotation, const optix::float3 &scale, const std::shared_ptr<BSDF> &bsdf, bool flipNormal)
 {
     //todo:assert that quad is not assigned with Emissive BSDF.//todo:delete emissive?
     //todo:review copy of Quad
@@ -34,7 +43,7 @@ std::shared_ptr<Quad> SceneGraph::createQuad(SceneGraph *sceneGraph, const int m
     return quad;
 }
 
-std::shared_ptr<Quad> SceneGraph::createQuad(const int materialIndex, const optix::float3 &position, const optix::float3 &rotation, const optix::float3 &scale, int quadLightIndex, const std::shared_ptr<BSDF> &bsdf, bool flipNormal)
+std::shared_ptr<Quad> SceneGraph::createQuad(int32_t materialIndex, const optix::float3 &position, const optix::float3 &rotation, const optix::float3 &scale, int32_t quadLightIndex, const std::shared_ptr<BSDF> &bsdf, bool flipNormal)
 {
     //todo:assert that quad is not assigned with Emissive BSDF.//todo:delete emissive?
     //todo:review copy of Quad

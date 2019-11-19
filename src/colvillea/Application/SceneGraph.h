@@ -1,5 +1,14 @@
 #pragma once
 
+#define  CL_CHECK_MEMORY_LEAKS
+#ifdef CL_CHECK_MEMORY_LEAKS
+#define _CRTDBG_MAP_ALLOC
+#include <stdlib.h>
+#include <crtdbg.h>
+#define CL_CHECK_MEMORY_LEAKS_NEW new(_NORMAL_BLOCK, __FILE__, __LINE__)
+#define new CL_CHECK_MEMORY_LEAKS_NEW
+#endif
+
 #include <optix.h>
 #include <optixu/optixpp_namespace.h>
 #include <optixu_matrix_namespace.h>
@@ -179,7 +188,7 @@ public:
      * @param[in] scale         Z-component is zero
      * @param[in] flipNormal    flip quad's normal
      */
-    std::shared_ptr<Quad> createQuad(SceneGraph *sceneGraph, const int materialIndex, const optix::float3 &position, const optix::float3 &rotation, const optix::float3 &scale, const std::shared_ptr<BSDF> &bsdf, bool flipNormal = false);
+    std::shared_ptr<Quad> createQuad(SceneGraph *sceneGraph, int32_t materialIndex, const optix::float3 &position, const optix::float3 &rotation, const optix::float3 &scale, const std::shared_ptr<BSDF> &bsdf, bool flipNormal = false);
 
     /**
      * @brief Create a quad for quadLight and add to SceneGraph shape
@@ -193,7 +202,7 @@ public:
      * @param[in] quadLightIndex index to |quadLightBuffer|
      * @param[in] flipNormal     flip quad's normal
      */
-    std::shared_ptr<Quad> createQuad(const int materialIndex, const optix::float3 &position, const optix::float3 &rotation, const optix::float3 &scale, int quadLightIndex, const std::shared_ptr<BSDF> &bsdf, bool flipNormal = false);
+    std::shared_ptr<Quad> createQuad(int32_t materialIndex, const optix::float3 &position, const optix::float3 &rotation, const optix::float3 &scale, int32_t quadLightIndex, const std::shared_ptr<BSDF> &bsdf, bool flipNormal = false);
 
 
     /**

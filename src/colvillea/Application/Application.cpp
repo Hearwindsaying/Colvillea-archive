@@ -15,6 +15,15 @@
 #include <imgui/imgui_impl_opengl3.h>
 #include <imgui/imgui_stdlib.h>
 
+#define  CL_CHECK_MEMORY_LEAKS
+#ifdef CL_CHECK_MEMORY_LEAKS
+#define _CRTDBG_MAP_ALLOC
+#include <stdlib.h>
+#include <crtdbg.h>
+#define CL_CHECK_MEMORY_LEAKS_NEW new(_NORMAL_BLOCK, __FILE__, __LINE__)
+#define new CL_CHECK_MEMORY_LEAKS_NEW
+#endif
+
 // About Desktop OpenGL function loaders:
 //  Modern desktop OpenGL doesn't have a standard portable header file to load OpenGL function pointers.
 //  Helper libraries are often used for this purpose! We use glew here.
@@ -51,7 +60,7 @@
 
 using namespace optix;
 
-Application::Application(GLFWwindow* glfwWindow, const uint32_t filmWidth, const uint32_t filmHeight, const int optixReportLevel) : 
+Application::Application(GLFWwindow* glfwWindow, uint32_t filmWidth, uint32_t filmHeight, int optixReportLevel) : 
     m_filmWidth(filmWidth), m_filmHeight(filmHeight), 
     m_optixReportLevel(optixReportLevel),
     m_sysIterationIndex(0),m_resetRenderParamsNotification(true),
@@ -146,7 +155,7 @@ void Application::drawWidget()
         //System Module:
         ImGui::Text("Current Iterations:%d", this->m_sysIterationIndex);
 
-        auto GetFPS = [](const int frame)->float
+        auto GetFPS = []()->float
         {
             static double fps = -1.0;
             static unsigned last_frame_count = 0;
@@ -176,7 +185,8 @@ void Application::drawWidget()
             return buf;
         };
 
-        float currfps = GetFPS(frame_count++);
+        frame_count++;
+        float currfps = GetFPS();
         ImGui::Text("FPS:%.2f", currfps);
         ImGui::Text("Average Rendering Time(per launch):%.5fms", 1000.f / currfps);
 
@@ -222,8 +232,8 @@ void Application::render()
 
 void Application::handleInputEvent(bool dispatchMouseInput)
 {
-    ImGuiIO const& io = ImGui::GetIO();
-    const ImVec2 mousePosition = ImGui::GetMousePos();
+    const ImVec2 mousePositionf = ImGui::GetMousePos();
+    const int2 mousePosition = make_int2(static_cast<int>(mousePositionf.x), static_cast<int>(mousePositionf.y));
 
     CameraController::InputMouseActionType mouseAction;
 
@@ -232,37 +242,37 @@ void Application::handleInputEvent(bool dispatchMouseInput)
         if (ImGui::IsMouseDown(0))
         {
             mouseAction = static_cast<CameraController::InputMouseActionType>(toUnderlyingValue(CameraController::InputMouseActionType::LeftMouse) | toUnderlyingValue(CameraController::InputMouseActionType::Down));
-            this->m_cameraController->handleInputGUIEvent(mouseAction, make_int2(mousePosition.x, mousePosition.y));
+            this->m_cameraController->handleInputGUIEvent(mouseAction, mousePosition);
         }
 
         else if (ImGui::IsMouseDown(1))
         {
             mouseAction = static_cast<CameraController::InputMouseActionType>(toUnderlyingValue(CameraController::InputMouseActionType::RightMouse) | toUnderlyingValue(CameraController::InputMouseActionType::Down));
-            this->m_cameraController->handleInputGUIEvent(mouseAction, make_int2(mousePosition.x, mousePosition.y));
+            this->m_cameraController->handleInputGUIEvent(mouseAction, mousePosition);
         }
 
         else if (ImGui::IsMouseDown(2))
         {
             mouseAction = static_cast<CameraController::InputMouseActionType>(toUnderlyingValue(CameraController::InputMouseActionType::MiddleMouse) | toUnderlyingValue(CameraController::InputMouseActionType::Down));
-            this->m_cameraController->handleInputGUIEvent(mouseAction, make_int2(mousePosition.x, mousePosition.y));
+            this->m_cameraController->handleInputGUIEvent(mouseAction, mousePosition);
         }
 
         else if (ImGui::IsMouseReleased(0))
         {
             mouseAction = static_cast<CameraController::InputMouseActionType>(toUnderlyingValue(CameraController::InputMouseActionType::LeftMouse) | toUnderlyingValue(CameraController::InputMouseActionType::Release));
-            this->m_cameraController->handleInputGUIEvent(mouseAction, make_int2(mousePosition.x, mousePosition.y));
+            this->m_cameraController->handleInputGUIEvent(mouseAction, mousePosition);
         }
 
         else if (ImGui::IsMouseReleased(1))
         {
             mouseAction = static_cast<CameraController::InputMouseActionType>(toUnderlyingValue(CameraController::InputMouseActionType::RightMouse) | toUnderlyingValue(CameraController::InputMouseActionType::Release));
-            this->m_cameraController->handleInputGUIEvent(mouseAction, make_int2(mousePosition.x, mousePosition.y));
+            this->m_cameraController->handleInputGUIEvent(mouseAction, mousePosition);
         }
 
         else if (ImGui::IsMouseReleased(2))
         {
             mouseAction = static_cast<CameraController::InputMouseActionType>(toUnderlyingValue(CameraController::InputMouseActionType::MiddleMouse) | toUnderlyingValue(CameraController::InputMouseActionType::Release));
-            this->m_cameraController->handleInputGUIEvent(mouseAction, make_int2(mousePosition.x, mousePosition.y));
+            this->m_cameraController->handleInputGUIEvent(mouseAction, mousePosition);
         }
     }
 
@@ -271,19 +281,19 @@ void Application::handleInputEvent(bool dispatchMouseInput)
         if (ImGui::IsMouseReleased(0))
         {
             mouseAction = static_cast<CameraController::InputMouseActionType>(toUnderlyingValue(CameraController::InputMouseActionType::LeftMouse) | toUnderlyingValue(CameraController::InputMouseActionType::Release));
-            this->m_cameraController->handleInputGUIEvent(mouseAction, make_int2(mousePosition.x, mousePosition.y));
+            this->m_cameraController->handleInputGUIEvent(mouseAction, mousePosition);
         }
 
         else if (ImGui::IsMouseReleased(1))
         {
             mouseAction = static_cast<CameraController::InputMouseActionType>(toUnderlyingValue(CameraController::InputMouseActionType::RightMouse) | toUnderlyingValue(CameraController::InputMouseActionType::Release));
-            this->m_cameraController->handleInputGUIEvent(mouseAction, make_int2(mousePosition.x, mousePosition.y));
+            this->m_cameraController->handleInputGUIEvent(mouseAction, mousePosition);
         }
 
         else if (ImGui::IsMouseReleased(2))
         {
             mouseAction = static_cast<CameraController::InputMouseActionType>(toUnderlyingValue(CameraController::InputMouseActionType::MiddleMouse) | toUnderlyingValue(CameraController::InputMouseActionType::Release));
-            this->m_cameraController->handleInputGUIEvent(mouseAction, make_int2(mousePosition.x, mousePosition.y));
+            this->m_cameraController->handleInputGUIEvent(mouseAction, mousePosition);
         }
     }
 }
@@ -324,7 +334,7 @@ void Application::drawRenderView()
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, static_cast<GLsizei>(this->m_filmWidth), static_cast<GLsizei>(this->m_filmHeight), 0, GL_RGBA, GL_FLOAT, nullptr); // RGBA32F from byte offset 0 in the pixel unpack buffer.
     glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
 
-    ImGui::Image((void*)(intptr_t)this->m_renderViewTexture, ImVec2(this->m_filmWidth, this->m_filmHeight), ImVec2(0, 1), ImVec2(1, 0)); /* flip UV Coordinates due to the inconsistence(vertically invert) */
+    ImGui::Image((void*)(intptr_t)this->m_renderViewTexture, ImVec2(static_cast<float>(this->m_filmWidth), static_cast<float>(this->m_filmHeight)), ImVec2(0, 1), ImVec2(1, 0)); /* flip UV Coordinates due to the inconsistence(vertically invert) */
 
     ImGui::End();
 }
@@ -1262,7 +1272,7 @@ void Application::drawHierarchy()
                 if (ImGui::MenuItem("QuadLight"))
                 {
                     std::shared_ptr<BSDF> emissiveBSDF;
-                    int emissiveIdx = this->m_materialPool->getEmissiveMaterial(emissiveBSDF);
+                    int32_t emissiveIdx = this->m_materialPool->getEmissiveMaterial(emissiveBSDF);
                     this->m_lightPool->createQuadLight(make_float3(0.f), make_float3(0.f), make_float3(1.f, 1.f, 1.f), make_float3(1.f), 5.f, emissiveIdx, emissiveBSDF, false);
                     this->resetRenderParams();
                 }
@@ -1273,7 +1283,7 @@ void Application::drawHierarchy()
                 if (ImGui::MenuItem("Quad"))
                 {
                     std::shared_ptr<BSDF> lamBSDF;
-                    int lamIdx = this->m_materialPool->createLambertMaterial(optix::make_float4(0.5f, 0.5f, 0.5f, 1.f), lamBSDF);
+                    int32_t lamIdx = this->m_materialPool->createLambertMaterial(optix::make_float4(0.5f, 0.5f, 0.5f, 1.f), lamBSDF);
                     this->m_sceneGraph->createQuad(this->m_sceneGraph.get(), lamIdx, make_float3(0.f), make_float3(0.f), make_float3(1.0f, 1.0f, 1.0f), lamBSDF);
                     this->resetRenderParams();
                 }
@@ -1284,7 +1294,7 @@ void Application::drawHierarchy()
                     if (OBJFilename_c_str != NULL)
                     {
                         std::shared_ptr<BSDF> lamBSDF;
-                        int lamIdx = this->m_materialPool->createLambertMaterial(optix::make_float4(0.5f, 0.5f, 0.5f, 1.f), lamBSDF);
+                        int32_t lamIdx = this->m_materialPool->createLambertMaterial(optix::make_float4(0.5f, 0.5f, 0.5f, 1.f), lamBSDF);
                         this->m_sceneGraph->createTriangleMesh(OBJFilename_c_str, lamIdx, lamBSDF);
                         this->resetRenderParams();
                     } 

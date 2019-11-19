@@ -1,5 +1,14 @@
 #pragma once
 
+#define  CL_CHECK_MEMORY_LEAKS
+#ifdef CL_CHECK_MEMORY_LEAKS
+#define _CRTDBG_MAP_ALLOC
+#include <stdlib.h>
+#include <crtdbg.h>
+#define CL_CHECK_MEMORY_LEAKS_NEW new(_NORMAL_BLOCK, __FILE__, __LINE__)
+#define new CL_CHECK_MEMORY_LEAKS_NEW
+#endif
+
 #include "colvillea/Device/Toolkit/CommonStructs.h"
 #include "colvillea/Module/Image/ImageLoader.h"
 #include "colvillea/Module/Material/MaterialPool.h"

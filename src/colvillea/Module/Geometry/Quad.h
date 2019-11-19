@@ -36,7 +36,7 @@ public:
      * @param[in] integrator       integrator of optix::Material type
      * @param[in] materialIndex    material index in |materialBuffer|
      */
-    static std::unique_ptr<Quad> createQuad(SceneGraph *sceneGraph, optix::Context context, const std::map<std::string, optix::Program> &programsMap, const optix::float3 &position, const optix::float3 &rotation, const optix::float3 &scale, optix::Material integrator, const int materialIndex)
+    static std::unique_ptr<Quad> createQuad(SceneGraph *sceneGraph, optix::Context context, const std::map<std::string, optix::Program> &programsMap, const optix::float3 &position, const optix::float3 &rotation, const optix::float3 &scale, optix::Material integrator, int32_t materialIndex)
     {
         return Quad::createQuadInner(sceneGraph, context, programsMap, position, rotation, scale, integrator, materialIndex);
     }
@@ -53,7 +53,7 @@ public:
      * @param[in] integrator       integrator of optix::Material type
      * @param[in] materialIndex    material index in |materialBuffer|
      */
-    static std::unique_ptr<Quad> createQuad(optix::Context context, const std::map<std::string, optix::Program> &programsMap, const optix::float3 &position, const optix::float3 &rotation, const optix::float3 &scale, int quadLightIndex, optix::Material integrator, const int materialIndex)
+    static std::unique_ptr<Quad> createQuad(optix::Context context, const std::map<std::string, optix::Program> &programsMap, const optix::float3 &position, const optix::float3 &rotation, const optix::float3 &scale, int32_t quadLightIndex, optix::Material integrator, int32_t materialIndex)
     {
         return Quad::createQuadInner(context, programsMap, position, rotation, scale, quadLightIndex, integrator, materialIndex);
     }
@@ -80,7 +80,7 @@ public:
      * @param[in] rotation         XYZ rotation angle in radian
      * @param[in] scale            Z-component is zero
      */
-    Quad(SceneGraph *sceneGraph, optix::Context context, const std::map<std::string, optix::Program> &programsMap, const optix::float3 &position, const optix::float3 &rotation, const optix::float3 &scale, optix::Material integrator, const int materialIndex)
+    Quad(SceneGraph *sceneGraph, optix::Context context, const std::map<std::string, optix::Program> &programsMap, const optix::float3 &position, const optix::float3 &rotation, const optix::float3 &scale, optix::Material integrator, int32_t materialIndex)
         : GeometryShape(context, programsMap, "Quad", integrator, materialIndex, "Quad", IEditableObject::IEditableObjectType::QuadGeometry), 
         m_sceneGraph(sceneGraph),
         m_position(position), m_rotationRad(rotation), m_scale(scale),
@@ -102,7 +102,7 @@ public:
      * @param[in] rotation         XYZ rotation angle in radian
      * @param[in] scale            Z-component is zero
      */
-    Quad(optix::Context context, const std::map<std::string, optix::Program> &programsMap, const optix::float3 &position, const optix::float3 &rotation, const optix::float3 &scale, int quadLightIndex, optix::Material integrator, const int materialIndex)
+    Quad(optix::Context context, const std::map<std::string, optix::Program> &programsMap, const optix::float3 &position, const optix::float3 &rotation, const optix::float3 &scale, int32_t quadLightIndex, optix::Material integrator, int32_t materialIndex)
         : GeometryShape(context, programsMap, "Quad", integrator, materialIndex, "Quad", IEditableObject::IEditableObjectType::QuadGeometry),
          m_sceneGraph(nullptr),
          m_position(position), m_rotationRad(rotation), m_scale(scale),  
@@ -206,8 +206,9 @@ public:
      * @param[in] quadLightIndex
      * @see LightPool::updateAllQuadLights()
      */
-    void setQuadLightIndex(int quadLightIndex)
+    void setQuadLightIndex(int32_t quadLightIndex)
     {
+        //static_assert(sizeof(int32_t) == sizeof(int), "int32_t != int");
         TW_ASSERT(quadLightIndex >= 0 && this->m_quadLightIndex != -1 && this->m_isAreaLight);
         this->m_quadLightIndex = quadLightIndex;
         this->m_geometryInstance["quadLightIndex"]->setInt(this->m_quadLightIndex);
@@ -251,7 +252,7 @@ private:
 private:
     /// Store index to |quadLightBuffer|, be careful for the circular reference if we want to have another std::shared_ptr to quadLight
     bool m_isAreaLight;
-    int  m_quadLightIndex;
+    int32_t  m_quadLightIndex;
 
     /// Record user-friendly transform elements.
     optix::float3 m_rotationRad;

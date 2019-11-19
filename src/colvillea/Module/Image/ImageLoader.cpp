@@ -86,10 +86,10 @@ void ImageLoader::SaveOutputBufferToImage(optix::Buffer buffer, const std::strin
 			TW_ASSERT(!isinf(buffer_data[buf_index + 2]) && !isnan(buffer_data[buf_index + 2]));
 
 
-			static_cast<float>(bits[0]) = convert_sRGBToLinear(buffer_data[buf_index]);
-			static_cast<float>(bits[1]) = convert_sRGBToLinear(buffer_data[buf_index + 1]);
-			static_cast<float>(bits[2]) = convert_sRGBToLinear(buffer_data[buf_index + 2]);
-			static_cast<float>(bits[3]) = 1.f;
+			bits[0] = convert_sRGBToLinear(buffer_data[buf_index]);
+			bits[1] = convert_sRGBToLinear(buffer_data[buf_index + 1]);
+			bits[2] = convert_sRGBToLinear(buffer_data[buf_index + 2]);
+			bits[3] = 1.f;
 			// jump to next pixel
 			bits += bytespp;
 		}
@@ -149,10 +149,10 @@ void ImageLoader::saveHDRBufferToImage(optix::Buffer buffer, const std::string &
             TW_ASSERT(!isinf(buffer_data[buf_index + 2]) && !isnan(buffer_data[buf_index + 2]));
 
 
-            static_cast<float>(bits[0]) = buffer_data[buf_index];
-            static_cast<float>(bits[1]) = buffer_data[buf_index + 1];
-            static_cast<float>(bits[2]) = buffer_data[buf_index + 2];
-            static_cast<float>(bits[3]) = 1.f;
+            bits[0] = buffer_data[buf_index];
+            bits[1] = buffer_data[buf_index + 1];
+            bits[2] = buffer_data[buf_index + 2];
+            bits[3] = 1.f;
             // jump to next pixel
             bits += bytespp;
         }
@@ -206,10 +206,10 @@ void ImageLoader::SaveLuminanceBufferToImage(optix::Buffer buffer, const std::st
 			unsigned int buf_index = (imageWidth * y + x) * 1;
 
 			//32bit image texture is linear.
-			static_cast<float>(bits[0]) = buffer_data[buf_index];
-			static_cast<float>(bits[1]) = buffer_data[buf_index];
-			static_cast<float>(bits[2]) = buffer_data[buf_index];
-			static_cast<float>(bits[3]) = 1.f;
+			bits[0] = buffer_data[buf_index];
+			bits[1] = buffer_data[buf_index];
+			bits[2] = buffer_data[buf_index];
+			bits[3] = 1.f;
 			// jump to next pixel
 			bits += bytespp;
 		}

@@ -19,7 +19,7 @@
 class GeometryShape : public Shape
 {
 public:
-    GeometryShape(optix::Context context, const std::map<std::string, optix::Program> &programsMap, const std::string &shapeClassName, optix::Material integrator, const int materialIndex, const std::string &shapeObjectName, IEditableObject::IEditableObjectType objectType) :
+    GeometryShape(optix::Context context, const std::map<std::string, optix::Program> &programsMap, const std::string &shapeClassName, optix::Material integrator, int32_t materialIndex, const std::string &shapeObjectName, IEditableObject::IEditableObjectType objectType) :
         Shape(context, programsMap, integrator, materialIndex, shapeObjectName, objectType)
     {
         std::cout << "[Info] Derived class name from Shape is: " << shapeClassName << std::endl;
