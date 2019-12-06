@@ -1167,7 +1167,11 @@ void Application::drawInspector()
     }
     else if (objectType == IEditableObject::IEditableObjectType::TriangleMeshGeometry)
     {
+#ifndef CL_USE_OLD_TRIMESH
         std::shared_ptr<TriangleMesh> triMesh = std::static_pointer_cast<TriangleMesh>(this->m_currentHierarchyNode);
+#else
+        std::shared_ptr<OrdinaryTriangleMesh> triMesh = std::static_pointer_cast<OrdinaryTriangleMesh>(this->m_currentHierarchyNode);
+#endif
         TW_ASSERT(triMesh);
 
         std::string triMeshName = triMesh->getName();
@@ -1206,7 +1210,11 @@ void Application::drawInspector()
         /* Last line of Inspector window. */
         if (ImGui::Button("Remove Object"))
         {
+#ifndef CL_USE_OLD_TRIMESH
             this->m_sceneGraph->removeGeometryTriangles(triMesh);
+#else
+            this->m_sceneGraph->removeGeometry(triMesh);
+#endif
             this->m_materialPool->removeBSDF(bsdf);
             this->m_currentHierarchyNode.reset();
             this->resetRenderParams();
@@ -1561,7 +1569,7 @@ void Application::createProgramsFromPTX()
 
     loadProgram("SphericalSkybox", { "Miss_Default" });
 
-    loadProgram("TriangleMesh", { "Attributes_TriangleMesh" });
+    loadProgram("TriangleMesh", { "Attributes_TriangleMesh", "BoundingBox_TriangleMesh" , "Intersect_TriangleMesh" });
     loadProgram("Quad",         { "BoundingBox_Quad", "Intersect_Quad" });
 
     loadProgram("DirectLighting", { "ClosestHit_DirectLighting" });
@@ -1703,7 +1711,7 @@ void Application::initializeRenderView()
     glBindTexture(GL_TEXTURE_2D, 0);
 
     /* DAR ImGui has been changed to push the GL_TEXTURE_BIT so that this works. */
-    glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
+    //glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
 }
 
 void Application::initializeContext()

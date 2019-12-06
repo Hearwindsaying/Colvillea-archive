@@ -11,8 +11,9 @@
 
 #include "colvillea/Module/Material/MaterialPool.h"
 
-void SceneGraph::createTriangleMesh(const std::string & meshFileName, int32_t materialIndex, const std::shared_ptr<BSDF> &bsdf)
+void SceneGraph::createTriangleMesh(const std::string & meshFileName, int materialIndex, const std::shared_ptr<BSDF> &bsdf)
 {
+#ifndef CL_USE_OLD_TRIMESH
     /* Converting unique_ptr to shared_ptr. */
     std::shared_ptr<TriangleMesh> triMesh = TriangleMesh::createTriangleMesh(this->m_context, this->m_programsMap, meshFileName, this->m_integrator->getIntegratorMaterial(), materialIndex);
     /* Bind BSDF's corresponding shape. */
@@ -23,6 +24,18 @@ void SceneGraph::createTriangleMesh(const std::string & meshFileName, int32_t ma
     /* Update OptiX Graph. */
     this->m_topGeometryGroup_GeometryTriangles->addChild(triMesh->getGeometryInstance());
     this->rebuildGeometryTriangles();
+#else
+    /* Converting unique_ptr to shared_ptr. */
+    std::shared_ptr<OrdinaryTriangleMesh> triMesh = OrdinaryTriangleMesh::createOrdinaryTriangleMesh(this->m_context, this->m_programsMap, meshFileName, this->m_integrator->getIntegratorMaterial(), materialIndex);
+    /* Bind BSDF's corresponding shape. */
+    bsdf->setShape(triMesh);
+
+    this->m_shapes_Geometry.push_back(triMesh);
+
+    /* Update OptiX Graph. */
+    this->m_topGeometryGroup_Geometry->addChild(triMesh->getGeometryInstance());
+    this->rebuildGeometry();
+#endif
 }
 
 std::shared_ptr<Quad> SceneGraph::createQuad(SceneGraph *sceneGraph, int32_t materialIndex, const optix::float3 &position, const optix::float3 &rotation, const optix::float3 &scale, const std::shared_ptr<BSDF> &bsdf, bool flipNormal)

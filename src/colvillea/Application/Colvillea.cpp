@@ -59,7 +59,7 @@ void create_CornellBoxScene(std::shared_ptr<SceneGraph> &sceneGraph, std::shared
 /* Create test scene. */
 void create_TestScene(std::shared_ptr<SceneGraph> &sceneGraph, std::shared_ptr<LightPool> &lightPool, std::shared_ptr<MaterialPool> &materialPool, const std::string & basePath)
 {
-    lightPool->createHDRILight(basePath + "HDRI\\uffizi-large.hdr", optix::make_float3(0.f,0.f,0.f));
+    //lightPool->createHDRILight(basePath + "HDRI\\uffizi-large.hdr", optix::make_float3(0.f,0.f,0.f));
     sceneGraph->createSampler(CommonStructs::SamplerType::IndependentSampler);// todo:ifdef USE_HALTON_SAMPLER to enable Halton
 
     std::shared_ptr<BSDF> roughmetal_bsdf;
@@ -67,6 +67,17 @@ void create_TestScene(std::shared_ptr<SceneGraph> &sceneGraph, std::shared_ptr<L
     auto quadShapeB = sceneGraph->createQuad(sceneGraph.get(),
         roughmetalIdx,
         make_float3(0.f),make_float3(0.f),make_float3(1.f,1.f,1.f), roughmetal_bsdf);
+
+    /*std::shared_ptr<BSDF> whiteplastic;
+    int whiteplasticId = materialPool->createPlasticMaterial(0.1f, 1.5f, make_float4(1.0f), make_float4(0.04f), whiteplastic);
+    sceneGraph->createTriangleMesh(basePath + "Dining-room\\models\\whiteplastic.obj", whiteplasticId, whiteplastic);*/
+
+    std::shared_ptr<BSDF> chrome;
+    int chromeId = materialPool->createRoughMetalMaterial(chrome, 0.05f, make_float4(4.369683f, 2.916703f, 1.654701f, 0.0f), make_float4(5.206434f, 4.231365f, 3.754947f, 0.0f));
+    sceneGraph->createTriangleMesh(basePath + "Dining-room\\models\\dragon.obj", chromeId, chrome);
+    /*std::shared_ptr<BSDF> chrome;
+    int chromeId = materialPool->createRoughMetalMaterial(chrome, 0.05f, make_float4(4.369683f, 2.916703f, 1.654701f, 0.0f), make_float4(5.206434f, 4.231365f, 3.754947f, 0.0f));
+    sceneGraph->createTriangleMesh(basePath + "Dining-room\\models\\chrome.obj", chromeId, chrome);*/
 
     std::shared_ptr<BSDF> emissiveBSDF;
     int emissiveIdx = materialPool->getEmissiveMaterial(emissiveBSDF);
@@ -86,25 +97,19 @@ void create_DiningRoom(std::shared_ptr<SceneGraph> &sceneGraph, std::shared_ptr<
     /* Create HDRProbe. */
     lightPool->createHDRILight(basePath + "Dining-room\\textures\\Skydome.hdr", optix::make_float3(0.f, 0.f, 0.f));
 
-    /* Create light. */
-    /*std::shared_ptr<BSDF> emissiveBSDF;
-    int emissiveIdx = materialPool->getEmissiveMaterial(emissiveBSDF);
-    lightPool->createQuadLight(
-        make_float3(1.0f, 0.0f, 7.0f), make_float3(0.f),
-        make_float3(3.0f, 3.0f, 1.f),
-        make_float3(1.f, 1.f, 1.f), 18.f, emissiveIdx, emissiveBSDF, true);*/
+    
 
     /* Create Sampler. */
-    sceneGraph->createSampler(CommonStructs::SamplerType::IndependentSampler);
+    sceneGraph->createSampler(CommonStructs::SamplerType::SobolQMCSampler);
 
     /* Create BSDFs and Triangle Meshes. */
-    std::shared_ptr<BSDF> whiteplastic;
+    /*std::shared_ptr<BSDF> whiteplastic;
     int whiteplasticId = materialPool->createPlasticMaterial(0.1f, 1.5f, make_float4(1.0f), make_float4(0.04f), whiteplastic);
-    sceneGraph->createTriangleMesh(basePath + "Dining-room\\models\\whiteplastic.obj", whiteplasticId, whiteplastic);
+    sceneGraph->createTriangleMesh(basePath + "Dining-room\\models\\whiteplastic.obj", whiteplasticId, whiteplastic);*/
 
-    std::shared_ptr<BSDF> chrome;
+    /*std::shared_ptr<BSDF> chrome;
     int chromeId = materialPool->createRoughMetalMaterial(chrome, 0.05f, make_float4(4.369683f, 2.916703f, 1.654701f, 0.0f), make_float4(5.206434f, 4.231365f, 3.754947f, 0.0f));
-    sceneGraph->createTriangleMesh(basePath + "Dining-room\\models\\chrome.obj", chromeId, chrome);
+    sceneGraph->createTriangleMesh(basePath + "Dining-room\\models\\chrome.obj", chromeId, chrome);*/
 
     std::shared_ptr<BSDF> blackrubber;
     int blackrubberId = materialPool->createPlasticMaterial(0.1f, 1.5f, make_float4(0.05f), make_float4(0.04f), blackrubber);
@@ -157,6 +162,14 @@ void create_DiningRoom(std::shared_ptr<SceneGraph> &sceneGraph, std::shared_ptr<
     std::shared_ptr<BSDF> frostedglass;
     int frostedglassId = materialPool->createPlasticMaterial(0.01f, 1.5f, make_float4(0.793110f), make_float4(0.04f), frostedglass);
     sceneGraph->createTriangleMesh(basePath + "Dining-room\\models\\frostedglass.obj", frostedglassId, frostedglass);
+
+    /* Create light. */
+    std::shared_ptr<BSDF> emissiveBSDF;
+    int emissiveIdx = materialPool->getEmissiveMaterial(emissiveBSDF);
+    lightPool->createQuadLight(
+        make_float3(1.0f, 0.0f, 7.0f), make_float3(0.f),
+        make_float3(3.0f, 3.0f, 1.f),
+        make_float3(1.f, 1.f, 1.f), 18.f, emissiveIdx, emissiveBSDF, true);
 }
 
 
@@ -227,7 +240,7 @@ int main(int argc, char *argv[])
 
     /* Create sceneGraph instance. */
     std::shared_ptr<SceneGraph> sceneGraph = std::make_unique<SceneGraph>(application.get(), application->getProgramsMap(), application->getContext(), filmWidth, filmHeight);
-
+    
     /* Create materialPool instance. */
     std::shared_ptr<MaterialPool> materialPool = MaterialPool::createMaterialPool(application.get(), application->getProgramsMap(), application->getContext());
 
@@ -237,8 +250,8 @@ int main(int argc, char *argv[])
 
     /* Create scene using sceneGraph::createXXX methods. */
     sceneGraph->createCamera(Matrix4x4::identity(), fov, filmWidth, filmHeight);
-    //create_CornellBoxScene(sceneGraph, lightPool, materialPool, examplesBasePath); /* left scene configurations are created... */
-    create_TestScene(sceneGraph, lightPool, materialPool, examplesBasePath);
+    create_CornellBoxScene(sceneGraph, lightPool, materialPool, examplesBasePath); /* left scene configurations are created... */
+    //create_TestScene(sceneGraph, lightPool, materialPool, examplesBasePath);
     //create_DiningRoom(sceneGraph, lightPool, materialPool, examplesBasePath);
 
     /* Finally initialize scene and prepare for launch. */

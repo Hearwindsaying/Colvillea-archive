@@ -134,7 +134,8 @@ static __device__ __inline__ float4 EstimateDirectLighting<CommonStructs::LightT
             CommonStructs::PerRayData_shadow shadow_prd;
             shadow_prd.blocked = 0;
 
-            rtTrace<CommonStructs::PerRayData_shadow>(sysTopShadower, shadowRay, shadow_prd, RT_VISIBILITY_ALL, (RTrayflags)(RTrayflags::RT_RAY_FLAG_DISABLE_ANYHIT | RTrayflags::RT_RAY_FLAG_TERMINATE_ON_FIRST_HIT));
+            const RTrayflags shadowRayFlags = static_cast<RTrayflags>(RTrayflags::RT_RAY_FLAG_DISABLE_ANYHIT | RTrayflags::RT_RAY_FLAG_TERMINATE_ON_FIRST_HIT);
+            rtTrace<CommonStructs::PerRayData_shadow>(sysTopShadower, shadowRay, shadow_prd, RT_VISIBILITY_ALL, shadowRayFlags);
 
             if (!shadow_prd.blocked)
             {
@@ -185,7 +186,10 @@ static __device__ __inline__ float4 EstimateDirectLighting<CommonStructs::LightT
         CommonStructs::PerRayData_shadow shadow_prd;
         shadow_prd.blocked = 0;
         shadowRay = TwUtil::MakeShadowRay(p, sceneEpsilon, outWi);
-        rtTrace<CommonStructs::PerRayData_shadow>(sysTopShadower, shadowRay, shadow_prd, RT_VISIBILITY_ALL, (RTrayflags)(RTrayflags::RT_RAY_FLAG_DISABLE_ANYHIT | RTrayflags::RT_RAY_FLAG_TERMINATE_ON_FIRST_HIT));
+        
+        const RTrayflags shadowRayFlags = static_cast<RTrayflags>(RTrayflags::RT_RAY_FLAG_DISABLE_ANYHIT | RTrayflags::RT_RAY_FLAG_TERMINATE_ON_FIRST_HIT);
+        rtTrace<CommonStructs::PerRayData_shadow>(sysTopShadower, shadowRay, shadow_prd, RT_VISIBILITY_ALL,
+            shadowRayFlags);
 
         if (!shadow_prd.blocked)
         {
@@ -240,7 +244,8 @@ static __device__ __inline__ float4 EstimateDirectLighting<CommonStructs::LightT
             CommonStructs::PerRayData_shadow shadow_prd;
 			shadow_prd.blocked = 0;
 
-			rtTrace<CommonStructs::PerRayData_shadow>(sysTopShadower, shadowRay, shadow_prd, RT_VISIBILITY_ALL, (RTrayflags)(RTrayflags::RT_RAY_FLAG_DISABLE_ANYHIT | RTrayflags::RT_RAY_FLAG_TERMINATE_ON_FIRST_HIT));
+            const RTrayflags shadowRayFlags = static_cast<RTrayflags>(RTrayflags::RT_RAY_FLAG_DISABLE_ANYHIT | RTrayflags::RT_RAY_FLAG_TERMINATE_ON_FIRST_HIT);
+			rtTrace<CommonStructs::PerRayData_shadow>(sysTopShadower, shadowRay, shadow_prd, RT_VISIBILITY_ALL, shadowRayFlags);
 
 			if (!shadow_prd.blocked)
 				Ld += f * Li * fabs(dot(outWi, shaderParams.dgShading.nn)) / lightPdf;
@@ -280,7 +285,8 @@ static __device__ __inline__ float4 EstimateDirectLighting<CommonStructs::LightT
             CommonStructs::PerRayData_shadow shadow_prd;
 			shadow_prd.blocked = 0;
 
-			rtTrace<CommonStructs::PerRayData_shadow>(sysTopShadower, shadowRay, shadow_prd, RT_VISIBILITY_ALL, (RTrayflags)(RTrayflags::RT_RAY_FLAG_DISABLE_ANYHIT | RTrayflags::RT_RAY_FLAG_TERMINATE_ON_FIRST_HIT));
+            const RTrayflags shadowRayFlags = static_cast<RTrayflags>(RTrayflags::RT_RAY_FLAG_DISABLE_ANYHIT | RTrayflags::RT_RAY_FLAG_TERMINATE_ON_FIRST_HIT);
+			rtTrace<CommonStructs::PerRayData_shadow>(sysTopShadower, shadowRay, shadow_prd, RT_VISIBILITY_ALL, shadowRayFlags);
 			if (!shadow_prd.blocked)
 			{
                 /* Compute Ld using MIS weight. */
@@ -323,7 +329,9 @@ static __device__ __inline__ float4 EstimateDirectLighting<CommonStructs::LightT
         /* Trace shadow ray to find out whether it's blocked down by object. */
         CommonStructs::PerRayData_shadow shadow_prd;
         shadow_prd.blocked = 0;
-        rtTrace<CommonStructs::PerRayData_shadow>(sysTopShadower, shadowRay, shadow_prd, RT_VISIBILITY_ALL, (RTrayflags)(RTrayflags::RT_RAY_FLAG_DISABLE_ANYHIT | RTrayflags::RT_RAY_FLAG_TERMINATE_ON_FIRST_HIT));
+
+        const RTrayflags shadowRayFlags = static_cast<RTrayflags>(RTrayflags::RT_RAY_FLAG_DISABLE_ANYHIT | RTrayflags::RT_RAY_FLAG_TERMINATE_ON_FIRST_HIT);
+        rtTrace<CommonStructs::PerRayData_shadow>(sysTopShadower, shadowRay, shadow_prd, RT_VISIBILITY_ALL, shadowRayFlags);
 
         /* In LightPdf we have confirmed that ray is able to intersect the light
          * -- surface from |p| towards |outWi| if there are no objects between

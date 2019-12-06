@@ -83,7 +83,10 @@ private:
                             geometryTrianglesAccel->setProperty("chunk_size", "-1");
                             geometryTrianglesAccel->setProperty("vertex_buffer_name", "vertexBuffer");
                             geometryTrianglesAccel->setProperty("index_buffer_name",  "indexBuffer");
-        optix::Acceleration geometryAccel     = context->createAcceleration("Trbvh");
+        optix::Acceleration geometryAccel = context->createAcceleration("Trbvh");
+                            geometryAccel->setProperty("chunk_size", "-1");
+                            geometryAccel->setProperty("vertex_buffer_name", "vertexBuffer");
+                            geometryAccel->setProperty("index_buffer_name",  "indexBuffer");
         optix::Acceleration groupAccel = context->createAcceleration("Trbvh");
         
 
@@ -235,6 +238,7 @@ public:
      */
     void removeGeometryTriangles(const std::shared_ptr<GeometryTrianglesShape> &geometryTrianglesShape)
     {
+#ifndef CL_USE_OLD_TRIMESH
         /* Remove child node from OptiX Graph. */
         this->m_topGeometryGroup_GeometryTriangles->removeChild(geometryTrianglesShape->getGeometryInstance());
         
@@ -249,6 +253,9 @@ public:
         this->m_shapes_GeometryTriangles.erase(findItr);
 
         this->rebuildGeometryTriangles();
+#else
+        __debugbreak();
+#endif
     }
 
     /**
@@ -269,6 +276,9 @@ public:
      */
     void rebuildGeometryTriangles()
     {
+#ifdef CL_USE_OLD_TRIMESH
+        __debugbreak();
+#endif
         this->m_topGeometryGroup_GeometryTriangles->getAcceleration()->markDirty();
 
         /* Update top group as well. */
@@ -301,9 +311,13 @@ public:
             {
             case CommonStructs::SamplerType::HaltonQMCSampler:
             {
-                //this->m_sampler = HaltonSampler::createHaltonSampler(this->m_context, filmResolution);
+#ifdef USE_HALTON_SAMPLER
+                this->m_sampler = HaltonSampler::createHaltonSampler(this->m_context, filmResolution);
+#else
                 std::cout << "[Info] An issue is found when using OptiX 6.5 to implement Halton QMC sampler using fast permuation table. Currently this sampler will fallback to Sobol QMC Sampler" << std::endl;
                 this->m_sampler = SobolSampler::createSobolSampler(this->m_context, filmResolution);
+#endif
+                
             } 
                 break;
             case CommonStructs::SamplerType::SobolQMCSampler:
