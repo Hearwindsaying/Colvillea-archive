@@ -61,7 +61,7 @@ static __device__ __inline__ float4 MicrofacetReflection_InnerSample_f(const flo
 	if (BSDFMath::CosTheta(wo_Local) <= 0.f)
 		return make_float4(0.f);
 
-	if (wo_Local.z == 0)
+	if (wo_Local.z == 0.0f)
 	{
 		return make_float4(0.f);
 	}

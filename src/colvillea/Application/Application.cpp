@@ -190,6 +190,7 @@ void Application::drawWidget()
         ImGui::Text("FPS:%.2f", currfps);
         ImGui::Text("Average Rendering Time(per launch):%.5fms", 1000.f / currfps);
 
+
         if (ImGui::Button("Export HDR"))
         {
             ImageLoader::saveHDRBufferToImage(this->m_sysHDRBuffer, (GetCurrentDateTime() + ".exr").c_str());
@@ -215,13 +216,16 @@ void Application::render()
 
             this->currentTime = std::chrono::system_clock::now();
         }
-
+        if (this->m_sysIterationIndex > 125)
+        {
+            this->drawRenderView(); return;
+        }
         this->m_context->launch(toUnderlyingValue(RayGenerationEntryType::Render), this->m_filmWidth, this->m_filmHeight);
         this->m_context->launch(toUnderlyingValue(RayGenerationEntryType::Filter), this->m_filmWidth, this->m_filmHeight);
 
         this->drawRenderView();
 
-        this->m_context["sysIterationIndex"]->setUint(this->m_sysIterationIndex++);
+        this->m_context["sysIterationIndex"]->setUint(++this->m_sysIterationIndex);
     }
     catch (optix::Exception& e)
     {
@@ -519,7 +523,7 @@ void Application::drawSettings()
         ImGui::AlignTextToFramePadding();
         ImGui::Text("                             Sampler"); ImGui::SameLine(200.f);
         ImGui::SetNextItemWidth(165);
-        if (ImGui::Combo("##Sampler", &currentSamplerIdx, "Halton QMC\0Sobol QMC\0Independent\0\0"))
+        if (ImGui::Combo("##Sampler", &currentSamplerIdx, "Halton QMC\0Sobol QMC\0Independent\0FiniteSequence\0\0"))
         {
             this->m_sceneGraph->createSampler(static_cast<CommonStructs::SamplerType>(currentSamplerIdx));
             this->resetRenderParams();

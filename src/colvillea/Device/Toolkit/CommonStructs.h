@@ -156,11 +156,22 @@ namespace CommonStructs
         uint32_t seed;           /* Random Sampler seed. */
     };
 
+    struct GlobalFiniteSampler
+    {
+        rtBufferId<float, 2> finiteSequenceBuffer;
+    };
+
+    struct FiniteSampler
+    {
+        int dimension;
+    };
+
     union GPUSampler
     {
         SobolSampler       sobolSampler;
         HaltonSampler      haltonSampler;
         IndependentSampler independentSampler; 
+        FiniteSampler      finiteSampler;
     };
 
 
@@ -169,6 +180,7 @@ namespace CommonStructs
         HaltonQMCSampler,  // low discrepancy sampler: Halton sequence
         SobolQMCSampler,   // low discrepancy sampler: Sobol sequence
         IndependentSampler,// independent random sampler
+        FiniteSequenceSampler, // Finite Sobol/Niederreiter as pixel sampler 
 
         CountOfType
     };

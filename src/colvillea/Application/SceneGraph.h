@@ -24,6 +24,7 @@
 #include "colvillea/Module/Sampler/HaltonSampler.h"
 #include "colvillea/Module/Sampler/SobolSampler.h"
 #include "colvillea/Module/Sampler/IndependentSampler.h"
+#include "colvillea/Module/Sampler/FiniteSampler.h"
 
 #include "colvillea/Module/Filter/BoxFilter.h"
 #include "colvillea/Module/Filter/GaussianFilter.h"
@@ -325,6 +326,8 @@ public:
                 break;
             case CommonStructs::SamplerType::IndependentSampler:
                 this->m_sampler = IndependentSampler::createIndependentSampler(this->m_context);
+            case CommonStructs::SamplerType::FiniteSequenceSampler:
+                this->m_sampler = FiniteSampler::createFiniteSampler(this->m_context);
             default:
                 std::cerr << "[Error] Expected sampler is not supported." << std::endl;
                 break;

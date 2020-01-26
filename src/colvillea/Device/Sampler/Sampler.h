@@ -12,6 +12,7 @@
 
 #include "HaltonSampler.h"
 #include "SobolSampler.h"
+#include "FiniteSampler.h"
 
 #ifndef TWRT_DELCARE_SAMPLERTYPE
 #define TWRT_DELCARE_SAMPLERTYPE
@@ -120,9 +121,15 @@ static __device__ __inline__ void makeSampler(CommonStructs::RayTracingPipelineP
         }
         break;
 
+        case CommonStructs::SamplerType::FiniteSequenceSampler:
+        {
+            (phase == RayTracingPipelinePhase::RayGeneration) ? (localSampler.finiteSampler.dimension = 0) : (localSampler.finiteSampler.dimension = 2);
+        }
+        break;
+
         default:
         {
-            rtPrintf("error in makeSampler\n");
+            rtPrintf("error in makeSampler %d\n", sysSamplerType);
         } 
         break;
     }
@@ -147,6 +154,11 @@ static __device__ __inline__ optix::float2 Get2D(GPUSampler *localSampler)
         case CommonStructs::SamplerType::IndependentSampler:
         {
             return make_float2(rnd(localSampler->independentSampler.seed), rnd(localSampler->independentSampler.seed));
+        }
+
+        case CommonStructs::SamplerType::FiniteSequenceSampler:
+        {
+            return Get2D_Finite(localSampler->finiteSampler);
         }
 
         default:

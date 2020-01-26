@@ -58,6 +58,7 @@ set(SOURCE_LIST
 	"${CMAKE_CURRENT_SOURCE_DIR}/Device/Sampler/HaltonSampler_Common.h"
 	"${CMAKE_CURRENT_SOURCE_DIR}/Device/Sampler/Sampler.h"
 	"${CMAKE_CURRENT_SOURCE_DIR}/Device/Sampler/SobolSampler.h"
+	"${CMAKE_CURRENT_SOURCE_DIR}/Device/Sampler/FiniteSampler.h"
 
 	"${CMAKE_CURRENT_SOURCE_DIR}/Device/Filter/Filter.h"
 
@@ -122,6 +123,8 @@ set(SOURCE_LIST
 	"${CMAKE_CURRENT_SOURCE_DIR}/Module/Sampler/SobolSampler.cpp"
 	"${CMAKE_CURRENT_SOURCE_DIR}/Module/Sampler/SobolSampler.h"
 	"${CMAKE_CURRENT_SOURCE_DIR}/Module/Sampler/IndependentSampler.h"
+	"${CMAKE_CURRENT_SOURCE_DIR}/Module/Sampler/FiniteSampler.h"
+	"${CMAKE_CURRENT_SOURCE_DIR}/Module/Sampler/FiniteSampler.cpp"
 
 	"${CMAKE_CURRENT_SOURCE_DIR}/Module/Filter/Filter.h"
 	"${CMAKE_CURRENT_SOURCE_DIR}/Module/Filter/BoxFilter.h"
@@ -190,6 +193,7 @@ OPTIX_add_sample_executable( colvillea
 	${CMAKE_CURRENT_SOURCE_DIR}/Device/Sampler/HaltonSampler_Common.h
 	${CMAKE_CURRENT_SOURCE_DIR}/Device/Sampler/Sampler.h
 	${CMAKE_CURRENT_SOURCE_DIR}/Device/Sampler/SobolSampler.h
+	${CMAKE_CURRENT_SOURCE_DIR}/Device/Sampler/FiniteSampler.h
 	
 	${CMAKE_CURRENT_SOURCE_DIR}/Device/Filter/Filter.h
 
@@ -254,6 +258,8 @@ OPTIX_add_sample_executable( colvillea
 	${CMAKE_CURRENT_SOURCE_DIR}/Module/Sampler/SobolSampler.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/Module/Sampler/SobolSampler.h
 	${CMAKE_CURRENT_SOURCE_DIR}/Module/Sampler/IndependentSampler.h
+	${CMAKE_CURRENT_SOURCE_DIR}/Module/Sampler/FiniteSampler.h
+	${CMAKE_CURRENT_SOURCE_DIR}/Module/Sampler/FiniteSampler.cpp
 
 	${CMAKE_CURRENT_SOURCE_DIR}/Module/Filter/Filter.h
 	${CMAKE_CURRENT_SOURCE_DIR}/Module/Filter/BoxFilter.h

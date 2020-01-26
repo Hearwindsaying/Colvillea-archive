@@ -166,10 +166,10 @@ __inline__ __device__ void TrowbridgeReitzSample11(float cosTheta, float U1, flo
 	float *slope_x, float *slope_y) {
 	// special case (normal incidence)
 	if (cosTheta > .9999) {
-		float r = sqrt(U1 / (1 - U1));
+		float r = sqrtf(U1 / (1 - U1));
 		float phi = 6.28318530718 * U2;
-		*slope_x = r * cos(phi);
-		*slope_y = r * sin(phi);
+		*slope_x = r * cosf(phi);
+		*slope_y = r * sinf(phi);
 		return;
 	}
 
@@ -177,7 +177,7 @@ __inline__ __device__ void TrowbridgeReitzSample11(float cosTheta, float U1, flo
 		sqrtf(fmaxf(0.f, 1.f - cosTheta * cosTheta));
 	float tanTheta = sinTheta / cosTheta;
 	float a = 1 / tanTheta;
-	float G1 = 2 / (1 + std::sqrt(1.f + 1.f / (a * a)));
+	float G1 = 2 / (1 + std::sqrtf(1.f + 1.f / (a * a)));
 
 	// sample slope_x
 	float A = 2 * U1 / G1 - 1;
@@ -203,7 +203,7 @@ __inline__ __device__ void TrowbridgeReitzSample11(float cosTheta, float U1, flo
 	float z =
 		(U2 * (U2 * (U2 * 0.27385f - 0.73369f) + 0.46341f)) /
 		(U2 * (U2 * (U2 * 0.093073f + 0.309420f) - 1.000000f) + 0.597999f);
-	*slope_y = S * z * std::sqrt(1.f + *slope_x * *slope_x);
+	*slope_y = S * z * std::sqrtf(1.f + *slope_x * *slope_x);
 
 	assert(!isinf(*slope_y));
 	assert(!isnan(*slope_y));

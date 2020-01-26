@@ -12,6 +12,8 @@
 #include "colvillea/Module/Light/LightPool.h"
 #include "colvillea/Application/SceneGraph.h"
 
+#include "colvillea/Module/Sampler/SobolMatrices.h"
+
 // About Desktop OpenGL function loaders:
 //  Modern desktop OpenGL doesn't have a standard portable header file to load OpenGL function pointers.
 //  Helper libraries are often used for this purpose! We use glew here.
@@ -28,6 +30,7 @@ using namespace optix;
 /* Create Cornellbox. */
 void create_CornellBoxScene(std::shared_ptr<SceneGraph> &sceneGraph, std::shared_ptr<LightPool> &lightPool, std::shared_ptr<MaterialPool> &materialPool, const std::string & basePath)
 {
+    sceneGraph->createSampler(CommonStructs::SamplerType::FiniteSequenceSampler);
     /* Create triangle mesh. */
     std::shared_ptr<BSDF> lamBSDF;
     int lamIdx = materialPool->createLambertMaterial(optix::make_float4(0.63f, 0.065f, 0.05f, 1.f), lamBSDF);
@@ -172,6 +175,30 @@ void create_DiningRoom(std::shared_ptr<SceneGraph> &sceneGraph, std::shared_ptr<
         make_float3(1.f, 1.f, 1.f), 18.f, emissiveIdx, emissiveBSDF, true);
 }
 
+namespace TwUtil
+{
+    namespace Sampler
+    {
+        /**
+          * @brief Compute Sobol' sample value for a using 32-bits Sobol Matrix.
+          * @param a input parameter: index
+          * @param dimension input parameter: dimension, 0,1,2...,1023
+          * @param scramble scramble value
+          * @return return the computed Sobol' sample value
+          */
+        static __host__ __inline__ float SobolSampleFloatH(int64_t a, int dimension, uint32_t scramble)
+        {
+            if (dimension >= 1024)
+                exit(-1);
+            uint32_t v = scramble;
+            for (int i = dimension * 52; a != 0; a >>= 1, i++)
+                if (a & 1) v ^= SobolMatrix::SobolMatrices32[i];
+
+            return fminf(v * 2.3283064365386963e-10f /* 1/2^32 */,
+                0.99999994f);
+        }
+    }
+}
 
 int main(int argc, char *argv[])
 {
@@ -225,6 +252,10 @@ int main(int argc, char *argv[])
 
     const std::string examplesBasePath = getExampleDirectoryPath();
     
+    /*for (int i = 0; i < 126; ++i)
+    {
+        std::cout << TwUtil::Sampler::SobolSampleFloatH(i, 0, 0) << " " << TwUtil::Sampler::SobolSampleFloatH(i, 1, 0) << " " << TwUtil::Sampler::SobolSampleFloatH(i, 2, 0) << " " << TwUtil::Sampler::SobolSampleFloatH(i, 3, 0) << " " << TwUtil::Sampler::SobolSampleFloatH(i, 4, 0) << " " << TwUtil::Sampler::SobolSampleFloatH(i, 5, 0) << std::endl;
+    }exit(0);*/
 
     /* Create scene. */ 
 
