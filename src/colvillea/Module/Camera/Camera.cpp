@@ -22,7 +22,7 @@ void Camera::updateCameraMatrices()
     this->m_application->resetRenderParams();
 }
 
-Camera::Camera(const optix::Matrix4x4 & cam2world, float fov, float filmWidth, float filmHeight):m_cameraToWorld(cam2world),m_filmWidth(filmWidth),m_filmHeight(filmHeight)
+Camera::Camera(optix::Context context, const optix::Matrix4x4 & cam2world, float fov, float filmWidth, float filmHeight, float focalDistance, float lensRadius) : m_cameraToWorld(cam2world), m_filmWidth(filmWidth), m_filmHeight(filmHeight), m_focalDistance(focalDistance), m_lensRadius(lensRadius),m_context(context)
 {
 	if (hasScale(cam2world))
 		std::cout << "[Warning] " << "Scaling detected in cameraToWorld transformation!" << std::endl;

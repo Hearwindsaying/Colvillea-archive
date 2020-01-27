@@ -43,8 +43,9 @@ public:
      */
  	Camera(optix::Context context, const std::map<std::string, optix::Program> &programsMap,
         /*std::function<void()> resetRenderParam,*/ Application * application,
-		   const optix::Matrix4x4 & cam2world, float fov, float filmWidth, float filmHeight):
-		Camera(cam2world, fov, filmWidth, filmHeight)
+		   const optix::Matrix4x4 & cam2world, float fov, float filmWidth, float filmHeight,
+           float focalDistance, float lensRadius) :
+		Camera(context, cam2world, fov, filmWidth, filmHeight, focalDistance, lensRadius)
  	{
         this->m_application = application;
         TW_ASSERT(this->m_application);
@@ -56,6 +57,9 @@ public:
  
  		TW_ASSERT(programItr != programsMap.end());
  		context->setRayGenerationProgram(toUnderlyingValue(RayGenerationEntryType::Render), this->m_rayGenerationProgram);
+
+        context["focalDistance"]->setFloat(this->m_focalDistance);
+        context["lensRadius"]->setFloat(this->m_lensRadius);
  	}
 
     /**
@@ -108,16 +112,41 @@ public:
         updateCameraMatrices();
     }
 
+    float getLensRadius() const
+    {
+        return this->m_lensRadius;
+    }
+    
+    void setLensRadius(float lensRadius)
+    {
+        TW_ASSERT(lensRadius >= 0.f);
+        this->m_lensRadius = lensRadius;
+        this->m_context["lensRadius"]->setFloat(this->m_lensRadius);
+    }
+
+    float getFocalDistance() const
+    {
+        return this->m_focalDistance;
+    }
+
+    void setFocalDistance(float focalDistance)
+    {
+        TW_ASSERT(focalDistance >= 0.f);
+        this->m_focalDistance = focalDistance;
+        this->m_context["focalDistance"]->setFloat(this->m_focalDistance);
+    }
+
     void updateCameraMatrices(); //todo:make inline
 
 private:
     /**
      * @brief Private constructor for initializing camera matrices.
      */
-	Camera(const optix::Matrix4x4 & cam2world, float fov, float filmWidth, float filmHeight);
+	Camera(optix::Context context, const optix::Matrix4x4 & cam2world, float fov, float filmWidth, float filmHeight, float focalDistance, float lensRadius);
 
 private:
     Application *m_application;
+    optix::Context m_context;
 
 	//Matrix group
 	optix::Matrix4x4 m_cameraToWorld;
@@ -125,6 +154,9 @@ private:
 	optix::Matrix4x4 m_screenToRaster, m_rasterToScreen;
 
 	float m_filmWidth, m_filmHeight;
+
+    /// Depth of Field parameters
+    float m_lensRadius, m_focalDistance;
 
     optix::Program m_rayGenerationProgram;
 

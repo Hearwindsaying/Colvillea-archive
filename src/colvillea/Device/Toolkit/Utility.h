@@ -3,6 +3,9 @@
 #define COLVILLEA_DEVICE_TOOLKIT_UTILITY_H_
 #include <optixu/optixu_math_namespace.h>
 #include <optixu/optixu_matrix.h>
+#ifndef __cplusplus
+#include <optix_device.h>
+#endif
 
 namespace TwUtil
 {
@@ -33,7 +36,7 @@ namespace TwUtil
 		//////////////////////////////////////////////////////////////////////////
 		//Forward declarations:
 		static __device__ __inline__ optix::float3 CosineSampleHemisphere(optix::float2 urand);
-		static __device__ __inline__ void ConcentricSampleDisk(optix::float2 & urand, float *dx, float *dy);
+		static __device__ __inline__ void ConcentricSampleDisk(const optix::float2 & urand, float * dx, float * dy);
 
 		static __host__ __device__ __inline__ float PowerHeuristic(int nf, float fPdf, int ng, float gPdf);
 
@@ -47,12 +50,12 @@ namespace TwUtil
 			return ret;
 		}
 
-		__device__ __inline__ void TwUtil::MonteCarlo::ConcentricSampleDisk(optix::float2 & urand, float * dx, float * dy)
+		__device__ __inline__ void TwUtil::MonteCarlo::ConcentricSampleDisk(const optix::float2 & urand, float * dx, float * dy)
 		{
 			float r = 0.f, theta = 0.f;
 			// Map uniform random numbers to $[-1,1]^2$
-			float & u1 = urand.x;
-			float & u2 = urand.y;
+			const float & u1 = urand.x;
+			const float & u2 = urand.y;
 			float sx = 2 * u1 - 1;
 			float sy = 2 * u2 - 1;
 
@@ -218,7 +221,7 @@ namespace TwUtil
 
 	//////////////////////////////////////////////////////////////////////////
 	//Forward declarations:
-	static __device__ __inline__ void GenerateRay(const optix::float2 & samplePos, optix::float3 & out_rayOrigin, optix::float3 & out_rayDirection, const optix::Matrix4x4 & RasterToCamera, const optix::Matrix4x4 & CameraToWorld);
+	static __device__ __inline__ void GenerateRay(const optix::float2 & samplePos, optix::float3 & out_rayOrigin, optix::float3 & out_rayDirection, const optix::Matrix4x4 & RasterToCamera, const optix::Matrix4x4 & CameraToWorld, const float lensRadius, const float focalDistance, const optix::float2 *lensSample);
 	static __host__ __inline__ optix::Matrix4x4 GetPerspectiveMatrix(float fov, float n, float f);
 
 	static __host__ __device__ __inline__ optix::float3 xfmPoint(const optix::float3 & pt, const optix::Matrix4x4 & matrix);
@@ -256,7 +259,7 @@ namespace TwUtil
 
 	//////////////////////////////////////////////////////////////////////////
 	//Camera related
-	static __device__ __inline__ void GenerateRay(const optix::float2 & samplePos, optix::float3 & out_rayOrigin, optix::float3 & out_rayDirection, const optix::Matrix4x4 & RasterToCamera, const optix::Matrix4x4 & CameraToWorld)
+	static __device__ __inline__ void GenerateRay(const optix::float2 & samplePos, optix::float3 & out_rayOrigin, optix::float3 & out_rayDirection, const optix::Matrix4x4 & RasterToCamera, const optix::Matrix4x4 & CameraToWorld, const float lensRadius, const float focalDistance, const optix::float2 *lensSample)
 	{
 		//Pras in RasterSpace
 		optix::float3 Pras = optix::make_float3(samplePos.x, samplePos.y, 0);
@@ -264,9 +267,35 @@ namespace TwUtil
 		optix::float3 Pcamera = xfmPoint(Pras, RasterToCamera);
 		//Construct Ray in CameraSpace
 		optix::float3 rayDir = safe_normalize(Pcamera);
-		//Transform Ray to world space
+		
+        // Account for Depth of Field effect
+        if (lensRadius > 0.f)
+        {
+            // Assert
+#ifndef __cplusplus
+            if (!lensSample)
+                rtPrintf("[Error] lensSample is null but lensRadius>0.!\n");
+#endif 
+            // Sample point on lens
+            optix::float2 lensUV = optix::make_float2(0.f);
+            TwUtil::MonteCarlo::ConcentricSampleDisk(*lensSample, &lensUV.x, &lensUV.y);
+            lensUV *= lensRadius;
 
-		out_rayOrigin = xfmPoint(optix::make_float3(0, 0, 0), CameraToWorld);
+            // Compute point on plane of focus
+            float ft = focalDistance / rayDir.z;
+            optix::float3 pFocus = ft * rayDir;
+
+            // Update ray for effect of lens
+            out_rayOrigin = optix::make_float3(lensUV.x, lensUV.y, 0.f);
+            rayDir = TwUtil::safe_normalize(pFocus - out_rayOrigin);
+        }
+        else
+        {
+            out_rayOrigin = optix::make_float3(0.f);
+        }
+
+        // Transform Ray to world space.
+		out_rayOrigin = xfmPoint(out_rayOrigin, CameraToWorld);
 		out_rayDirection = xfmVector(rayDir, CameraToWorld);
 	}
 

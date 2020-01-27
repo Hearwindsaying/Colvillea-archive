@@ -352,7 +352,7 @@ public:
      * for instantiating a CameraController class.
      */
     void createCamera(
-        const optix::Matrix4x4 & cam2world, float fov, float filmWidth, float filmHeight/*, std::function<void()> resetRenderParam = std::function<void()>()*/)
+        const optix::Matrix4x4 & cam2world, float fov, float filmWidth, float filmHeight/*, std::function<void()> resetRenderParam = std::function<void()>()*/, float focalDistance, float lensRadius)
     {
 //         if (!resetRenderParam)
 //         {
@@ -363,7 +363,7 @@ public:
 //             std::cout << "[Info] resetRenderParam is empty." << std::endl;
 //         }
 
-        this->m_camera = std::make_shared<Camera>(this->m_context, this->m_programsMap, /*resetRenderParam,*/this->m_application, cam2world, fov, filmWidth, filmHeight);
+        this->m_camera = std::make_shared<Camera>(this->m_context, this->m_programsMap, /*resetRenderParam,*/this->m_application, cam2world, fov, filmWidth, filmHeight, focalDistance, lensRadius);
     }
 
 

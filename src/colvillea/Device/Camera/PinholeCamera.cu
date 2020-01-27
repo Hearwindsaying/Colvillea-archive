@@ -40,6 +40,8 @@ rtDeclareVariable(uint2,    sysLaunch_index,     rtLaunchIndex, );
 //camera variables related:->Program
 rtDeclareVariable(Matrix4x4, RasterToCamera, , );
 rtDeclareVariable(Matrix4x4, CameraToWorld, , );
+rtDeclareVariable(float,     focalDistance, ,)=0.0f;
+rtDeclareVariable(float,     lensRadius, ,)=0.0f;
 
 
 
@@ -112,7 +114,15 @@ RT_PROGRAM void RayGeneration_PinholeCamera()
 	/* Generate ray from camera. */
 	float3 rayOrg = make_float3(0.f);
 	float3 rayDir = rayOrg;
-	TwUtil::GenerateRay(pFilm, rayOrg, rayDir, RasterToCamera, CameraToWorld);
+    if (lensRadius > 0.f)
+    {
+        float2 lensSamples = Get2D(&localSampler);
+        TwUtil::GenerateRay(pFilm, rayOrg, rayDir, RasterToCamera, CameraToWorld, lensRadius, focalDistance, &lensSamples);
+    }
+    else
+    {
+        TwUtil::GenerateRay(pFilm, rayOrg, rayDir, RasterToCamera, CameraToWorld, lensRadius, focalDistance, nullptr);
+    }
 
 	/* Make ray and trace, goint to next raytracing pipeline phase. */
 	Ray ray = make_Ray(rayOrg, rayDir, toUnderlyingValue(RayType::Radiance), sysSceneEpsilon, RT_DEFAULT_MAX);

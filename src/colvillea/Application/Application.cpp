@@ -216,7 +216,7 @@ void Application::render()
 
             this->currentTime = std::chrono::system_clock::now();
         }
-        if (this->m_sysIterationIndex > 125)
+        if (this->m_sysIterationIndex > 16384)
         {
             this->drawRenderView(); return;
         }
@@ -428,6 +428,33 @@ void Application::drawSettings()
         auto cInfo = this->m_cameraController->getCameraInfo();
         ImGui::Indent();
 
+        // Depth of Field
+        // deleteme: @todo issue found when putting this to the back
+        std::shared_ptr<Camera> camera = this->m_sceneGraph->getCamera();
+
+        static float lensRadius = camera->getLensRadius();
+        ImGui::AlignTextToFramePadding();
+        ImGui::Text("                  Lens Radius"); ImGui::SameLine(200.f);
+        ImGui::SetNextItemWidth(165);
+        if (ImGui::InputFloat("##LensRadius", &lensRadius, 0.05f, 0.05f))
+        {
+            if (lensRadius < 0.f)
+                lensRadius = 0.f;
+            camera->setLensRadius(lensRadius);
+            this->resetRenderParams();
+        }
+        static float focalDistance = camera->getFocalDistance();
+        ImGui::AlignTextToFramePadding();
+        ImGui::Text("              Focal Distance"); ImGui::SameLine(200.f);
+        ImGui::SetNextItemWidth(165);
+        if (ImGui::InputFloat("##FocalDistance", &focalDistance, 0.1f, 0.1f))
+        {
+            if (focalDistance < 0.f)
+                focalDistance = 0.f;
+            camera->setFocalDistance(focalDistance);
+            this->resetRenderParams();
+        }
+
         /* Eye Location Group: */
         ImGui::Text("            Eye Location");
         ImGui::SameLine(178.f);
@@ -495,8 +522,10 @@ void Application::drawSettings()
         {
             this->m_cameraController->setCameraInfo(cInfo);
         }
-        ImGui::Unindent();
+        
 
+        
+        ImGui::Unindent();
     }
     /* Enable popup menu even if the Camera module is collapsed. */
     if (ImGui::BeginPopupContextItem())

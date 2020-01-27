@@ -280,7 +280,7 @@ int main(int argc, char *argv[])
 
 
     /* Create scene using sceneGraph::createXXX methods. */
-    sceneGraph->createCamera(Matrix4x4::identity(), fov, filmWidth, filmHeight);
+    sceneGraph->createCamera(Matrix4x4::identity(), fov, filmWidth, filmHeight, 0.06f, 6.6f);
     create_CornellBoxScene(sceneGraph, lightPool, materialPool, examplesBasePath); /* left scene configurations are created... */
     //create_TestScene(sceneGraph, lightPool, materialPool, examplesBasePath);
     //create_DiningRoom(sceneGraph, lightPool, materialPool, examplesBasePath);
