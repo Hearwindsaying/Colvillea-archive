@@ -216,7 +216,7 @@ void Application::render()
 
             this->currentTime = std::chrono::system_clock::now();
         }
-        if (this->m_sysIterationIndex > 16384)
+        if (this->m_sysIterationIndex > 125)
         {
             this->drawRenderView(); return;
         }

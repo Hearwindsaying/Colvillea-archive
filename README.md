@@ -43,6 +43,7 @@ Here are some motivations and objectives of building Colvillea:
 
 ### Camera 
  - Pinhole Camera
+ - Depth of Field
 
 ### Geometry
  - Triangle Mesh (Wavefront OBJ)
