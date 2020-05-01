@@ -30,7 +30,7 @@ using namespace optix;
 /* Create Cornellbox. */
 void create_CornellBoxScene(std::shared_ptr<SceneGraph> &sceneGraph, std::shared_ptr<LightPool> &lightPool, std::shared_ptr<MaterialPool> &materialPool, const std::string & basePath)
 {
-    sceneGraph->createSampler(CommonStructs::SamplerType::FiniteSequenceSampler);
+    sceneGraph->createSampler(CommonStructs::SamplerType::IndependentSampler);
     /* Create triangle mesh. */
     std::shared_ptr<BSDF> lamBSDF;
     int lamIdx = materialPool->createLambertMaterial(optix::make_float4(0.63f, 0.065f, 0.05f, 1.f), lamBSDF);
@@ -75,9 +75,9 @@ void create_TestScene(std::shared_ptr<SceneGraph> &sceneGraph, std::shared_ptr<L
     int whiteplasticId = materialPool->createPlasticMaterial(0.1f, 1.5f, make_float4(1.0f), make_float4(0.04f), whiteplastic);
     sceneGraph->createTriangleMesh(basePath + "Dining-room\\models\\whiteplastic.obj", whiteplasticId, whiteplastic);*/
 
-    std::shared_ptr<BSDF> chrome;
-    int chromeId = materialPool->createRoughMetalMaterial(chrome, 0.05f, make_float4(4.369683f, 2.916703f, 1.654701f, 0.0f), make_float4(5.206434f, 4.231365f, 3.754947f, 0.0f));
-    sceneGraph->createTriangleMesh(basePath + "Dining-room\\models\\dragon.obj", chromeId, chrome);
+//     std::shared_ptr<BSDF> chrome;
+//     int chromeId = materialPool->createRoughMetalMaterial(chrome, 0.05f, make_float4(4.369683f, 2.916703f, 1.654701f, 0.0f), make_float4(5.206434f, 4.231365f, 3.754947f, 0.0f));
+//     sceneGraph->createTriangleMesh(basePath + "Dining-room\\models\\dragon.obj", chromeId, chrome);
     /*std::shared_ptr<BSDF> chrome;
     int chromeId = materialPool->createRoughMetalMaterial(chrome, 0.05f, make_float4(4.369683f, 2.916703f, 1.654701f, 0.0f), make_float4(5.206434f, 4.231365f, 3.754947f, 0.0f));
     sceneGraph->createTriangleMesh(basePath + "Dining-room\\models\\chrome.obj", chromeId, chrome);*/
@@ -280,7 +280,7 @@ int main(int argc, char *argv[])
 
 
     /* Create scene using sceneGraph::createXXX methods. */
-    sceneGraph->createCamera(Matrix4x4::identity(), fov, filmWidth, filmHeight, 0.06f, 6.6f);
+    sceneGraph->createCamera(Matrix4x4::identity(), fov, filmWidth, filmHeight, 0.06f, 0.0f);
     create_CornellBoxScene(sceneGraph, lightPool, materialPool, examplesBasePath); /* left scene configurations are created... */
     //create_TestScene(sceneGraph, lightPool, materialPool, examplesBasePath);
     //create_DiningRoom(sceneGraph, lightPool, materialPool, examplesBasePath);

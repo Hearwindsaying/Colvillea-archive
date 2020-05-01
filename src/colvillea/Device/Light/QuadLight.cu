@@ -16,6 +16,12 @@ using namespace TwUtil;
 rtDeclareVariable(CommonStructs::LightBuffers, sysLightBuffers, , );
 #endif
 
+#ifndef TWRT_DECLARE_SYSLAUNCH
+#define TWRT_DECLARE_SYSLAUNCH
+rtDeclareVariable(uint2, sysLaunch_Dim, rtLaunchDim, );
+rtDeclareVariable(uint2, sysLaunch_index, rtLaunchIndex, );
+#endif
+
 rtDeclareVariable(float, sysSceneEpsilon, , );
 
 
@@ -147,7 +153,10 @@ RT_CALLABLE_PROGRAM float LightPdf_Quad(const float3 & p, const float3 & wi, con
     }
 
     /* Make shadow ray for later detection. */
-    shadowRay = optix::make_Ray(p, wi, toUnderlyingValue(CommonStructs::RayType::Shadow), sysSceneEpsilon, tHit); //todo:review epsilon
+    shadowRay = MakeShadowRay(p, sysSceneEpsilon, sampledPoint, 1e-3f); // bug:need to review MakeShadowRay
+    
+    //shadowRay = optix::make_Ray(p, wi, toUnderlyingValue(CommonStructs::RayType::Shadow), sysSceneEpsilon, tHit); //todo:review epsilon
+
 
     /* Convert pdf in area measure to solid angle measure. */
     float pdf = sqr_length(p - sampledPoint) * quadLight.invSurfaceArea / fabsf(dot(nn, -wi));
