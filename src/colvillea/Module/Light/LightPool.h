@@ -49,6 +49,8 @@ public:
     {
         /* Initial values for |sysLightBuffers|. */
         this->initializeLoadingDefaultHDRILight();
+        QuadLight::initializeAreaLight(this->m_context);
+
         this->m_csLightBuffers.pointLightBuffer     = RT_BUFFER_ID_NULL;
         this->m_csLightBuffers.quadLightBuffer      = RT_BUFFER_ID_NULL;
 

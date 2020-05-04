@@ -255,6 +255,20 @@ static __device__ __inline__ float4 EstimateDirectLighting<CommonStructs::LightT
 	return Ld;
 }
 
+/************************************************************************/
+/*         Integrating Clipped Spherical Harmonics Expansions           */
+/************************************************************************/
+
+/* AP Matrix for SH Integration. */
+rtBuffer<float, 2> areaLightAPMatrix;
+
+/* Flm Diffuse Matrix. */
+rtBuffer<float> areaLightFlmVector;
+
+/************************************************************************/
+/*         Integrating Clipped Spherical Harmonics Expansions           */
+/************************************************************************/
+
 template<>
 static __device__ __inline__ float4 EstimateDirectLighting<CommonStructs::LightType::QuadLight>(
     int lightId,

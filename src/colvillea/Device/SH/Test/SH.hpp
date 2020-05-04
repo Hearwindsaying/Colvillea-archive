@@ -12,14 +12,14 @@
 
 /* Return the number of coefficients for a SH basis up to order `lmax`
 */
-inline __device__ int SHTerms(int lmax) {
+static __host__ __device__ __inline__ int SHTerms(int lmax) {
    return (lmax + 1) * (lmax + 1);
 }
 
 /* Return the 1D index for a particular band `l`, and coefficient `m` of the
  * Spherical Harmonics coefficient vector.
  */
-inline __device__ int SHIndex(int l, int m) {
+static __host__ __device__ __inline__ int SHIndex(int l, int m) {
    return l*l + l + m;
 }
 
@@ -27,7 +27,7 @@ inline __device__ int SHIndex(int l, int m) {
  * order `order`.
  */
 template<class Vector>
-__device__ Eigen::VectorXf SHEvalFast(const Vector& w, int order, Eigen::VectorXf& pOut) {
+static __host__ __device__ __inline__ Eigen::VectorXf SHEvalFast(const Vector& w, int order, Eigen::VectorXf& pOut) {
    const float fX = w[0];
    const float fY = w[1];
    const float fZ = w[2];
@@ -4052,7 +4052,7 @@ __device__ Eigen::VectorXf SHEvalFast(const Vector& w, int order, Eigen::VectorX
 
 /* Return the factorial of n: factorial(n) = n!
  */
-__device__ int factorial(int n) {
+static __host__ __device__ __inline__ int factorial(int n) {
   return (n == 1 || n == 0) ? 1 : factorial(n - 1) * n;
 }
 
@@ -4061,7 +4061,7 @@ __device__ int factorial(int n) {
  * zonal and the shCoeffs vector is then filled.
  */
 template<class Vector>
-__device__ Eigen::VectorXf DiffuseCoeffsSH(const Vector& w, int order) {
+static __host__ __device__ __inline__ Eigen::VectorXf DiffuseCoeffsSH(const Vector& w, int order) {
 
    Eigen::VectorXf zhCoeffs = Eigen::VectorXf::Zero(order+1);
    zhCoeffs[1] = sqrt(M_PI / 3.0f);

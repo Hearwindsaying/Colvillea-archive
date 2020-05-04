@@ -106,6 +106,29 @@ public:
         return this->m_quadShape;
     }
 
+    /************************************************************************/
+    /*         Integrating Clipped Spherical Harmonics Expansions           */
+    /************************************************************************/
+
+    /**
+     * @brief UnitTest function for checking diffuse BRDF SH projection. Compare
+     * the Monte Carlo Integration result with given |flmVector|.
+     * @param flmVector         coeff vector to be validated
+     * @param maximumIteration  maximum iteration times for MC
+     * @return test passed?
+     */
+    static bool TestDiffuseFlmVector_Order3(const std::vector<float>& flmVector, int maximumIteration);
+
+    /**
+     * @brief Initialize AreaLight AP Matrix for "Integrating Clipped Spherical Harmonics Expansions".
+     * Should be called only once for AreaLight.
+     */
+    static void initializeAreaLight(optix::Context& context);
+
+    /************************************************************************/
+    /*         Integrating Clipped Spherical Harmonics Expansions           */
+    /************************************************************************/
+
 private:
     /**
      * @brief Update |m_csQuadLight.lightToWorld| and its inverse,
