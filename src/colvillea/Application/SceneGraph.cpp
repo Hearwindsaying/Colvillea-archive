@@ -74,3 +74,17 @@ std::shared_ptr<Quad> SceneGraph::createQuad(int32_t materialIndex, const optix:
 
     return quad;
 }
+
+void SceneGraph::createTriangleSoup(int32_t materialIndex, const std::shared_ptr<BSDF> &bsdf, const std::vector<optix::float3> &vertices)
+{
+    /* Converting unique_ptr to shared_ptr. */
+    std::shared_ptr<TriangleSoup> triSoup = TriangleSoup::createTriangleSoup(this->m_context, this->m_programsMap, this->m_integrator->getIntegratorMaterial(), materialIndex, vertices);
+    /* Bind BSDF's corresponding shape. */
+    bsdf->setShape(triSoup);
+
+    this->m_shapes_GeometryTriangles.push_back(triSoup);
+
+    /* Update OptiX Graph. */
+    this->m_topGeometryGroup_GeometryTriangles->addChild(triSoup->getGeometryInstance());
+    this->rebuildGeometryTriangles();
+}

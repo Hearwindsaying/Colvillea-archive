@@ -17,15 +17,81 @@ rtDeclareVariable(optix::Ray,			ray,	   rtCurrentRay, );
 rtDeclareVariable(DifferentialGeometry, dgShading, attribute dgShading, );
 rtDeclareVariable(optix::float4,        nGeometry, attribute nGeometry, );//use float4 for padding
 
-//trianglemesh buffers:->Geometry
+/************************************************************************/
+/*                            Triangle Soup                             */
+/************************************************************************/
+// Vertex Buffer only : rtBuffer<float3> vertexBuffer;
 rtBuffer<float3> vertexBuffer;
+RT_PROGRAM void Attributes_TriangleSoup()
+{
+    /* Get primitive index to |vertexIndexBuffer| . */
+    const int primIdx = rtGetPrimitiveIndex() * 3;
+
+    const float3 p0 = vertexBuffer[primIdx];
+    const float3 p1 = vertexBuffer[primIdx];
+    const float3 p2 = vertexBuffer[primIdx];
+
+    /* Fill in Differential Geometry |dgShading|. */
+
+    /* Default uv values, if there are no texcoords from obj available. */
+    float2 uv0 = make_float2(0.f, 0.f);
+    float2 uv1 = make_float2(1.f, 0.f);
+    float2 uv2 = make_float2(1.f, 1.f);
+
+    /* Compute deltas for uvs. */
+    float du0_2 = uv0.x - uv2.x;
+    float du1_2 = uv1.x - uv2.x;
+    float dv0_2 = uv0.y - uv2.y;
+    float dv1_2 = uv1.y - uv2.y;
+
+    /* Compute deltas for position. */
+    float3 dp0_2 = p0 - p2, dp1_2 = p1 - p2;
+    float determinant = du0_2 * dv1_2 - dv0_2 * du1_2;
+    if (determinant == 0.0f)
+    {
+        TwUtil::CoordinateSystem(TwUtil::safe_normalize(cross(p2 - p0, p1 - p0)), dgShading.dpdu, dgShading.dpdv);
+    }
+    else
+    {
+        float invdet = 1.0f / determinant;
+        dgShading.dpdu = (dv1_2 * dp0_2 - dv0_2 * dp1_2) * invdet;
+        dgShading.dpdv = (-du1_2 * dp0_2 + du0_2 * dp1_2) * invdet;
+    }
+
+    /* Interpolate parametric coordinates uv for triangle. */
+    float2 barycentrics = rtGetTriangleBarycentrics();
+    float b0 = 1.f - barycentrics.x - barycentrics.y;
+    dgShading.uv = b0 * uv0 + barycentrics.x * uv1 + barycentrics.y * uv2;
+
+    /* Compute normalized normal for triangle.
+     * -- We use |dp0_2|,|dp1_2| to compute normal which relies on
+     * the winding order of triangle rather than its parameterizations
+     * (texture coordinates). */
+    dgShading.nn = nGeometry = make_float4(TwUtil::safe_normalize(cross(dp0_2, dp1_2)));
+
+    /* Compute shading differential geometry for shading normal, . */
+
+    /* Keep geometric normal on the same side of shading normal. */
+    auto dot3f = [](const float4& a, const float4& b) { return a.x * b.x + a.y * b.y + a.z * b.z; };
+    nGeometry = (dot3f(nGeometry, dgShading.nn) < 0.f) ? -nGeometry : nGeometry;
+
+    dgShading.dpdu = TwUtil::safe_normalize(dgShading.dpdu);
+    dgShading.tn = cross(make_float3(dgShading.nn), dgShading.dpdu);
+}
+
+
+/************************************************************************/
+/*                            Triangle Mesh                             */
+/************************************************************************/
+
+// trianglemesh buffers : ->Geometry
+//rtBuffer<float3> vertexBuffer;
 rtBuffer<float3> normalBuffer;
 rtBuffer<float2> texcoordBuffer;
 
 rtBuffer<int3>   vertexIndexBuffer;
 rtBuffer<int3>   texcoordIndexBuffer;
 rtBuffer<int3>   normalIndexBuffer;
-
 
 RT_PROGRAM void Attributes_TriangleMesh()
 {

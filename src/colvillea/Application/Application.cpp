@@ -218,7 +218,7 @@ void Application::render()
         }
         if (this->m_sysIterationIndex > 0)
         {
-            this->drawRenderView(); return;
+            this->drawRenderView();
         }
         this->m_context->launch(toUnderlyingValue(RayGenerationEntryType::Render), this->m_filmWidth, this->m_filmHeight);
         this->m_context->launch(toUnderlyingValue(RayGenerationEntryType::Filter), this->m_filmWidth, this->m_filmHeight);
@@ -1255,6 +1255,51 @@ void Application::drawInspector()
 
         ImGui::EndGroup();
     }
+    else if (objectType == IEditableObject::IEditableObjectType::TriangleSoupGeometry)
+    {
+        std::shared_ptr<TriangleSoup> triSoup = std::static_pointer_cast<TriangleSoup>(this->m_currentHierarchyNode);
+
+        TW_ASSERT(triSoup);
+
+        std::string triSoupName = triSoup->getName();
+        if (ImGui::InputText("##Object Name", &triSoupName))
+        {
+            triSoup->setName(triSoupName);
+        }
+
+        ImGui::Separator();
+
+        /* Get underlying BSDF from Quad Shape. */
+        const std::shared_ptr<BSDF> &bsdf = this->m_materialPool->getBSDF(triSoup->getMaterialIndex());
+        TW_ASSERT(bsdf);
+
+        if (ImGui::CollapsingHeader("General##TriangleSoup Geometry", ImGuiTreeNodeFlags_CollapsingHeader))
+        {
+
+        }
+        if (ImGui::CollapsingHeader("Material##TriangleSoup Geometry BSDF", ImGuiTreeNodeFlags_CollapsingHeader))
+        {
+            GUIHelper::drawInspector_MaterialCollapsingHeader(bsdf, this);
+        }
+
+
+        /* Public Remove Button */
+        ImGui::BeginGroup();
+
+        ImGui::BeginChild("RemoveObjectSpaceChild", ImVec2(0, -ImGui::GetFrameHeightWithSpacing())); // Leave room for 1 line below us
+        ImGui::EndChild();
+
+        /* Last line of Inspector window. */
+        if (ImGui::Button("Remove Object"))
+        {
+            this->m_sceneGraph->removeGeometryTriangles(triSoup);
+            this->m_materialPool->removeBSDF(bsdf);
+            this->m_currentHierarchyNode.reset();
+            this->resetRenderParams();
+        }
+
+        ImGui::EndGroup();
+    }
     else if (objectType == IEditableObject::IEditableObjectType::BSDF)
     {
         std::shared_ptr<BSDF> bsdf = std::static_pointer_cast<BSDF>(this->m_currentHierarchyNode);
@@ -1602,7 +1647,7 @@ void Application::createProgramsFromPTX()
 
     loadProgram("SphericalSkybox", { "Miss_Default" });
 
-    loadProgram("TriangleMesh", { "Attributes_TriangleMesh", "BoundingBox_TriangleMesh" , "Intersect_TriangleMesh" });
+    loadProgram("TriangleMesh", { "Attributes_TriangleMesh", "BoundingBox_TriangleMesh" , "Intersect_TriangleMesh", "Attributes_TriangleSoup" });
     loadProgram("Quad",         { "BoundingBox_Quad", "Intersect_Quad" });
 
     loadProgram("DirectLighting", { "ClosestHit_DirectLighting" });

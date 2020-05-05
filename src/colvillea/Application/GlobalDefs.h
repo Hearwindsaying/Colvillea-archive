@@ -78,6 +78,7 @@ public:
 
         QuadGeometry,
         TriangleMeshGeometry,
+        TriangleSoupGeometry,
 
         BSDF
     };

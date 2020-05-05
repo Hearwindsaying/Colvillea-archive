@@ -169,7 +169,7 @@ public:
 	 * @param filename filename with path
 	 */
 	TriangleMesh(optix::Context context, const std::map<std::string, optix::Program> &programsMap, const std::string &filename, optix::Material integrator, const int materialIndex):
-		GeometryTrianglesShape(context, programsMap, "TriangleMesh", integrator, materialIndex),
+		GeometryTrianglesShape(context, programsMap, "TriangleMesh", integrator, materialIndex, IEditableObject::IEditableObjectType::TriangleMeshGeometry),
         m_filename(filename),m_verticesCount(-1),hasNormals(false),hasTexcoords(false)
 	{
 
@@ -218,4 +218,64 @@ private:
 	uint32_t m_verticesCount;
 
     bool hasNormals, hasTexcoords;
+};
+
+/**
+ * @brief Triangle Soup for simple individual structured triangle
+ * mesh. Useful for testing simple meshes.
+ * 
+ * @note This TriangleSoup also employs GeometryTriangles inside to
+ * leverage RTX acceleration.
+ */
+class TriangleSoup : public GeometryTrianglesShape
+{
+public:
+    static std::unique_ptr<TriangleSoup> createTriangleSoup(optix::Context context, const std::map<std::string, optix::Program> &programsMap, optix::Material integrator, const int materialIndex, const std::vector<optix::float3> &vertices)
+    {
+        std::unique_ptr<TriangleSoup> triangleSoup = std::make_unique<TriangleSoup>(context, programsMap, vertices, integrator, materialIndex);
+        triangleSoup->initializeShape();
+        return triangleSoup;
+    }
+
+    TriangleSoup(optix::Context context, const std::map<std::string, optix::Program> &programsMap, const std::vector<optix::float3> &vertices, optix::Material integrator, const int materialIndex) :
+        GeometryTrianglesShape(context, programsMap, "TriangleSoup", integrator, materialIndex, IEditableObject::IEditableObjectType::TriangleSoupGeometry) 
+    {
+        this->vertices = vertices;
+    }
+
+    void initializeShape() override
+    {
+        /* Collect primitive count information. */
+        this->m_primitiveCount = this->vertices.size() / 3;
+        TW_ASSERT(this->m_primitiveCount * 3 == this->vertices.size());
+
+        this->m_geometryTriangles = this->m_context->createGeometryTriangles();
+
+        optix::Buffer vertexBuffer = this->m_context->createBuffer(RT_BUFFER_INPUT, RT_FORMAT_FLOAT3, this->vertices.size());
+        void *vertexBufferData = vertexBuffer->map();
+        memcpy(vertexBufferData, this->vertices.data(), sizeof(optix::float3) * this->vertices.size());
+        this->m_geometryTriangles["vertexBuffer"]->setBuffer(vertexBuffer);
+        this->m_geometryTriangles->setVertices(this->vertices.size(), vertexBuffer, RT_FORMAT_FLOAT3);
+        vertexBuffer->unmap();
+
+#pragma region DEPRECATED
+        /* Setup null buffers (if reusing TriangleMesh program). */
+        /*optix::Buffer nullBufferf3 = this->m_context->createBuffer(RT_BUFFER_INPUT, RT_FORMAT_FLOAT3, 0);
+        optix::Buffer nullBufferf2 = this->m_context->createBuffer(RT_BUFFER_INPUT, RT_FORMAT_FLOAT2, 0);
+        optix::Buffer nullBufferi3 = this->m_context->createBuffer(RT_BUFFER_INPUT, RT_FORMAT_INT3, 0);
+        this->m_geometryTriangles["normalBuffer"]->setBuffer(nullBufferf3);
+        this->m_geometryTriangles["texcoordBuffer"]->setBuffer(nullBufferf2);
+        this->m_geometryTriangles["vertexIndexBuffer"]->setBuffer(nullBufferi3);
+        this->m_geometryTriangles["normalIndexBuffer"]->setBuffer(nullBufferi3);
+        this->m_geometryTriangles["texcoordIndexBuffer"]->setBuffer(nullBufferi3);*/
+#pragma endregion DEPRECATED
+
+        GeometryTrianglesShape::setupGeometry();
+        GeometryTrianglesShape::setupGeometryInstance(this->m_integrator);
+
+        this->setMaterialIndex(this->m_materialIndex);
+    }
+
+private:
+    std::vector<optix::float3> vertices;
 };

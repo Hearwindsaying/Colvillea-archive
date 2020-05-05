@@ -209,6 +209,8 @@ public:
     std::shared_ptr<Quad> createQuad(int32_t materialIndex, const optix::float3 &position, const optix::float3 &rotation, const optix::float3 &scale, int32_t quadLightIndex, const std::shared_ptr<BSDF> &bsdf, bool flipNormal = false);
 
 
+    void createTriangleSoup(int32_t materialIndex, const std::shared_ptr<BSDF> &bsdf, const std::vector<optix::float3> &vertices);
+
     /**
      * @brief Remove a Geometry from graph.
      * @param[in] geometryShape GeometryShape to be removed

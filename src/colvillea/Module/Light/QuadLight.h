@@ -109,6 +109,16 @@ public:
     /************************************************************************/
     /*         Integrating Clipped Spherical Harmonics Expansions           */
     /************************************************************************/
+    /**
+     * @brief Clip Quad to upper hemisphere.
+     * @param L[] Quad in shading coordinates
+     * @param n   number of vertices after clipping, the clipped polygon will
+     * be written back to L[].
+     * @ref https://github.com/selfshadow/ltc_code/blob/master/webgl/shaders/ltc/ltc_quad.fs
+     */
+    static void ClipQuadToHorizon(optix::float3 L[5], int n );
+
+    static void TestClippingAlgorithm();
 
     /**
      * @brief UnitTest function for checking diffuse BRDF SH projection. Compare
