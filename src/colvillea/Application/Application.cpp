@@ -1277,6 +1277,132 @@ void Application::drawInspector()
         {
 
         }
+
+        /* Support transformation for TriangleSoup. */
+        if (ImGui::CollapsingHeader("Transform##Quad Geometry", ImGuiTreeNodeFlags_CollapsingHeader))
+        {
+            float3 triSoupLocation = triSoup->getPosition();
+            float3 triSoupRotation = triSoup->getRotation();
+            float3 triSoupScale = triSoup->getScale();
+
+            ImGui::AlignTextToFramePadding();
+            ImGui::Text("                         Location");
+            ImGui::SameLine(178.f);
+            ImGui::AlignTextToFramePadding();
+            ImGui::Text(" X\n");
+            ImGui::SameLine(200.f);
+            ImGui::SetNextItemWidth(85);
+            if (ImGui::DragFloat("##Soup Geometry Location X", &triSoupLocation.x, 1.0f, -100.0f, 100.0f))
+            {
+                triSoup->setPosition(triSoupLocation);
+                this->resetRenderParams();
+            }
+
+            ImGui::Text("            ");
+            ImGui::SameLine(178.f);
+            ImGui::AlignTextToFramePadding();
+            ImGui::Text(" Y\n");
+            ImGui::SameLine(200.f);
+            ImGui::SetNextItemWidth(85);
+            if (ImGui::DragFloat("##Soup Geometry Location Y", &triSoupLocation.y, 1.0f, -100.0f, 100.0f))
+            {
+                triSoup->setPosition(triSoupLocation);
+                this->resetRenderParams();
+            }
+
+            ImGui::Text("            ");
+            ImGui::SameLine(178.f);
+            ImGui::AlignTextToFramePadding();
+            ImGui::Text(" Z\n");
+            ImGui::SameLine(200.f);
+            ImGui::SetNextItemWidth(85);
+            if (ImGui::DragFloat("##Soup Geometry Location Z", &triSoupLocation.z, 1.0f, -100.0f, 100.0f))
+            {
+                triSoup->setPosition(triSoupLocation);
+                this->resetRenderParams();
+            }
+
+            //---------------------------------------------------------------------
+            ImGui::AlignTextToFramePadding();
+            ImGui::Text("                         Rotation");
+            ImGui::SameLine(178.f);
+            ImGui::AlignTextToFramePadding();
+            ImGui::Text(" X\n");
+            ImGui::SameLine(200.f);
+            ImGui::SetNextItemWidth(85);
+            if (ImGui::SliderAngle("##Soup Geometry Rotation X", &triSoupRotation.x, 0.0f, 360.0f))
+            {
+                triSoup->setRotation(triSoupRotation);
+                this->resetRenderParams();
+            }
+
+            ImGui::Text("            ");
+            ImGui::SameLine(178.f);
+            ImGui::AlignTextToFramePadding();
+            ImGui::Text(" Y\n");
+            ImGui::SameLine(200.f);
+            ImGui::SetNextItemWidth(85);
+            if (ImGui::SliderAngle("##Soup Geometry Rotation Y", &triSoupRotation.y, 0.0f, 360.0f))
+            {
+                triSoup->setRotation(triSoupRotation);
+                this->resetRenderParams();
+            }
+
+            ImGui::Text("            ");
+            ImGui::SameLine(178.f);
+            ImGui::AlignTextToFramePadding();
+            ImGui::Text(" Z\n");
+            ImGui::SameLine(200.f);
+            ImGui::SetNextItemWidth(85);
+            if (ImGui::SliderAngle("##Soup Geometry Rotation Z", &triSoupRotation.z, 0.0f, 360.0f))
+            {
+                triSoup->setRotation(triSoupRotation);
+                this->resetRenderParams();
+            }
+
+
+            ImGui::Text("");
+            ImGui::SameLine(135.5f);
+            ImGui::AlignTextToFramePadding();
+            ImGui::Text("Scale");
+            ImGui::SameLine(178.f);
+            ImGui::AlignTextToFramePadding();
+            ImGui::Text(" X\n");
+            ImGui::SameLine(200.f);
+            ImGui::SetNextItemWidth(85);
+            if (ImGui::DragFloat("##Soup Geometry Scale X", &triSoupScale.x, 1.0f, 0.1f, 100.0f))
+            {
+                triSoup->setScale(triSoupScale);
+                this->resetRenderParams();
+            }
+
+            ImGui::Text("            ");
+            ImGui::SameLine(178.f);
+            ImGui::AlignTextToFramePadding();
+            ImGui::Text(" Y\n");
+            ImGui::SameLine(200.f);
+            ImGui::SetNextItemWidth(85);
+            if (ImGui::DragFloat("##Soup Geometry Scale Y", &triSoupScale.y, 1.0f, 0.1f, 100.0f))
+            {
+                triSoup->setScale(triSoupScale);
+                this->resetRenderParams();
+            }
+
+            #if 0
+            ImGui::Text("            ");
+            ImGui::SameLine(178.f);
+            ImGui::AlignTextToFramePadding();
+            ImGui::Text(" Z\n");
+            ImGui::SameLine(200.f);
+            ImGui::SetNextItemWidth(85);
+            if (ImGui::DragFloat("##Soup Geometry Scale Z", &triSoupScale.z, 1.0f, 0.1f, 100.0f))
+            {
+                triSoup->setScale(triSoupScale);
+                this->resetRenderParams();
+            }
+            #endif 
+        }
+
         if (ImGui::CollapsingHeader("Material##TriangleSoup Geometry BSDF", ImGuiTreeNodeFlags_CollapsingHeader))
         {
             GUIHelper::drawInspector_MaterialCollapsingHeader(bsdf, this);

@@ -12,6 +12,12 @@ using namespace CommonStructs;
 //////////////////////////////////////////////////////////////////////////
 //Forward declarations:
 
+#ifndef TWRT_DECLARE_SYSLAUNCH
+#define TWRT_DECLARE_SYSLAUNCH
+rtDeclareVariable(uint2, sysLaunch_Dim, rtLaunchDim, );
+rtDeclareVariable(uint2, sysLaunch_index, rtLaunchIndex, );
+#endif
+
 //global variables:->Context
 rtDeclareVariable(optix::Ray,			ray,	   rtCurrentRay, );
 rtDeclareVariable(DifferentialGeometry, dgShading, attribute dgShading, );
@@ -28,8 +34,8 @@ RT_PROGRAM void Attributes_TriangleSoup()
     const int primIdx = rtGetPrimitiveIndex() * 3;
 
     const float3 p0 = vertexBuffer[primIdx];
-    const float3 p1 = vertexBuffer[primIdx];
-    const float3 p2 = vertexBuffer[primIdx];
+    const float3 p1 = vertexBuffer[primIdx+1];
+    const float3 p2 = vertexBuffer[primIdx+2];
 
     /* Fill in Differential Geometry |dgShading|. */
 

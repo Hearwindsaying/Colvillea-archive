@@ -40,6 +40,7 @@ void SceneGraph::createTriangleMesh(const std::string & meshFileName, int materi
 
 std::shared_ptr<Quad> SceneGraph::createQuad(SceneGraph *sceneGraph, int32_t materialIndex, const optix::float3 &position, const optix::float3 &rotation, const optix::float3 &scale, const std::shared_ptr<BSDF> &bsdf, bool flipNormal)
 {
+    //todo:review sceneGraph param (bad)
     //todo:assert that quad is not assigned with Emissive BSDF.//todo:delete emissive?
     //todo:review copy of Quad
     std::shared_ptr<Quad> quad = Quad::createQuad(sceneGraph, this->m_context, this->m_programsMap, position, rotation, scale, this->m_integrator->getIntegratorMaterial(), materialIndex);
@@ -78,7 +79,7 @@ std::shared_ptr<Quad> SceneGraph::createQuad(int32_t materialIndex, const optix:
 void SceneGraph::createTriangleSoup(int32_t materialIndex, const std::shared_ptr<BSDF> &bsdf, const std::vector<optix::float3> &vertices)
 {
     /* Converting unique_ptr to shared_ptr. */
-    std::shared_ptr<TriangleSoup> triSoup = TriangleSoup::createTriangleSoup(this->m_context, this->m_programsMap, this->m_integrator->getIntegratorMaterial(), materialIndex, vertices);
+    std::shared_ptr<TriangleSoup> triSoup = TriangleSoup::createTriangleSoup(this, this->m_context, this->m_programsMap, this->m_integrator->getIntegratorMaterial(), materialIndex, vertices);
     /* Bind BSDF's corresponding shape. */
     bsdf->setShape(triSoup);
 

@@ -11,6 +11,7 @@
 #include "tinyobjloader/tiny_obj_loader.h"
 
 class Application;
+class SceneGraph;
 
 /**
  * @brief TriangleMesh class serves as an auxiliary host class
@@ -230,17 +231,23 @@ private:
 class TriangleSoup : public GeometryTrianglesShape
 {
 public:
-    static std::unique_ptr<TriangleSoup> createTriangleSoup(optix::Context context, const std::map<std::string, optix::Program> &programsMap, optix::Material integrator, const int materialIndex, const std::vector<optix::float3> &vertices)
+    static std::unique_ptr<TriangleSoup> createTriangleSoup(SceneGraph *sceneGraph, optix::Context context, const std::map<std::string, optix::Program> &programsMap, optix::Material integrator, const int materialIndex, const std::vector<optix::float3> &vertices)
     {
-        std::unique_ptr<TriangleSoup> triangleSoup = std::make_unique<TriangleSoup>(context, programsMap, vertices, integrator, materialIndex);
+        std::unique_ptr<TriangleSoup> triangleSoup = std::make_unique<TriangleSoup>(sceneGraph, context, programsMap, vertices, integrator, materialIndex);
         triangleSoup->initializeShape();
         return triangleSoup;
     }
 
-    TriangleSoup(optix::Context context, const std::map<std::string, optix::Program> &programsMap, const std::vector<optix::float3> &vertices, optix::Material integrator, const int materialIndex) :
+    TriangleSoup(SceneGraph *sceneGraph, optix::Context context, const std::map<std::string, optix::Program> &programsMap, const std::vector<optix::float3> &vertices, optix::Material integrator, const int materialIndex) :
         GeometryTrianglesShape(context, programsMap, "TriangleSoup", integrator, materialIndex, IEditableObject::IEditableObjectType::TriangleSoupGeometry) 
     {
         this->vertices = vertices;
+        this->m_sceneGraph = sceneGraph;
+
+        /* Default transform parameters. */
+        this->m_position = optix::make_float3(0.f);
+        this->m_rotationRad = optix::make_float3(0.f);
+        this->m_scale = optix::make_float3(1.f);
     }
 
     void initializeShape() override
@@ -276,6 +283,57 @@ public:
         this->setMaterialIndex(this->m_materialIndex);
     }
 
+    optix::float3 getPosition() const
+    {
+        return this->m_position;
+    }
+
+    void setPosition(const optix::float3 &position)
+    {
+        this->m_position = position;
+        this->updateMatrixParameter();
+    }
+
+    optix::float3 getRotation() const
+    {
+        return this->m_rotationRad;
+    }
+
+    void setRotation(const optix::float3 &rotation)
+    {
+        this->m_rotationRad = rotation;
+        this->updateMatrixParameter();
+    }
+
+    optix::float3 getScale() const
+    {
+        return this->m_scale;
+    }
+
+    void setScale(const optix::float3 &scale)
+    {
+        TW_ASSERT(this->m_scale.z == 1.f && scale.z == 1.f);
+        if (scale.z != 1.f)
+        {
+            std::cout << "[Info] Quad shape scale's z-component is not zero!" << std::endl;
+        }
+
+        this->m_scale = scale;
+        this->updateMatrixParameter();
+    }
+
+private:
+    void updateMatrixParameter();
+
+
 private:
     std::vector<optix::float3> vertices;
+
+    /// Record user-friendly transform elements.
+    optix::float3 m_rotationRad;
+    optix::float3 m_position;
+    optix::float3 m_scale;
+
+    /// Pointer to SceneGraph
+    SceneGraph *m_sceneGraph;
 };

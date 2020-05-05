@@ -1,11 +1,14 @@
 #include "colvillea/Module/Geometry/TriangleMesh.h"
 
+#include "colvillea/Application/SceneGraph.h"
+
 #include <algorithm>
 #include <chrono>
 #include <locale>
 
 #include "colvillea/Application/TWAssert.h"
 #include "colvillea/Device/Toolkit/CommonStructs.h"
+#include "colvillea/Device/Toolkit/Utility.h"
 
 void OrdinaryTriangleMesh::initializeShape()
 {
@@ -396,4 +399,45 @@ void TriangleMesh::unmapGeometryBuffers(MeshBuffer & meshBuffer)
         meshBuffer.normalBuffer->unmap();
     if(this->hasTexcoords)
         meshBuffer.texcoordBuffer->unmap();
+}
+
+
+/************************************************************************/
+/*                         Triangle Soup                                */
+/************************************************************************/
+
+void TriangleSoup::updateMatrixParameter()
+{
+    /* Apply transform to vertices directly.*/
+
+
+    TW_ASSERT(this->m_geometryInstance);
+
+    optix::Matrix4x4 objectToWorld =
+        optix::Matrix4x4::translate(this->m_position) *
+        optix::Matrix4x4::rotate(this->m_rotationRad.x, optix::make_float3(1.f, 0.f, 0.f)) *
+        optix::Matrix4x4::rotate(this->m_rotationRad.y, optix::make_float3(0.f, 1.f, 0.f)) *
+        optix::Matrix4x4::rotate(this->m_rotationRad.z, optix::make_float3(0.f, 0.f, 1.f)) *
+        optix::Matrix4x4::scale(this->m_scale);
+
+    /* Update vertexBuffer. */
+    optix::Buffer vertexBuffer = this->m_geometryTriangles["vertexBuffer"]->getBuffer();
+    TW_ASSERT(vertexBuffer);
+
+    optix::float3 *vertexBufferData = static_cast<optix::float3 *>(vertexBuffer->map());
+
+    for (auto itr = this->vertices.cbegin(); itr != this->vertices.cend(); ++itr)
+    {
+        /* Note that we need to apply the objectToWorld matrix to original (perhaps canonical)
+         * triangle. So we cannot write the result back to the vertex directly. */
+        vertexBufferData[itr-this->vertices.cbegin()] = TwUtil::xfmPoint(*itr, objectToWorld);
+    }
+
+
+    this->m_geometryTriangles["vertexBuffer"]->setBuffer(vertexBuffer);
+    this->m_geometryTriangles->setVertices(this->vertices.size(), vertexBuffer, RT_FORMAT_FLOAT3); // todo:review:necessary to setBuffer? setVertices?
+    vertexBuffer->unmap();
+
+    /* Trigger Refit/Rebuild BVH. */
+    this->m_sceneGraph->rebuildGeometryTriangles();
 }

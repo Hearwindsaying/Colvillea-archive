@@ -40,7 +40,7 @@ void create_CornellBoxScene(std::shared_ptr<SceneGraph> &sceneGraph, std::shared
 
     std::shared_ptr<BSDF> soupBSDF;
     int soupIdx = materialPool->createLambertMaterial(optix::make_float4(0.63f, 0.065f, 0.05f, 1.f), soupBSDF);
-    sceneGraph->createTriangleSoup(soupIdx, soupBSDF, { make_float3(-4.f,0.f,0.f),make_float3(4.f,0.f,0.f),make_float3(0.f,4.f,0.f) });
+    sceneGraph->createTriangleSoup(soupIdx, soupBSDF, { make_float3(0.f,-2.f*sqrt(3) / 6.f,0.f),make_float3(0.5f,sqrt(3) / 6.f,0.f),make_float3(-0.5f,sqrt(3) / 6.f,0.f) });
 
     std::shared_ptr<BSDF> lamBSDF_green;
     int lamIdx_green = materialPool->createLambertMaterial(optix::make_float4(0.14f, 0.45f, 0.091f, 1.f), lamBSDF_green);
