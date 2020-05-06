@@ -469,10 +469,6 @@ void TriangleSoup::updateMatrixParameter()
     optix::float3 L[5] = { vertexBufferData[0],vertexBufferData[2],vertexBufferData[1],vertexBufferData[4],optix::make_float3(0.f) };
     int clippedN;
 
-    /*L[0] = optix::make_float3(0, 1, 0.5);
-    L[1] = optix::make_float3(0, 0, 1.5);
-    L[2] = optix::make_float3(0, -1, 0.5);
-    L[3] = optix::make_float3(0, 0, -.5);*/
     QuadLight::ClipQuadToHorizon(L, clippedN);
     if (clippedN == 3)
     {
@@ -506,6 +502,10 @@ void TriangleSoup::updateMatrixParameter()
         vertexBufferData[8] = L[3];
         this->m_geometryTriangles->setPrimitiveCount(3);
         this->m_geometryTriangles->setVertices(9, vertexBuffer, RT_FORMAT_FLOAT3); // todo:review:necessary to setBuffer? setVertices?
+    }
+    else if (clippedN == 0)
+    {
+        /* Totally below and we omit the case (draw as usual). */
     }
     else
     {

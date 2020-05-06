@@ -27,6 +27,31 @@
 
 using namespace optix;
 
+/* SH Clipping Test scene. */
+void create_SHClippingTest(std::shared_ptr<SceneGraph> &sceneGraph, std::shared_ptr<LightPool> &lightPool, std::shared_ptr<MaterialPool> &materialPool, const std::string & basePath)
+{
+    lightPool->createHDRILight(basePath + "HDRI\\uffizi-large.hdr", optix::make_float3(0.f, 0.f, 0.f));
+    sceneGraph->createSampler(CommonStructs::SamplerType::IndependentSampler);
+
+    /* Canonical Soup testing*/
+    std::shared_ptr<BSDF> soupBSDF;
+    int soupIdx = materialPool->createLambertMaterial(optix::make_float4(0.63f, 0.065f, 0.05f, 1.f), soupBSDF);
+    float3 A = make_float3(-1.f, -1, 0.f), C = make_float3(1.f, 1.f, 0.f),
+        B = make_float3(-1.f, 1.f, 0.f), D = make_float3(1.f, -1.f, 0.f);
+    //     float3 A = make_float3(0.f, -2.f*sqrt(3) / 6.f, 0.f), C = make_float3(0.5f, sqrt(3) / 6.f, 0.f),
+    //         B = make_float3(-0.5f, sqrt(3) / 6.f, 0.f), D = make_float3(1.f, -2.f*sqrt(3) / 6.f, 0.f);
+    sceneGraph->createTriangleSoup(soupIdx, soupBSDF, { A,C,B,A,D,C });
+
+    /* Z=0 Plane */
+    std::shared_ptr<BSDF> planeBSDF;
+    int planeIdx = materialPool->createLambertMaterial(optix::make_float4(0.63f, 0.065f, 0.05f, 1.f), planeBSDF);
+    float3 A1 = make_float3(-10.f, -10, 0.f), C1 = make_float3(10.f, 10.f, 0.f),
+        B1 = make_float3(-10.f, 10.f, 0.f), D1 = make_float3(10.f, -10.f, 0.f);
+    //     float3 A = make_float3(0.f, -2.f*sqrt(3) / 6.f, 0.f), C = make_float3(0.5f, sqrt(3) / 6.f, 0.f),
+    //         B = make_float3(-0.5f, sqrt(3) / 6.f, 0.f), D = make_float3(1.f, -2.f*sqrt(3) / 6.f, 0.f);
+    sceneGraph->createTriangleSoup(planeIdx, planeBSDF, { A1,C1,B1,A1,D1,C1 });
+}
+
 /* Create Cornellbox. */
 void create_CornellBoxScene(std::shared_ptr<SceneGraph> &sceneGraph, std::shared_ptr<LightPool> &lightPool, std::shared_ptr<MaterialPool> &materialPool, const std::string & basePath)
 {

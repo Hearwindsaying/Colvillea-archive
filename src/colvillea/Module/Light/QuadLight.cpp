@@ -138,39 +138,16 @@ void QuadLight::ClipQuadToHorizon(optix::float3 L[5], int &n)
             continue;
         else if (A.z >= 0 && B.z >= 0)
         {
-            auto findItr = std::find_if(&L[0], &L[end], [&A](const optix::float3& pt)
-            {
-                return A.x == pt.x && A.y == pt.y && A.z == pt.z;
-            });
-            if (findItr == &L[end])
-                L[end++] = A;
-
-            findItr = std::find_if(&L[0], &L[end], [&B](const optix::float3& pt)
-            {
-                return B.x == pt.x && B.y == pt.y && B.z == pt.z;
-            });
-            if (findItr == &L[end])
-                L[end++] = B;
+            L[end++] = A;
         }
         else if (A.z >= 0 && B.z <= 0)
         {
-            auto findItr = std::find_if(&L[0], &L[end], [&A](const optix::float3& pt)
-            {
-                return A.x == pt.x && A.y == pt.y && A.z == pt.z;
-            });
-            if (findItr == &L[end])
-                L[end++] = A;
+            L[end++] = A;
             L[end++] = IntersectRayZ0(A, B);
         }
         else if (A.z <= 0 && B.z >= 0)
         {
             L[end++] = IntersectRayZ0(A, B);
-            auto findItr = std::find_if(&L[0], &L[end], [&B](const optix::float3& pt)
-            {
-                return B.x == pt.x && B.y == pt.y && B.z == pt.z;
-            });
-            if (findItr == &L[end])
-                L[end++] = B;
         }
         else
         {
