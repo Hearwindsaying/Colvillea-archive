@@ -114,9 +114,8 @@ public:
      * @param L[] Quad in shading coordinates
      * @param n   number of vertices after clipping, the clipped polygon will
      * be written back to L[].
-     * @ref https://github.com/selfshadow/ltc_code/blob/master/webgl/shaders/ltc/ltc_quad.fs
      */
-    static void ClipQuadToHorizon(optix::float3 L[5], int n );
+    static void ClipQuadToHorizon(optix::float3 L[5], int &n );
 
     static void TestClippingAlgorithm();
 

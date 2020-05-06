@@ -12,6 +12,8 @@
 #include "colvillea/Application/Application.h" // For LightPool::createLightPool()
 #include "colvillea/Module/Light/LightPool.h"
 
+using namespace optix;
+
 void QuadLight::setPosition(const optix::float3 &position)
 {
     /* Update underlying Quad shape. */
@@ -100,115 +102,82 @@ namespace CLTest
     }
 }
 
-void QuadLight::ClipQuadToHorizon(optix::float3 L[5], int n)
+void QuadLight::ClipQuadToHorizon(optix::float3 L[5], int &n)
 {
-    // detect clipping config
-    int config = 0;
-    if (L[0].z > 0.0) config += 1;
-    if (L[1].z > 0.0) config += 2;
-    if (L[2].z > 0.0) config += 4;
-    if (L[3].z > 0.0) config += 8;
+    /* Make a copy of L[]. */
+    optix::float3 Lorg[4];
+    memcpy(&Lorg[0], &L[0], sizeof(optix::float3) * 4);
 
-    // clip
-    n = 0;
-
-    if (config == 0)
+    auto IntersectRayZ0 = [](const optix::float3 &A, const optix::float3 &B)->optix::float3
     {
-        // clip all
-    }
-    else if (config == 1) // V1 clip V2 V3 V4
+        float3 o = A;
+        float3 d = TwUtil::safe_normalize(B - A);
+        float t = -A.z * (length(B - A) / (B - A).z);
+        TW_ASSERT(t >= 0.f);
+        return o + t * d;
+    };
+    int lessThanZeroCount = std::count_if(&L[0], &L[4], [](const optix::float3 &pt)
     {
-        n = 3;
-        L[1] = -L[1].z * L[0] + L[0].z * L[1];
-        L[2] = -L[3].z * L[0] + L[0].z * L[3];
-    }
-    else if (config == 2) // V2 clip V1 V3 V4
+        return (pt.z <= 0.f);
+    });
+    switch (lessThanZeroCount)
     {
-        n = 3;
-        L[0] = -L[0].z * L[1] + L[1].z * L[0];
-        L[2] = -L[2].z * L[1] + L[1].z * L[2];
-    }
-    else if (config == 3) // V1 V2 clip V3 V4
-    {
-        n = 4;
-        L[2] = -L[2].z * L[1] + L[1].z * L[2];
-        L[3] = -L[3].z * L[0] + L[0].z * L[3];
-    }
-    else if (config == 4) // V3 clip V1 V2 V4
-    {
-        n = 3;
-        L[0] = -L[3].z * L[2] + L[2].z * L[3];
-        L[1] = -L[1].z * L[2] + L[2].z * L[1];
-    }
-    else if (config == 5) // V1 V3 clip V2 V4) impossible
-    {
-        n = 0;
-    }
-    else if (config == 6) // V2 V3 clip V1 V4
-    {
-        n = 4;
-        L[0] = -L[0].z * L[1] + L[1].z * L[0];
-        L[3] = -L[3].z * L[2] + L[2].z * L[3];
-    }
-    else if (config == 7) // V1 V2 V3 clip V4
-    {
-        n = 5;
-        L[4] = -L[3].z * L[0] + L[0].z * L[3];
-        L[3] = -L[3].z * L[2] + L[2].z * L[3];
-    }
-    else if (config == 8) // V4 clip V1 V2 V3
-    {
-        n = 3;
-        L[0] = -L[0].z * L[3] + L[3].z * L[0];
-        L[1] = -L[2].z * L[3] + L[3].z * L[2];
-        L[2] = L[3];
-    }
-    else if (config == 9) // V1 V4 clip V2 V3
-    {
-        n = 4;
-        L[1] = -L[1].z * L[0] + L[0].z * L[1];
-        L[2] = -L[2].z * L[3] + L[3].z * L[2];
-    }
-    else if (config == 10) // V2 V4 clip V1 V3) impossible
-    {
-        n = 0;
-    }
-    else if (config == 11) // V1 V2 V4 clip V3
-    {
-        n = 5;
-        L[4] = L[3];
-        L[3] = -L[2].z * L[3] + L[3].z * L[2];
-        L[2] = -L[2].z * L[1] + L[1].z * L[2];
-    }
-    else if (config == 12) // V3 V4 clip V1 V2
-    {
-        n = 4;
-        L[1] = -L[1].z * L[2] + L[2].z * L[1];
-        L[0] = -L[0].z * L[3] + L[3].z * L[0];
-    }
-    else if (config == 13) // V1 V3 V4 clip V2
-    {
-        n = 5;
-        L[4] = L[3];
-        L[3] = L[2];
-        L[2] = -L[1].z * L[2] + L[2].z * L[1];
-        L[1] = -L[1].z * L[0] + L[0].z * L[1];
-    }
-    else if (config == 14) // V2 V3 V4 clip V1
-    {
-        n = 5;
-        L[4] = -L[0].z * L[3] + L[3].z * L[0];
-        L[0] = -L[0].z * L[1] + L[1].z * L[0];
-    }
-    else if (config == 15) // V1 V2 V3 V4
-    {
-        n = 4;
+    case 0:n = 4; break;
+    case 1:n = 5; break;
+    case 2:n = 4; break;
+    case 3:n = 3; break;
+    case 4:n = 0; break;
     }
 
-    if (n == 3)
-        L[3] = L[0];
-    if (n == 4)
-        L[4] = L[0];
+    int end = 0;
+    for (int i = 1; i <= 4; ++i)
+    {
+        const float3& A = Lorg[i - 1];
+        const float3& B = i == 4 ? Lorg[0] : Lorg[i]; // Loop back to zero index
+        if(A.z<=0 && B.z<=0)
+            continue;
+        else if (A.z >= 0 && B.z >= 0)
+        {
+            auto findItr = std::find_if(&L[0], &L[end], [&A](const optix::float3& pt)
+            {
+                return A.x == pt.x && A.y == pt.y && A.z == pt.z;
+            });
+            if (findItr == &L[end])
+                L[end++] = A;
+
+            findItr = std::find_if(&L[0], &L[end], [&B](const optix::float3& pt)
+            {
+                return B.x == pt.x && B.y == pt.y && B.z == pt.z;
+            });
+            if (findItr == &L[end])
+                L[end++] = B;
+        }
+        else if (A.z >= 0 && B.z <= 0)
+        {
+            auto findItr = std::find_if(&L[0], &L[end], [&A](const optix::float3& pt)
+            {
+                return A.x == pt.x && A.y == pt.y && A.z == pt.z;
+            });
+            if (findItr == &L[end])
+                L[end++] = A;
+            L[end++] = IntersectRayZ0(A, B);
+        }
+        else if (A.z <= 0 && B.z >= 0)
+        {
+            L[end++] = IntersectRayZ0(A, B);
+            auto findItr = std::find_if(&L[0], &L[end], [&B](const optix::float3& pt)
+            {
+                return B.x == pt.x && B.y == pt.y && B.z == pt.z;
+            });
+            if (findItr == &L[end])
+                L[end++] = B;
+        }
+        else
+        {
+            TW_ASSERT(false);
+        }
+    }
+    TW_ASSERT(end == 0 || end == 3 || end == 4 || end == 5);
 }
 
 void QuadLight::TestClippingAlgorithm()

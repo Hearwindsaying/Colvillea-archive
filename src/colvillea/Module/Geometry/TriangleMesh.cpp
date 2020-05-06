@@ -1,6 +1,7 @@
 #include "colvillea/Module/Geometry/TriangleMesh.h"
 
 #include "colvillea/Application/SceneGraph.h"
+#include "colvillea/Module/Light/QuadLight.h" // Clipping Test
 
 #include <algorithm>
 #include <chrono>
@@ -410,7 +411,7 @@ void TriangleSoup::updateMatrixParameter()
 {
     /* Apply transform to vertices directly.*/
 
-
+#if 0
     TW_ASSERT(this->m_geometryInstance);
 
     optix::Matrix4x4 objectToWorld =
@@ -433,11 +434,91 @@ void TriangleSoup::updateMatrixParameter()
         vertexBufferData[itr-this->vertices.cbegin()] = TwUtil::xfmPoint(*itr, objectToWorld);
     }
 
-
     this->m_geometryTriangles["vertexBuffer"]->setBuffer(vertexBuffer);
     this->m_geometryTriangles->setVertices(this->vertices.size(), vertexBuffer, RT_FORMAT_FLOAT3); // todo:review:necessary to setBuffer? setVertices?
     vertexBuffer->unmap();
 
     /* Trigger Refit/Rebuild BVH. */
     this->m_sceneGraph->rebuildGeometryTriangles();
+
+#else 
+    TW_ASSERT(this->m_geometryInstance);
+
+    optix::Matrix4x4 objectToWorld =
+        optix::Matrix4x4::translate(this->m_position) *
+        optix::Matrix4x4::rotate(this->m_rotationRad.x, optix::make_float3(1.f, 0.f, 0.f)) *
+        optix::Matrix4x4::rotate(this->m_rotationRad.y, optix::make_float3(0.f, 1.f, 0.f)) *
+        optix::Matrix4x4::rotate(this->m_rotationRad.z, optix::make_float3(0.f, 0.f, 1.f)) *
+        optix::Matrix4x4::scale(this->m_scale);
+
+    /* Update vertexBuffer. */
+    optix::Buffer vertexBuffer = this->m_geometryTriangles["vertexBuffer"]->getBuffer();
+    TW_ASSERT(vertexBuffer);
+
+    optix::float3 *vertexBufferData = static_cast<optix::float3 *>(vertexBuffer->map());
+
+    for (auto itr = this->vertices.cbegin(); itr != this->vertices.cend(); ++itr)
+    {
+        /* Note that we need to apply the objectToWorld matrix to original (perhaps canonical)
+         * triangle. So we cannot write the result back to the vertex directly. */
+        vertexBufferData[itr - this->vertices.cbegin()] = TwUtil::xfmPoint(*itr, objectToWorld);
+    }
+
+    /* Clipping Test for SH Integration Test (for canonical quad). */
+    TW_ASSERT(this->vertices.size() == 6);
+    optix::float3 L[5] = { vertexBufferData[0],vertexBufferData[2],vertexBufferData[1],vertexBufferData[4],optix::make_float3(0.f) };
+    int clippedN;
+
+    /*L[0] = optix::make_float3(0, 1, 0.5);
+    L[1] = optix::make_float3(0, 0, 1.5);
+    L[2] = optix::make_float3(0, -1, 0.5);
+    L[3] = optix::make_float3(0, 0, -.5);*/
+    QuadLight::ClipQuadToHorizon(L, clippedN);
+    if (clippedN == 3)
+    {
+        vertexBufferData[0] = L[0];
+        vertexBufferData[1] = L[1];
+        vertexBufferData[2] = L[2];
+        this->m_geometryTriangles->setPrimitiveCount(1);
+        this->m_geometryTriangles->setVertices(3, vertexBuffer, RT_FORMAT_FLOAT3);
+    }
+    else if (clippedN == 4)
+    {
+        vertexBufferData[0] = L[2];
+        vertexBufferData[1] = L[1];
+        vertexBufferData[2] = L[0];
+        vertexBufferData[3] = L[2];
+        vertexBufferData[4] = L[0];
+        vertexBufferData[5] = L[3];
+        this->m_geometryTriangles->setPrimitiveCount(2);
+        this->m_geometryTriangles->setVertices(6, vertexBuffer, RT_FORMAT_FLOAT3);
+    }
+    else if (clippedN == 5)
+    {
+        vertexBufferData[0] = L[0];
+        vertexBufferData[1] = L[2];
+        vertexBufferData[2] = L[1];
+        vertexBufferData[3] = L[0];
+        vertexBufferData[4] = L[3];
+        vertexBufferData[5] = L[2];
+        vertexBufferData[6] = L[0];
+        vertexBufferData[7] = L[4];
+        vertexBufferData[8] = L[3];
+        this->m_geometryTriangles->setPrimitiveCount(3);
+        this->m_geometryTriangles->setVertices(9, vertexBuffer, RT_FORMAT_FLOAT3); // todo:review:necessary to setBuffer? setVertices?
+    }
+    else
+    {
+        TW_ASSERT(false);
+    }
+
+    this->m_geometryTriangles["vertexBuffer"]->setBuffer(vertexBuffer);
+   
+    vertexBuffer->unmap();
+
+    /* Trigger Refit/Rebuild BVH. */
+    this->m_sceneGraph->rebuildGeometryTriangles();
+
+    
+#endif
 }
