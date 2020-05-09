@@ -151,6 +151,63 @@ void QuadLight::ClipQuadToHorizon(optix::float3 L[5], int &n)
 }
 
 /**
+ * @ref code adapted from Wang's glsl.
+ */
+float solid_angle(optix::float3 verts[5], int numVerts) {
+    float sa = 0;
+    float3 tmp1 = cross(verts[0], verts[numVerts - 1]);
+    float3 tmp2 = cross(verts[0], verts[1]);
+    sa += acos(dot(tmp1, tmp2) / (length(tmp1) * length(tmp2)));
+
+    // Polygon will be at least a triangle
+    // i = 1
+    tmp1 = cross(verts[1], verts[0]);
+    tmp2 = cross(verts[1], verts[2]);
+    sa += acos(dot(tmp1, tmp2) / (length(tmp1) * length(tmp2)));
+
+    // i = 2
+    tmp1 = cross(verts[2], verts[1]);
+    tmp2 = cross(verts[2], verts[3 % numVerts]);
+    sa += acos(dot(tmp1, tmp2) / (length(tmp1) * length(tmp2)));
+
+    if (numVerts >= 4) {
+        tmp1 = cross(verts[3], verts[2]);
+        tmp2 = cross(verts[3], verts[4 % numVerts]);
+        sa += acos(dot(tmp1, tmp2) / (length(tmp1) * length(tmp2)));
+    }
+    if (numVerts >= 5) {
+        tmp1 = cross(verts[4], verts[3]);
+        tmp2 = cross(verts[4], verts[0]);   // for now let max vertices be 5
+        sa += acos(dot(tmp1, tmp2) / (length(tmp1) * length(tmp2)));
+    }
+
+    sa -= (numVerts - 2) * M_PIf;
+    return sa;
+}
+
+/**
+ * @param v: vertices of quad/polygonal light projected into unit hemisphere. index starting from 1
+ */
+template<int M>
+float computeSolidAngle(std::vector<float3> const& v)
+{
+    TW_ASSERT(v.size() == M + 1);
+    std::vector<float3> const& we = v;
+    float S0 = 0.0f;
+    for (int e = 1; e <= M; ++e)
+    {
+        const optix::float3& we_minus_1 = (e == 1 ? we[M] : we[e - 1]);
+        const optix::float3& we_plus_1 = (e == M ? we[1] : we[e + 1]);
+
+        float3 tmpa = cross(we[e], we_minus_1);
+        float3 tmpb = cross(we[e], we_plus_1);
+        S0 += acos(dot(tmpa, tmpb) / (length(tmpa)*length(tmpb))); // Typo in Wang's paper, length is inside acos evaluation!
+    }
+    S0 -= (M - 2)*M_PIf;
+    return S0;
+}
+
+/**
  * @ x:shading point in world space
  * @ v:vertices of quad/polygonal light in world space, size==M+1, index starting from 1
  * @ n:l_max 
@@ -189,10 +246,21 @@ void computeCoeff(float3 x, std::vector<float3> & v, /*int n, std::vector<std::v
         gammae[e] = acos(dot(we[e], we_plus_1));
     }
     // Solid angle computation
+    float S0 = 0.0f;
+    for (int e = 1; e <= M; ++e)
+    {
+        const optix::float3& we_minus_1 = (e == 1 ? we[M] : we[e - 1]);
+        const optix::float3& we_plus_1 = (e == M ? we[1] : we[e + 1]);
+        
+        float3 tmpa = cross(we_minus_1, we[e]);
+        float3 tmpb = cross(we[e], we_plus_1);
+        S0 += acos(dot(tmpa, tmpb)) / (length(tmpa)*length(tmpb));
+    }
+    S0 -= (M - 2)*M_PIf;
 
-
-    std::vector<float> L2w; L2w.resize(w.size());
+    std::vector<float> L0w; L0w.resize(w.size());
     std::vector<float> L1w; L1w.resize(w.size());
+    std::vector<float> L2w; L2w.resize(w.size());
     for (int i = 0; i < w.size(); ++i)
     {
         std::vector<float> ae; ae.resize(v.size());
@@ -245,12 +313,18 @@ void computeCoeff(float3 x, std::vector<float3> & v, /*int n, std::vector<std::v
         float S2 = 0.5f*B1;
 #endif // _DEBUG_ENABLE_S2
 
-       // float L0w = sqrt(1.f / (4.f*M_PIf))*S0;
+        L0w[i] = sqrt(1.f / (4.f*M_PIf))*S0;
         L1w[i] = sqrt(3.f / (4.f*M_PIf))*S1;
 #ifdef _DEBUG_ENABLE_S2
         L2w[i] = sqrt(5.f / (4.f*M_PIf))*S2;
 #endif
     }
+
+    for (const auto& l0wi : L0w)
+    {
+        std::cout << "l0wi:   " << l0wi << std::endl;
+    }
+    std::cout << "--------------end l1wi" << std::endl;
 
     for (const auto& l1wi : L1w)
     {
@@ -265,7 +339,7 @@ void computeCoeff(float3 x, std::vector<float3> & v, /*int n, std::vector<std::v
 #endif // _DEBUG_ENABLE_S2
     std::cout << "--------------end l2wi" << std::endl;
 
-    std::vector<float> L2m;
+    /*std::vector<float> L2m;
     L2m.push_back(2.61289 * L2w[0] - 0.196102 * L2w[1] + 0.056974 * L2w[2] - 1.11255 * L2w[3] - 3.29064 * L2w[4]);
     L2m.push_back(-4.46838* L2w[0] + 0.540528* L2w[1] + 0.0802047* L2w[2] - L2w[3] * 0.152141 + 4.77508 * L2w[4]);
     L2m.push_back(-3.36974* L2w[0] - 6.50662* L2w[1] - 1.43347* L2w[2] - L2w[3] * 6.50662 - 3.36977 * L2w[4]);
@@ -274,11 +348,144 @@ void computeCoeff(float3 x, std::vector<float3> & v, /*int n, std::vector<std::v
     for (const auto& L2mi : L2m)
     {
         std::cout << "l2mi:   " << L2mi << std::endl;
+    }*/
+}
+
+void QuadLight::TestSolidAngle()
+{
+    int nfails = 0;
+    int ntests = 0;
+    auto sphToCartesian = [](const float theta, const float phi)->float3
+    {
+        return make_float3(sin(theta)*cos(phi), sin(theta)*sin(phi), cos(theta));
+    };
+    {
+        auto A1 = make_float3(0.0f, 1.0f, 0.0f);
+        auto B1 = make_float3(-1.0f, 0.0f, 0.0f);
+        auto C1 = make_float3(0.0f, -1.0f, 0.0f);
+        auto D1 = make_float3(1.0f, 0.0f, 0.0f);
+        std::vector<float3> v2{ A1,sphToCartesian(0.f,0.f),D1 };
+        float t1 = solid_angle(v2.data(), 3);
+
+        std::vector<float3> v22{ make_float3(0.f), A1,sphToCartesian(0.f,0.f),D1 };
+        float t2 = computeSolidAngle<3>(v22);
+        if (!(t1 == t2 == 0.5f*M_PIf))
+        {
+            ++nfails;
+            printf("Test failed at %d: t1==%f t2==%f != %f\n", __LINE__, t1, t2, 0.5f*M_PIf);
+        }
+        ++ntests;
+
+        std::vector<float3> v3{ A1,D1,sphToCartesian(0.f,0.f) };
+        t1 = solid_angle(v3.data(), 3);
+
+        std::vector<float3> v33{ make_float3(0.f), A1,D1,sphToCartesian(0.f,0.f) };
+        t2 = computeSolidAngle<3>(v33);
+        if (!(t1 == t2 == 0.5f*M_PIf))
+        {
+            ++nfails;
+            printf("Test failed at %d: t1==%f t2==%f != %f\n", __LINE__, t1, t2, 0.5f*M_PIf);
+        }
+        ++ntests;
     }
+    {
+        auto A1 = make_float3(0.0f, 1.0f, 0.0f);
+        auto C1 = make_float3(0.0f, -1.0f, 0.0f);
+        auto D1 = make_float3(1.0f, 0.0f, 0.0f);
+        std::vector<float3> v2{ A1,C1,D1 };
+        float t1 = solid_angle(v2.data(), 3);
+
+        std::vector<float3> v22{ make_float3(0.f), A1,C1,D1 };
+        float t2 = computeSolidAngle<3>(v22);
+        if (!(t1 == t2))
+        {
+            ++nfails;
+            printf("Test failed at %d: t1==%f t2==%f \n", __LINE__, t1, t2);
+        }
+        ++ntests;
+    }
+    {
+        auto A1 = make_float3(0.0f, 1.0f, 0.0f);
+        auto B1 = make_float3(-1.0f, 0.0f, 0.0f);
+        auto C1 = make_float3(0.0f, -1.0f, 0.0f);
+        auto D1 = make_float3(1.0f, 0.0f, 0.0f);
+        std::vector<float3> v2{ A1,B1,C1,D1 };
+        float t1 = solid_angle(v2.data(), 4);
+
+        std::vector<float3> v22{ make_float3(0.f), A1,B1,C1,D1 };
+        float t2 = computeSolidAngle<4>(v22);
+        if (!(t1 == t2 == 2.f*M_PIf))
+        {
+            ++nfails;
+            printf("Test failed at %d: t1==%f t2==%f != %f\n", __LINE__, t1, t2, 2.f*M_PIf);
+        }
+        ++ntests;
+
+        std::vector<float3> v3{ A1,D1,C1,B1 };
+        t1 = solid_angle(v3.data(), 4);
+
+        std::vector<float3> v33{ make_float3(0.f), A1,D1,C1,B1 };
+        t2 = computeSolidAngle<4>(v33);
+        if (!(t1 == t2 == 2.f*M_PIf))
+        {
+            ++nfails;
+            printf("Test failed at %d: t1==%f t2==%f != %f\n", __LINE__, t1, t2, 2.f*M_PIf);
+        }
+        ++ntests;
+    }
+    {
+        auto A1 = (sphToCartesian(M_PI / 2.f, M_PI / 2.f));
+        auto B1 = (sphToCartesian(M_PI / 4.f, M_PI / 2.f));
+        auto C1 = (sphToCartesian(M_PI / 4.f, 0.f));
+        auto D1 = (sphToCartesian(M_PI / 2.f, 0));
+        std::vector<float3> v2{ A1,B1,C1,D1 };
+        float t1 = solid_angle(v2.data(), 4);
+
+        std::vector<float3> v22{ make_float3(0.f), A1,B1,C1,D1 };
+        float t2 = computeSolidAngle<4>(v22);
+        if (!(t1 == t2 == M_PIf / sqrt(8)))
+        {
+            ++nfails;
+            printf("Test failed at %d: t1==%f t2==%f != %f\n", __LINE__, t1, t2, M_PIf / sqrt(8));
+        }
+        ++ntests;
+    }
+    {
+        std::random_device rd;  //Will be used to obtain a seed for the random number engine
+        std::mt19937 gen(rd()); //Standard mersenne_twister_engine seeded with rd()
+        std::uniform_real_distribution<> dis(0.0, 1.0);
+
+        auto uniformSamplingHemisphere = [](float x, float y)->float3
+        {
+            float z = x;
+            float r = std::sqrt(std::max(0.0, 1.0 - z * z));
+            float phi = 2.0 * M_PI * y;
+            return make_float3(r * std::cos(phi), r * std::sin(phi), z);
+        };
+
+        // Random vertices
+        auto A1 = (uniformSamplingHemisphere(dis(gen),dis(gen)));
+        auto B1 = (uniformSamplingHemisphere(dis(gen), dis(gen)));
+        auto C1 = (uniformSamplingHemisphere(dis(gen), dis(gen)));
+        std::vector<float3> v2{ A1,B1,C1 };
+        float t1 = solid_angle(v2.data(), 3);
+
+        std::vector<float3> v22{ make_float3(0.f), A1,B1,C1 };
+        float t2 = computeSolidAngle<3>(v22);
+        if (!(t1 == t2))
+        {
+            ++nfails;
+            printf("Test failed at %d: t1==%f t2==%f", __LINE__, t1, t2);
+        }
+        ++ntests;
+    }
+    // todo:add MC validation
+    printf("\nTest coverage:%f%%(%d/%d) passed!\n", static_cast<float>(ntests-nfails)/ntests, ntests - nfails, ntests);
 }
 
 void QuadLight::TestZHRecurrence()
 {
+    TestSolidAngle();
     auto sphToCartesian = [](const float theta, const float phi)->float3
     {
         return make_float3(sin(theta)*cos(phi), sin(theta)*sin(phi), cos(theta));
@@ -301,10 +508,12 @@ void QuadLight::TestZHRecurrence()
     auto D1 = (sphToCartesian(M_PI / 2.f, 0));
 
     //std::vector<float3> v{ make_float3(0.f),A1,B1,C1,D1 };
-    std::vector<float3> v{ make_float3(0.f),A1,C1,D1 };
+    //std::vector<float3> v{ make_float3(0.f),A1,C1,D1 };
+    std::vector<float3> v{ make_float3(0.f),A1,B1,D1 };
     computeCoeff<3>(make_float3(0.f), v, basisData, true);
     //computeCoeff<4>(make_float3(0.f), v, basisData, true);
 
+    
 
     
 
