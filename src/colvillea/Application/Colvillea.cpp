@@ -55,52 +55,33 @@ void create_SHClippingTest(std::shared_ptr<SceneGraph> &sceneGraph, std::shared_
 /* Create Cornellbox. */
 void create_CornellBoxScene(std::shared_ptr<SceneGraph> &sceneGraph, std::shared_ptr<LightPool> &lightPool, std::shared_ptr<MaterialPool> &materialPool, const std::string & basePath)
 {
-    lightPool->createHDRILight(basePath + "HDRI\\uffizi-large.hdr", optix::make_float3(0.f, 0.f, 0.f));
     sceneGraph->createSampler(CommonStructs::SamplerType::IndependentSampler);
     /* Create triangle mesh. */
-//     std::shared_ptr<BSDF> lamBSDF;
-//     int lamIdx = materialPool->createLambertMaterial(optix::make_float4(0.63f, 0.065f, 0.05f, 1.f), lamBSDF);
-//     sceneGraph->createTriangleMesh(
-//         basePath + "Cornell\\red.obj",
-//         lamIdx, lamBSDF);
+     std::shared_ptr<BSDF> lamBSDF;
+     int lamIdx = materialPool->createLambertMaterial(optix::make_float4(0.63f, 0.065f, 0.05f, 1.f), lamBSDF);
+     sceneGraph->createTriangleMesh(
+         basePath + "Cornell\\red.obj",
+         lamIdx, lamBSDF);
 
-    /* Canonical Soup testing*/
-    std::shared_ptr<BSDF> soupBSDF;
-    int soupIdx = materialPool->createLambertMaterial(optix::make_float4(0.63f, 0.065f, 0.05f, 1.f), soupBSDF);
-    float3 A = make_float3(-1.f, -1, 0.f), C = make_float3(1.f, 1.f, 0.f), 
-           B = make_float3(-1.f, 1.f, 0.f),    D = make_float3(1.f, -1.f, 0.f);
-//     float3 A = make_float3(0.f, -2.f*sqrt(3) / 6.f, 0.f), C = make_float3(0.5f, sqrt(3) / 6.f, 0.f),
-//         B = make_float3(-0.5f, sqrt(3) / 6.f, 0.f), D = make_float3(1.f, -2.f*sqrt(3) / 6.f, 0.f);
-    sceneGraph->createTriangleSoup(soupIdx, soupBSDF, { A,C,B,A,D,C });
+     std::shared_ptr<BSDF> lamBSDF_green;
+     int lamIdx_green = materialPool->createLambertMaterial(optix::make_float4(0.14f, 0.45f, 0.091f, 1.f), lamBSDF_green);
+     sceneGraph->createTriangleMesh(
+         basePath + "Cornell\\green.obj",
+         lamIdx_green, lamBSDF_green);
 
-    /* Z=0 Plane */
-    std::shared_ptr<BSDF> planeBSDF;
-    int planeIdx = materialPool->createLambertMaterial(optix::make_float4(0.63f, 0.065f, 0.05f, 1.f), planeBSDF);
-    float3 A1 = make_float3(-10.f, -10, 0.f), C1 = make_float3(10.f, 10.f, 0.f),
-        B1 = make_float3(-10.f, 10.f, 0.f), D1 = make_float3(10.f, -10.f, 0.f);
-    //     float3 A = make_float3(0.f, -2.f*sqrt(3) / 6.f, 0.f), C = make_float3(0.5f, sqrt(3) / 6.f, 0.f),
-    //         B = make_float3(-0.5f, sqrt(3) / 6.f, 0.f), D = make_float3(1.f, -2.f*sqrt(3) / 6.f, 0.f);
-    sceneGraph->createTriangleSoup(planeIdx, planeBSDF, { A1,C1,B1,A1,D1,C1 });
-
-//     std::shared_ptr<BSDF> lamBSDF_green;
-//     int lamIdx_green = materialPool->createLambertMaterial(optix::make_float4(0.14f, 0.45f, 0.091f, 1.f), lamBSDF_green);
-//     sceneGraph->createTriangleMesh(
-//         basePath + "Cornell\\green.obj",
-//         lamIdx_green, lamBSDF_green);
-
-//     std::shared_ptr<BSDF> lamBSDF_grey;
-//     int lamIdx_grey = materialPool->createLambertMaterial(optix::make_float4(0.725f, 0.71f, 0.68f, 1.f), lamBSDF_grey);
-//     sceneGraph->createTriangleMesh(
-//         basePath + "Cornell\\grey.obj",
-//         lamIdx_grey, lamBSDF_grey);
+     std::shared_ptr<BSDF> lamBSDF_grey;
+     int lamIdx_grey = materialPool->createLambertMaterial(optix::make_float4(0.725f, 0.71f, 0.68f, 1.f), lamBSDF_grey);
+     sceneGraph->createTriangleMesh(
+         basePath + "Cornell\\grey.obj",
+         lamIdx_grey, lamBSDF_grey);
 
     /* Create light. */
-//     std::shared_ptr<BSDF> emissiveBSDF;
-//     int emissiveIdx = materialPool->getEmissiveMaterial(emissiveBSDF);
-//     lightPool->createQuadLight(
-//          make_float3(0.f, 0.f, 11.7f), make_float3(0.f),
-//          make_float3(3.25f, 2.625f, 1.f),
-//         make_float3(17.f, 12.f, 4.f)/17.f, 17.f, emissiveIdx, emissiveBSDF, true);
+     std::shared_ptr<BSDF> emissiveBSDF;
+     int emissiveIdx = materialPool->getEmissiveMaterial(emissiveBSDF);
+     lightPool->createQuadLight(
+          make_float3(0.f, 0.f, 11.7f), make_float3(0.f),
+          make_float3(3.25f, 2.625f, 1.f),
+         make_float3(17.f, 12.f, 4.f)/17.f, 17.f, emissiveIdx, emissiveBSDF, true);
 }
 
 /* Create test scene. */
@@ -221,6 +202,7 @@ void create_DiningRoom(std::shared_ptr<SceneGraph> &sceneGraph, std::shared_ptr<
 
 int main(int argc, char *argv[])
 {
+    QuadLight::TestZHRecurrence();
     /*_CrtSetBreakAlloc(208);*/
     _CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
 

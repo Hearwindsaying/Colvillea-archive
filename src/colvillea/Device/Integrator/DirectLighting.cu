@@ -44,8 +44,8 @@ RT_PROGRAM void ClosestHit_DirectLighting(void)
     float4 Ld = (shaderParams.bsdfType == CommonStructs::BSDFType::Emissive ?
         TwUtil::Le_QuadLight(sysLightBuffers.quadLightBuffer[quadLightIndex], -ray.direction) :
         make_float4(0.f)); /* Emitted radiance from area light. */
-
-	Ld += SampleLightsAggregate(shaderParams, ray.origin + tHit * ray.direction, -ray.direction, localSampler);
+    if(shaderParams.bsdfType != CommonStructs::BSDFType::Emissive)
+        Ld += SampleLightsAggregate(shaderParams, ray.origin + tHit * ray.direction, -ray.direction, localSampler);
 
 	prdRadiance.radiance = Ld;
 }

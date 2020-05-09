@@ -251,6 +251,7 @@ inline __device__ Eigen::VectorXf AxialMoment(const Polygon& P, const Vector& w,
    // Check if the polygon is well oriented
    const bool check = CheckPolygon<Polygon, Vector>(P);
    if(!check) {
+       rtPrintf("not orted well!\n");
       return Eigen::VectorXf::Zero(n+2);
    }
 

@@ -117,7 +117,16 @@ public:
      */
     static void ClipQuadToHorizon(optix::float3 L[5], int &n );
 
-    static void TestClippingAlgorithm();
+    static void TestZHRecurrence();
+
+    /**
+     * @brief UnitTest function for checking ZHIntegral (i.e. P*Cp Column Vector in Laurent's method).
+     * Compare the MC Integration result with given parameters.
+     * @param order
+     * @param lobeDirections
+     * @param maximumIteration
+     */
+    static bool TestZHIntegral(int order, const std::vector<optix::float3> &lobeDirections, int maximumIteration);
 
     /**
      * @brief UnitTest function for checking diffuse BRDF SH projection. Compare

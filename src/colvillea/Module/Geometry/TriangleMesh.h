@@ -258,7 +258,7 @@ public:
 
         this->m_geometryTriangles = this->m_context->createGeometryTriangles();
 
-        optix::Buffer vertexBuffer = this->m_context->createBuffer(RT_BUFFER_INPUT, RT_FORMAT_FLOAT3, 9);
+        optix::Buffer vertexBuffer = this->m_context->createBuffer(RT_BUFFER_INPUT, RT_FORMAT_FLOAT3, 9 /*this->vertices.size() / * for non clipping Test * / */);
         void *vertexBufferData = vertexBuffer->map();
         memcpy(vertexBufferData, this->vertices.data(), sizeof(optix::float3) * this->vertices.size());
         this->m_geometryTriangles["vertexBuffer"]->setBuffer(vertexBuffer);

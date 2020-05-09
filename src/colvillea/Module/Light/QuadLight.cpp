@@ -6,6 +6,9 @@
 
 // STL include
 #include <random>
+#include <utility>
+#include <cstdio>
+#include <limits>
 
 #include "colvillea/Module/Light/QuadLight.h"
 
@@ -13,6 +16,8 @@
 #include "colvillea/Module/Light/LightPool.h"
 
 using namespace optix;
+
+typedef std::numeric_limits<float> dbl;
 
 void QuadLight::setPosition(const optix::float3 &position)
 {
@@ -116,20 +121,8 @@ void QuadLight::ClipQuadToHorizon(optix::float3 L[5], int &n)
         TW_ASSERT(t >= 0.f);
         return o + t * d;
     };
-    int lessThanZeroCount = std::count_if(&L[0], &L[4], [](const optix::float3 &pt)
-    {
-        return (pt.z <= 0.f);
-    });
-    switch (lessThanZeroCount)
-    {
-    case 0:n = 4; break;
-    case 1:n = 5; break;
-    case 2:n = 4; break;
-    case 3:n = 3; break;
-    case 4:n = 0; break;
-    }
 
-    int end = 0;
+    n = 0;
     for (int i = 1; i <= 4; ++i)
     {
         const float3& A = Lorg[i - 1];
@@ -138,27 +131,267 @@ void QuadLight::ClipQuadToHorizon(optix::float3 L[5], int &n)
             continue;
         else if (A.z >= 0 && B.z >= 0)
         {
-            L[end++] = A;
+            L[n++] = A;
         }
         else if (A.z >= 0 && B.z <= 0)
         {
-            L[end++] = A;
-            L[end++] = IntersectRayZ0(A, B);
+            L[n++] = A;
+            L[n++] = IntersectRayZ0(A, B);
         }
         else if (A.z <= 0 && B.z >= 0)
         {
-            L[end++] = IntersectRayZ0(A, B);
+            L[n++] = IntersectRayZ0(A, B);
         }
         else
         {
             TW_ASSERT(false);
         }
     }
-    TW_ASSERT(end == 0 || end == 3 || end == 4 || end == 5);
+    TW_ASSERT(n == 0 || n == 3 || n == 4 || n == 5);
 }
 
-void QuadLight::TestClippingAlgorithm()
+/**
+ * @ x:shading point in world space
+ * @ v:vertices of quad/polygonal light in world space, size==M+1, index starting from 1
+ * @ n:l_max 
+ * @ a:alpha_l,d,m
+ * @ w:lobe direction
+ */
+template<int M>
+void computeCoeff(float3 x, std::vector<float3> & v, /*int n, std::vector<std::vector<float>> const& a,*/ std::vector<float3> const& w, bool vIsProjected)
 {
+#define _DEBUG_ENABLE_S2
+    auto P1 = [](float z)->float {return z; };
+
+    TW_ASSERT(v.size() == M + 1);
+    //TW_ASSERT(n == 2);
+    // for all edges:
+    std::vector<float3> we; we.resize(v.size());
+    
+    if (!vIsProjected)
+        for (int e = 1; e <= M; ++e)
+        {
+            v[e] = v[e] - x;
+            we[e] = TwUtil::safe_normalize(v[e]);
+        }
+    else
+        we = v;
+
+    std::vector<float3> lambdae; lambdae.resize(v.size());
+    std::vector<float3> ue; ue.resize(v.size());
+    std::vector<float> gammae; gammae.resize(v.size());
+    for (int e = 1; e <= M; ++e)
+    {
+        // Incorrect modular arthmetic: we[(e + 1) % (M+1)] or we[(e + 1) % (M)]
+        const optix::float3& we_plus_1 = (e == M ? we[1] : we[e+1]);
+        lambdae[e] = cross(TwUtil::safe_normalize(cross(we[e], we_plus_1)), we[e]);
+        ue[e] = cross(we[e], lambdae[e]);
+        gammae[e] = acos(dot(we[e], we_plus_1));
+    }
+    // Solid angle computation
+
+
+    std::vector<float> L2w; L2w.resize(w.size());
+    std::vector<float> L1w; L1w.resize(w.size());
+    for (int i = 0; i < w.size(); ++i)
+    {
+        std::vector<float> ae; ae.resize(v.size());
+        std::vector<float> be; be.resize(v.size());
+        std::vector<float> ce; ce.resize(v.size());
+        std::vector<float> B0e; B0e.resize(v.size());
+        std::vector<float> B1e; B1e.resize(v.size());
+        std::vector<float> D0e; D0e.resize(v.size());
+        std::vector<float> D1e; D1e.resize(v.size());
+        std::vector<float> D2e; D2e.resize(v.size());
+
+
+        const float3 &wi = w[i];
+        float S1 = 0;
+        for (int e = 1; e <= M; ++e)
+        {
+            ae[e] = dot(wi, we[e]); be[e] = dot(wi, lambdae[e]); ce[e] = dot(wi, ue[e]);
+            S1 = S1 + 0.5*ce[e] * gammae[e];
+#ifdef _DEBUG_ENABLE_S2
+            B0e[e] = gammae[e];
+            B1e[e] = ae[e] * sin(gammae[e]) - be[e] * cos(gammae[e]) + be[e];
+            D0e[e] = 0; D1e[e] = gammae[e]; D2e[e] = 3 * B1e[e];
+#endif // _DEBUG_ENABLE_S2
+        }
+
+#ifdef _DEBUG_ENABLE_S2
+        //for l=2 to n
+        std::vector<float> C1e; C1e.resize(v.size());
+        std::vector<float> B2e; B2e.resize(v.size());
+
+        float B2 = 0;
+        for (int e = 1; e <= M; ++e)
+        {
+            C1e[e] = 1.f / 2.f * ((ae[e]*sin(gammae[e])-be[e]*cos(gammae[e]))*P1
+                                  (ae[e]*cos(gammae[e])+be[e]*sin(gammae[e]))+
+                                  be[e]*P1(ae[e])+(ae[e]*ae[e]+be[e]*be[e]-1.f)*D1e[e]+
+                                  (1.f)*B0e[e]);
+            B2e[e] = 1.5f*(C1e[e]) - 1.f*B0e[e];
+            B2 = B2 + ce[e] * B2e[e];
+            D2e[e] = 3.f * B1e[e] + D0e[e];
+        }
+
+        // my code for B1
+        float B1 = 0.f;
+        for (int e = 1; e <= M; ++e)
+        {
+            B1 += ce[e] * B1e[e];
+        }
+        // B1
+        float S2 = 0.5f*B1;
+#endif // _DEBUG_ENABLE_S2
+
+       // float L0w = sqrt(1.f / (4.f*M_PIf))*S0;
+        L1w[i] = sqrt(3.f / (4.f*M_PIf))*S1;
+#ifdef _DEBUG_ENABLE_S2
+        L2w[i] = sqrt(5.f / (4.f*M_PIf))*S2;
+#endif
+    }
+
+    for (const auto& l1wi : L1w)
+    {
+        std::cout << "l1wi:   " << l1wi << std::endl;
+    }
+    std::cout << "--------------end l1wi" << std::endl;
+#ifdef _DEBUG_ENABLE_S2
+    for (const auto& l2wi : L2w)
+    {
+        std::cout << "l2wi:   " << l2wi << std::endl;
+    }
+#endif // _DEBUG_ENABLE_S2
+    std::cout << "--------------end l2wi" << std::endl;
+
+    std::vector<float> L2m;
+    L2m.push_back(2.61289 * L2w[0] - 0.196102 * L2w[1] + 0.056974 * L2w[2] - 1.11255 * L2w[3] - 3.29064 * L2w[4]);
+    L2m.push_back(-4.46838* L2w[0] + 0.540528* L2w[1] + 0.0802047* L2w[2] - L2w[3] * 0.152141 + 4.77508 * L2w[4]);
+    L2m.push_back(-3.36974* L2w[0] - 6.50662* L2w[1] - 1.43347* L2w[2] - L2w[3] * 6.50662 - 3.36977 * L2w[4]);
+    L2m.push_back(-2.15306* L2w[0] - 2.18249* L2w[1] - 0.913913* L2w[2] - L2w[3] * 2.24328 - 1.34185 * L2w[4]);
+    L2m.push_back(2.43791* L2w[0] + 3.78023* L2w[1] - 0.322086* L2w[2] + L2w[3] * 3.61812 + 1.39367 * L2w[4]);
+    for (const auto& L2mi : L2m)
+    {
+        std::cout << "l2mi:   " << L2mi << std::endl;
+    }
+}
+
+void QuadLight::TestZHRecurrence()
+{
+    auto sphToCartesian = [](const float theta, const float phi)->float3
+    {
+        return make_float3(sin(theta)*cos(phi), sin(theta)*sin(phi), cos(theta));
+    };
+
+    std::vector<float3> basisData{ make_float3(0.6, 0, 0.8),
+                                   make_float3(-0.67581, -0.619097, 0.4),
+                                   make_float3(0.0874255, 0.996171, 0),
+                                   make_float3(0.557643, -0.727347, -0.4),
+                                   make_float3(-0.590828, 0.104509, -0.8), };
+
+    // Well projected on hemisphere
+    /*auto A1 = make_float3(0.0f, 1.0f, 0.0f);
+    auto B1 = make_float3(-1.0f, 0.0f, 0.0f);
+    auto C1 = make_float3(0.0f, -1.0f, 0.0f);
+    auto D1 = make_float3(1.0f, 0.0f, 0.0f);*/
+    auto A1 = (sphToCartesian(M_PI / 2.f, M_PI / 2.f));
+    auto B1 = (sphToCartesian(M_PI / 4.f, M_PI / 2.f));
+    auto C1 = (sphToCartesian(M_PI / 4.f, 0.f));
+    auto D1 = (sphToCartesian(M_PI / 2.f, 0));
+
+    //std::vector<float3> v{ make_float3(0.f),A1,B1,C1,D1 };
+    std::vector<float3> v{ make_float3(0.f),A1,C1,D1 };
+    computeCoeff<3>(make_float3(0.f), v, basisData, true);
+    //computeCoeff<4>(make_float3(0.f), v, basisData, true);
+
+
+    
+
+    auto uniformSamplingHemisphere = [](float x, float y)->float3
+    {
+        float z = x;
+        float r = std::sqrt(std::max(0.0, 1.0 - z * z));
+        float phi = 2.0 * M_PI * y;
+        return make_float3(r * std::cos(phi), r * std::sin(phi), z);
+    };
+
+    auto pdfHemisphere = []()->float {return 1.f / (2.f*M_PI); };
+    std::random_device rd;  //Will be used to obtain a seed for the random number engine
+    std::mt19937 gen(rd()); //Standard mersenne_twister_engine seeded with rd()
+    std::uniform_real_distribution<> dis(0.0, 1.0);
+    
+    constexpr int iteration = 10000000;
+
+    //std::vector<float3> testData{ make_float3(0.f,1.f,1.f) };
+    //testData[0] = TwUtil::safe_normalize(testData[0]);
+    for (const auto& wo : basisData)
+    {
+        double result = 0.0;
+        for (int i = 1; i <= iteration; ++i)
+        {
+            auto wi = uniformSamplingHemisphere(dis(gen), dis(gen));
+            result += (sqrt(5.0 / (4.0*M_PI)) * 0.5 * (3.0*(dot(wo, wi)*dot(wo, wi)) - 1.0)) / pdfHemisphere();
+            //result += (sqrt(3.0 / (4.0*M_PI))) * dot(wo,wi) / pdfHemisphere();
+        }
+        result = result / iteration;
+
+        std::cout.precision(dbl::max_digits10);
+        std::cout << result << std::endl;
+    }
+
+    
+}
+
+bool QuadLight::TestZHIntegral(int order, const std::vector<optix::float3>& lobeDirections, int maximumIteration)
+{
+    TW_ASSERT(false);
+    return false;
+    TW_ASSERT(order == 2 || order == 3);
+    // Well projected on hemisphere
+    auto A1 = make_float3(0.0f, 1.0f, 0.0f);
+    auto B1 = make_float3(-1.0f, 0.0f, 0.0f);
+    auto C1 = make_float3(0.0f, -1.0f, 0.0f);
+    auto D1 = make_float3(1.0f, 0.0f, 0.0f);
+
+    std::vector<float3> v{ make_float3(0.f),A1,B1,C1,D1 };
+    computeCoeff<4>(make_float3(0.f), v, lobeDirections, true);
+
+
+    auto sphToCartesian = [](const float theta, const float phi)->float3
+    {
+        return make_float3(sin(theta)*cos(phi), sin(theta)*sin(phi), cos(theta));
+    };
+
+    auto uniformSamplingHemisphere = [](float x, float y)->float3
+    {
+        float z = x;
+        float r = std::sqrt(std::max(0.0, 1.0 - z * z));
+        float phi = 2.0 * M_PI * y;
+        return make_float3(r * std::cos(phi), r * std::sin(phi), z);
+    };
+
+    auto pdfHemisphere = []()->float {return 1.f / (2.f*M_PI); };
+    std::random_device rd;  //Will be used to obtain a seed for the random number engine
+    std::mt19937 gen(rd()); //Standard mersenne_twister_engine seeded with rd()
+    std::uniform_real_distribution<> dis(0.0, 1.0);
+
+    //std::vector<float3> testData{ make_float3(0.f,1.f,1.f) };
+    //testData[0] = TwUtil::safe_normalize(testData[0]);
+    for (const auto& wo : lobeDirections)
+    {
+        double result = 0.0;
+        for (int i = 1; i <= maximumIteration; ++i)
+        {
+            auto wi = uniformSamplingHemisphere(dis(gen), dis(gen));
+            result += (sqrt(5.0 / (4.0*M_PI)) * 0.5 * (3.0*(dot(wo, wi)*dot(wo, wi)) - 1.0)) / pdfHemisphere();
+            //result += (sqrt(3.0 / (4.0*M_PI))) * dot(wo,wi) / pdfHemisphere();
+        }
+        result = result / maximumIteration;
+
+        std::cout.precision(dbl::max_digits10);
+        std::cout << result << std::endl;
+    }
 }
 
 bool QuadLight::TestDiffuseFlmVector_Order3(const std::vector<float>& flmVector, int maximumIteration)
@@ -227,6 +460,18 @@ void QuadLight::initializeAreaLight(optix::Context& context)
     areaLightAPMatrixBuffer->unmap();
 
     context["areaLightAPMatrix"]->setBuffer(areaLightAPMatrixBuffer);
+
+    /* Basis Vector. */
+    optix::Buffer areaLightBasisVectorBuffer = context->createBuffer(RT_BUFFER_INPUT, RT_FORMAT_FLOAT3, 2 * l + 1);
+    std::vector<float3> basisData{ make_float3(0.6, 0, 0.8),
+                                   make_float3(-0.67581, -0.619097, 0.4),
+                                   make_float3(0.0874255, 0.996171, 0),
+                                   make_float3(0.557643, -0.727347, -0.4),
+                                   make_float3(-0.590828, 0.104509, -0.8), };
+    void *areaLightBasisVectorBufferData = areaLightBasisVectorBuffer->map();
+    memcpy(areaLightBasisVectorBufferData, basisData.data(), sizeof(float)*basisData.size());
+    areaLightBasisVectorBuffer->unmap();
+    context["areaLightBasisVector"]->setBuffer(areaLightBasisVectorBuffer);
 
     /* Flm diffuse Vector. */
     std::vector<float> Flm_data{ 0.886227,-0,1.02333,-0,0,-0,0.495416,-0,0 };
