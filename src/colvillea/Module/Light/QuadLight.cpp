@@ -215,9 +215,11 @@ float computeSolidAngle(std::vector<float3> const& v)
  * @ w:lobe direction
  */
 template<int M>
-void computeCoeff(float3 x, std::vector<float3> & v, /*int n, std::vector<std::vector<float>> const& a,*/ std::vector<float3> const& w, bool vIsProjected)
+void computeCoeff(float3 x, std::vector<float3> & v, /*int n, std::vector<std::vector<float>> const& a,*/ std::vector<float3> const& w, bool vIsProjected, std::vector<std::vector<float>> const& a)
 {
-#define _DEBUG_ENABLE_S2
+    constexpr int lmax = 2;
+    std::vector<float> ylmCoeff; ylmCoeff.resize((lmax+1)*(lmax+1));
+
     auto P1 = [](float z)->float {return z; };
 
     TW_ASSERT(v.size() == M + 1);
@@ -246,21 +248,17 @@ void computeCoeff(float3 x, std::vector<float3> & v, /*int n, std::vector<std::v
         gammae[e] = acos(dot(we[e], we_plus_1));
     }
     // Solid angle computation
-    float S0 = 0.0f;
-    for (int e = 1; e <= M; ++e)
-    {
-        const optix::float3& we_minus_1 = (e == 1 ? we[M] : we[e - 1]);
-        const optix::float3& we_plus_1 = (e == M ? we[1] : we[e + 1]);
-        
-        float3 tmpa = cross(we_minus_1, we[e]);
-        float3 tmpb = cross(we[e], we_plus_1);
-        S0 += acos(dot(tmpa, tmpb)) / (length(tmpa)*length(tmpb));
-    }
-    S0 -= (M - 2)*M_PIf;
+    float S0 = computeSolidAngle<M>(we);
 
-    std::vector<float> L0w; L0w.resize(w.size());
-    std::vector<float> L1w; L1w.resize(w.size());
-    std::vector<float> L2w; L2w.resize(w.size());
+    std::vector<std::vector<float>> Lw; Lw.resize(lmax+1);
+    for (auto&& Lxw : Lw)
+    {
+        //todo:redundant computation and storage.
+        Lxw.resize(w.size());
+    }
+//     std::vector<float> L0w; L0w.resize(w.size());
+//     std::vector<float> L1w; L1w.resize(w.size());
+//     std::vector<float> L2w; L2w.resize(w.size());
     for (int i = 0; i < w.size(); ++i)
     {
         std::vector<float> ae; ae.resize(v.size());
@@ -279,14 +277,12 @@ void computeCoeff(float3 x, std::vector<float3> & v, /*int n, std::vector<std::v
         {
             ae[e] = dot(wi, we[e]); be[e] = dot(wi, lambdae[e]); ce[e] = dot(wi, ue[e]);
             S1 = S1 + 0.5*ce[e] * gammae[e];
-#ifdef _DEBUG_ENABLE_S2
+
             B0e[e] = gammae[e];
             B1e[e] = ae[e] * sin(gammae[e]) - be[e] * cos(gammae[e]) + be[e];
             D0e[e] = 0; D1e[e] = gammae[e]; D2e[e] = 3 * B1e[e];
-#endif // _DEBUG_ENABLE_S2
         }
 
-#ifdef _DEBUG_ENABLE_S2
         //for l=2 to n
         std::vector<float> C1e; C1e.resize(v.size());
         std::vector<float> B2e; B2e.resize(v.size());
@@ -311,34 +307,49 @@ void computeCoeff(float3 x, std::vector<float3> & v, /*int n, std::vector<std::v
         }
         // B1
         float S2 = 0.5f*B1;
-#endif // _DEBUG_ENABLE_S2
 
-        L0w[i] = sqrt(1.f / (4.f*M_PIf))*S0;
-        L1w[i] = sqrt(3.f / (4.f*M_PIf))*S1;
-#ifdef _DEBUG_ENABLE_S2
-        L2w[i] = sqrt(5.f / (4.f*M_PIf))*S2;
-#endif
+        Lw[0][i] = sqrt(1.f / (4.f*M_PIf))*S0;
+        Lw[1][i] = sqrt(3.f / (4.f*M_PIf))*S1;
+        Lw[2][i] = sqrt(5.f / (4.f*M_PIf))*S2;
     }
 
-    for (const auto& l0wi : L0w)
+    for (const auto& l0wi : Lw[0])
     {
         std::cout << "l0wi:   " << l0wi << std::endl;
     }
     std::cout << "--------------end l1wi" << std::endl;
 
-    for (const auto& l1wi : L1w)
+    for (const auto& l1wi : Lw[1])
     {
         std::cout << "l1wi:   " << l1wi << std::endl;
     }
     std::cout << "--------------end l1wi" << std::endl;
-#ifdef _DEBUG_ENABLE_S2
-    for (const auto& l2wi : L2w)
+
+    for (const auto& l2wi : Lw[2])
     {
         std::cout << "l2wi:   " << l2wi << std::endl;
     }
-#endif // _DEBUG_ENABLE_S2
     std::cout << "--------------end l2wi" << std::endl;
 
+    //TW_ASSERT(9 == a.size());
+    for (int j = 0; j <= 2; ++j)
+    {
+        TW_ASSERT(2 * j + 1 == a[j*j+0].size());
+        for (int i = 0; i < 2 * j + 1; ++i)
+        {
+            float coeff = 0.0f;
+            for (int k = 0; k < 2 * j + 1; ++k)
+            {
+                coeff += a[j*j+i][k] * Lw[j][k];
+            }
+            ylmCoeff[j*j + i] = coeff;
+        }
+    }
+
+    for (const auto& ylmC : ylmCoeff)
+    {
+        printf("%f\n", ylmC);
+    }
     /*std::vector<float> L2m;
     L2m.push_back(2.61289 * L2w[0] - 0.196102 * L2w[1] + 0.056974 * L2w[2] - 1.11255 * L2w[3] - 3.29064 * L2w[4]);
     L2m.push_back(-4.46838* L2w[0] + 0.540528* L2w[1] + 0.0802047* L2w[2] - L2w[3] * 0.152141 + 4.77508 * L2w[4]);
@@ -497,6 +508,16 @@ void QuadLight::TestZHRecurrence()
                                    make_float3(0.557643, -0.727347, -0.4),
                                    make_float3(-0.590828, 0.104509, -0.8), };
 
+    std::vector<std::vector<float>> a{ {1},
+                                           {0.04762, -0.0952401, -1.06303},
+                                           {0.843045, 0.813911, 0.505827},
+                                           {-0.542607, 1.08521, 0.674436},
+                                                   {2.61289, -0.196102, 0.056974, -1.11255, -3.29064},
+                                                   {-4.46838, 0.540528, 0.0802047, -0.152141, 4.77508},
+                                                   {-3.36974, -6.50662, -1.43347, -6.50662, -3.36977},
+                                                   {-2.15306, -2.18249, -0.913913, -2.24328, -1.34185},
+                                                   {2.43791, 3.78023, -0.322086, 3.61812, 1.39367} };
+
     // Well projected on hemisphere
     /*auto A1 = make_float3(0.0f, 1.0f, 0.0f);
     auto B1 = make_float3(-1.0f, 0.0f, 0.0f);
@@ -508,10 +529,10 @@ void QuadLight::TestZHRecurrence()
     auto D1 = (sphToCartesian(M_PI / 2.f, 0));
 
     //std::vector<float3> v{ make_float3(0.f),A1,B1,C1,D1 };
-    //std::vector<float3> v{ make_float3(0.f),A1,C1,D1 };
-    std::vector<float3> v{ make_float3(0.f),A1,B1,D1 };
-    computeCoeff<3>(make_float3(0.f), v, basisData, true);
-    //computeCoeff<4>(make_float3(0.f), v, basisData, true);
+    std::vector<float3> v{ make_float3(0.f),A1,C1,D1 };
+    //std::vector<float3> v{ make_float3(0.f),A1,B1,D1 };
+    computeCoeff<3>(make_float3(0.f), v, basisData, true, a);
+    //computeCoeff<4>(make_float3(0.f), v, basisData, true, a);
 
     
 
@@ -557,7 +578,8 @@ bool QuadLight::TestZHIntegral(int order, const std::vector<optix::float3>& lobe
     TW_ASSERT(false);
     return false;
     TW_ASSERT(order == 2 || order == 3);
-    // Well projected on hemisphere
+    #if  0
+// Well projected on hemisphere
     auto A1 = make_float3(0.0f, 1.0f, 0.0f);
     auto B1 = make_float3(-1.0f, 0.0f, 0.0f);
     auto C1 = make_float3(0.0f, -1.0f, 0.0f);
@@ -601,6 +623,7 @@ bool QuadLight::TestZHIntegral(int order, const std::vector<optix::float3>& lobe
         std::cout.precision(dbl::max_digits10);
         std::cout << result << std::endl;
     }
+#endif // 0
 }
 
 bool QuadLight::TestDiffuseFlmVector_Order3(const std::vector<float>& flmVector, int maximumIteration)
