@@ -209,6 +209,27 @@ float computeSolidAngle(std::vector<float3> const& v)
 }
 
 /**
+ * @brief GPU version compute Solid Angle.
+ * @param we spherical projection of polygon, index starting from 1
+ */
+template<int M>
+float computeSolidAngle(const float3 we[])
+{
+    float S0 = 0.0f;
+    for (int e = 1; e <= M; ++e)
+    {
+        const optix::float3& we_minus_1 = (e == 1 ? we[M] : we[e - 1]);
+        const optix::float3& we_plus_1 = (e == M ? we[1] : we[e + 1]);
+
+        float3 tmpa = cross(we[e], we_minus_1);
+        float3 tmpb = cross(we[e], we_plus_1);
+        S0 += acosf(dot(tmpa, tmpb) / (length(tmpa)*length(tmpb))); // Typo in Wang's paper, length is inside acos evaluation!
+    }
+    S0 -= (M - 2)*M_PIf;
+    return S0;
+}
+
+/**
  * @ x:shading point in world space
  * @ v:vertices of quad/polygonal light in world space, size==M+1, index starting from 1
  * @ n:l_max 
@@ -355,6 +376,117 @@ std::vector<float> computeCoeff(float3 x, std::vector<float3> & v, /*int n, std:
     return ylmCoeff;
 }
 
+/**
+ * @brief GPU Version computeCoeff
+ */
+template<int M, int wSize>
+void computeCoeff(float3 x, float3 v[], const float3 w[], const float a[][5], float ylmCoeff[9])
+{
+    constexpr int lmax = 2;
+
+    auto P1 = [](float z)->float {return z; };
+#ifdef __CUDACC__
+#undef TW_ASSERT
+#define TW_ASSERT(expr) TW_ASSERT_INFO(expr, ##expr)
+#define TW_ASSERT_INFO(expr, str)    if (!(expr)) {rtPrintf(str); rtPrintf("Above at Line%d:\n",__LINE__);}
+#endif
+    //TW_ASSERT(v.size() == M + 1);
+    //TW_ASSERT(n == 2);
+    // for all edges:
+    float3 we[M+1];
+
+    for (int e = 1; e <= M; ++e)
+    {
+        v[e] = v[e] - x;
+        we[e] = TwUtil::safe_normalize(v[e]);
+    }
+
+    float3 lambdae[M+1];
+    float3 ue[M + 1];
+    float gammae[M + 1];
+    for (int e = 1; e <= M; ++e)
+    {
+        // Incorrect modular arthmetic: we[(e + 1) % (M+1)] or we[(e + 1) % (M)]
+        const optix::float3& we_plus_1 = (e == M ? we[1] : we[e + 1]);
+        lambdae[e] = cross(TwUtil::safe_normalize(cross(we[e], we_plus_1)), we[e]);
+        ue[e] = cross(we[e], lambdae[e]);
+        gammae[e] = acosf(dot(we[e], we_plus_1));
+    }
+    // Solid angle computation
+    float S0 = computeSolidAngle<M>(we);
+
+    float Lw[lmax+1][wSize];
+
+    for (int i = 0; i < wSize; ++i)
+    {
+        float ae[M + 1];
+        float be[M + 1];
+        float ce[M + 1];
+        float B0e[M + 1];
+        float B1e[M + 1];
+        float D0e[M + 1];
+        float D1e[M + 1];
+        float D2e[M + 1];
+
+
+        const float3 &wi = w[i];
+        float S1 = 0;
+        for (int e = 1; e <= M; ++e)
+        {
+            ae[e] = dot(wi, we[e]); be[e] = dot(wi, lambdae[e]); ce[e] = dot(wi, ue[e]);
+            S1 = S1 + 0.5*ce[e] * gammae[e];
+
+            B0e[e] = gammae[e];
+            B1e[e] = ae[e] * sinf(gammae[e]) - be[e] * cosf(gammae[e]) + be[e];
+            D0e[e] = 0; D1e[e] = gammae[e]; D2e[e] = 3 * B1e[e];
+        }
+
+        //for l=2 to n
+        float C1e[M + 1];
+        float B2e[M + 1];
+
+        float B2 = 0;
+        for (int e = 1; e <= M; ++e)
+        {
+            C1e[e] = 1.f / 2.f * ((ae[e] * sin(gammae[e]) - be[e] * cosf(gammae[e]))*P1
+            (ae[e] * cosf(gammae[e]) + be[e] * sinf(gammae[e])) +
+                be[e] * P1(ae[e]) + (ae[e] * ae[e] + be[e] * be[e] - 1.f)*D1e[e] +
+                (1.f)*B0e[e]);
+            B2e[e] = 1.5f*(C1e[e]) - 1.f*B0e[e];
+            B2 = B2 + ce[e] * B2e[e];
+            D2e[e] = 3.f * B1e[e] + D0e[e];
+        }
+
+        // my code for B1
+        float B1 = 0.f;
+        for (int e = 1; e <= M; ++e)
+        {
+            B1 += ce[e] * B1e[e];
+        }
+        // B1
+        float S2 = 0.5f*B1;
+
+        Lw[0][i] = sqrtf(1.f / (4.f*M_PIf))*S0;
+        Lw[1][i] = sqrtf(3.f / (4.f*M_PIf))*S1;
+        Lw[2][i] = sqrtf(5.f / (4.f*M_PIf))*S2;
+    }
+
+    //TW_ASSERT(9 == a.size());
+    for (int j = 0; j <= 2; ++j)
+    {
+        //TW_ASSERT(2 * j + 1 == 2*lmax+1); // redundant storage
+        for (int i = 0; i < 2 * j + 1; ++i)
+        {
+            float coeff = 0.0f;
+            for (int k = 0; k < 2 * j + 1; ++k)
+            {
+                coeff += a[j*j + i][k] * Lw[j][k];
+            }
+            ylmCoeff[j*j + i] = coeff;
+        }
+    }
+}
+
 void QuadLight::TestSolidAngle()
 {
     int nfails = 0;
@@ -373,10 +505,11 @@ void QuadLight::TestSolidAngle()
 
         std::vector<float3> v22{ make_float3(0.f), A1,sphToCartesian(0.f,0.f),D1 };
         float t2 = computeSolidAngle<3>(v22);
-        if (!(t1 == t2 == 0.5f*M_PIf))
+        float t3 = computeSolidAngle<3>(v22.data());
+        if (!(t1 == t2 == t3 == 0.5f*M_PIf))
         {
             ++nfails;
-            printf("Test failed at %d: t1==%f t2==%f != %f\n", __LINE__, t1, t2, 0.5f*M_PIf);
+            printf("Test failed at %d: t1==%f t2==%f t3==%f != %f\n", __LINE__, t1, t2, t3, 0.5f*M_PIf);
         }
         ++ntests;
 
@@ -385,10 +518,11 @@ void QuadLight::TestSolidAngle()
 
         std::vector<float3> v33{ make_float3(0.f), A1,D1,sphToCartesian(0.f,0.f) };
         t2 = computeSolidAngle<3>(v33);
-        if (!(t1 == t2 == 0.5f*M_PIf))
+        t3 = computeSolidAngle<3>(v33.data());
+        if (!(t1 == t2 == t3 == 0.5f*M_PIf))
         {
             ++nfails;
-            printf("Test failed at %d: t1==%f t2==%f != %f\n", __LINE__, t1, t2, 0.5f*M_PIf);
+            printf("Test failed at %d: t1==%f t2==%f t3==%f != %f\n", __LINE__, t1, t2, t3, 0.5f*M_PIf);
         }
         ++ntests;
     }
@@ -401,10 +535,11 @@ void QuadLight::TestSolidAngle()
 
         std::vector<float3> v22{ make_float3(0.f), A1,C1,D1 };
         float t2 = computeSolidAngle<3>(v22);
-        if (!(t1 == t2))
+        float t3 = computeSolidAngle<3>(v22.data());
+        if (!(t1 == t2 == t3))
         {
             ++nfails;
-            printf("Test failed at %d: t1==%f t2==%f \n", __LINE__, t1, t2);
+            printf("Test failed at %d: t1==%f t2==%f t3==%f \n", __LINE__, t1, t2, t3);
         }
         ++ntests;
     }
@@ -418,10 +553,11 @@ void QuadLight::TestSolidAngle()
 
         std::vector<float3> v22{ make_float3(0.f), A1,B1,C1,D1 };
         float t2 = computeSolidAngle<4>(v22);
-        if (!(t1 == t2 == 2.f*M_PIf))
+        float t3 = computeSolidAngle<4>(v22.data());
+        if (!(t1 == t2 == t3 == 2.f*M_PIf))
         {
             ++nfails;
-            printf("Test failed at %d: t1==%f t2==%f != %f\n", __LINE__, t1, t2, 2.f*M_PIf);
+            printf("Test failed at %d: t1==%f t2==%f t3==%f != %f\n", __LINE__, t1, t2, t3, 2.f*M_PIf);
         }
         ++ntests;
 
@@ -430,10 +566,11 @@ void QuadLight::TestSolidAngle()
 
         std::vector<float3> v33{ make_float3(0.f), A1,D1,C1,B1 };
         t2 = computeSolidAngle<4>(v33);
+        t3 = computeSolidAngle<4>(v33.data());
         if (!(t1 == t2 == 2.f*M_PIf))
         {
             ++nfails;
-            printf("Test failed at %d: t1==%f t2==%f != %f\n", __LINE__, t1, t2, 2.f*M_PIf);
+            printf("Test failed at %d: t1==%f t2==%f t3==%f != %f\n", __LINE__, t1, t2, t3, 2.f*M_PIf);
         }
         ++ntests;
     }
@@ -447,10 +584,11 @@ void QuadLight::TestSolidAngle()
 
         std::vector<float3> v22{ make_float3(0.f), A1,B1,C1,D1 };
         float t2 = computeSolidAngle<4>(v22);
-        if (!(t1 == t2 == M_PIf / sqrt(8)))
+        float t3 = computeSolidAngle<4>(v22.data());
+        if (!(t1 == t2 == t3 == M_PIf / sqrt(8)))
         {
             ++nfails;
-            printf("Test failed at %d: t1==%f t2==%f != %f\n", __LINE__, t1, t2, M_PIf / sqrt(8));
+            printf("Test failed at %d: t1==%f t2==%f t3==%f != %f\n", __LINE__, t1, t2, t3, M_PIf / sqrt(8));
         }
         ++ntests;
     }
@@ -476,15 +614,16 @@ void QuadLight::TestSolidAngle()
 
         std::vector<float3> v22{ make_float3(0.f), A1,B1,C1 };
         float t2 = computeSolidAngle<3>(v22);
-        if (!(t1 == t2))
+        float t3 = computeSolidAngle<3>(v22.data());
+        if (!(t1 == t2 == t3))
         {
             ++nfails;
-            printf("Test failed at %d: t1==%f t2==%f", __LINE__, t1, t2);
+            printf("Test failed at %d: t1==%f t2==%f t3==%f", __LINE__, t1, t2, t3);
         }
         ++ntests;
     }
     // todo:add MC validation
-    printf("\nTest coverage:%f%%(%d/%d) passed!\n", static_cast<float>(ntests-nfails)/ntests, ntests - nfails, ntests);
+    printf("\nTest coverage:%f%%(%d/%d) passed!\n", 100.f*static_cast<float>(ntests-nfails)/ntests, ntests - nfails, ntests);
 }
 
 void QuadLight::TestYlmCoeff()
@@ -499,6 +638,16 @@ void QuadLight::TestYlmCoeff()
     };
 
     printf("\n");
+
+    float rawA[9][5] = { 1, 0, 0, 0, 0,
+0.04762, -0.0952401, -1.06303, 0, 0,
+0.843045, 0.813911, 0.505827, 0, 0,
+-0.542607, 1.08521, 0.674436, 0, 0,
+2.61289, -0.196102, 0.056974, -1.11255, -3.29064,
+-4.46838, 0.540528, 0.0802047, -0.152141, 4.77508,
+-3.36974, -6.50662, -1.43347, -6.50662, -3.36977,
+-2.15306, -2.18249, -0.913913, -2.24328, -1.34185,
+2.43791, 3.78023, -0.322086, 3.61812, 1.39367, };
     // Test statistics against computeCoeff(vector version), computeCoeff(gpu version), AxialMoments.
     {
         std::vector<float3> basisData{ make_float3(0.6, 0, 0.8),
@@ -543,6 +692,22 @@ void QuadLight::TestYlmCoeff()
             for (int i = 0; i < t1.size(); ++i)
             {
                 printf("Test failed at Line:%d t1[%d]:%f t2[%d]:%f\n", __LINE__, i, t1[i], i, t2[i]);
+            }
+        }
+        ++ntests;
+
+        float ylmCoeff[9];
+        computeCoeff<3, 5>(make_float3(0.f), v.data(), basisData.data(), rawA, ylmCoeff);
+        if (!equal(t2.begin(), t2.end(), &ylmCoeff[0], [epsilon](const float& x, const float& y)
+        {
+            return std::abs(x - y) <= epsilon;
+        }))
+        {
+            ++nfails;
+            TW_ASSERT(t2.size() == 9);
+            for (int i = 0; i < t1.size(); ++i)
+            {
+                printf("Test failed at Line:%d t2[%d]:%f ylmCoeff(GPU)[%d]:%f\n", __LINE__, i, t1[i], i, ylmCoeff[i]);
             }
         }
         ++ntests;
@@ -592,6 +757,22 @@ void QuadLight::TestYlmCoeff()
             }
         }
         ++ntests;
+
+        float ylmCoeff[9];
+        computeCoeff<4, 5>(make_float3(0.f), v.data(), basisData.data(), rawA, ylmCoeff);
+        if (!equal(t2.begin(), t2.end(), &ylmCoeff[0], [epsilon](const float& x, const float& y)
+        {
+            return std::abs(x - y) <= epsilon;
+        }))
+        {
+            ++nfails;
+            TW_ASSERT(t2.size() == 9);
+            for (int i = 0; i < t1.size(); ++i)
+            {
+                printf("Test failed at Line:%d t2[%d]:%f ylmCoeff(GPU)[%d]:%f\n", __LINE__, i, t1[i], i, ylmCoeff[i]);
+            }
+        }
+        ++ntests;
     }
 
     {
@@ -634,9 +815,25 @@ void QuadLight::TestYlmCoeff()
             }
         }
         ++ntests;
+
+        float ylmCoeff[9];
+        computeCoeff<4, 5>(make_float3(0.f), v.data(), basisData.data(), rawA, ylmCoeff);
+        if (!equal(t2.begin(), t2.end(), &ylmCoeff[0], [epsilon](const float& x, const float& y)
+        {
+            return std::abs(x - y) <= epsilon;
+        }))
+        {
+            ++nfails;
+            TW_ASSERT(t2.size() == 9);
+            for (int i = 0; i < t1.size(); ++i)
+            {
+                printf("Test failed at Line:%d t2[%d]:%f ylmCoeff(GPU)[%d]:%f\n", __LINE__, i, t2[i], i, ylmCoeff[i]);
+            }
+        }
+        ++ntests;
     }
 
-    printf("\nTest coverage:%f%%(%d/%d) passed!\n", static_cast<float>(ntests - nfails) / ntests, ntests - nfails, ntests);
+    printf("\nTest coverage:%f%%(%d/%d) passed!\n", 100.f*static_cast<float>(ntests - nfails) / ntests, ntests - nfails, ntests);
 }
 
 void QuadLight::TestZHRecurrence()
