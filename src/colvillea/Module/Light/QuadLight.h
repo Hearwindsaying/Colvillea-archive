@@ -118,6 +118,7 @@ public:
     static void ClipQuadToHorizon(optix::float3 L[5], int &n );
 
     static void TestSolidAngle();
+    static void TestYlmCoeff();
     static void TestZHRecurrence();
 
     /**

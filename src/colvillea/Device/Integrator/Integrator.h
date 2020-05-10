@@ -2,10 +2,6 @@
 #ifndef COLVILLEA_DEVICE_INTEGRATOR_INTEGRATOR_H_
 #define COLVILLEA_DEVICE_INTEGRATOR_INTEGRATOR_H_
 /* This file is device only. */
-#include "colvillea/Device/SH/AxialMoments.hpp"
-//#include "colvillea/Device/SH/SphericalIntegration.hpp"
-#include "colvillea/Device/SH/Test/SH.hpp"
-
 #include <optix_world.h>
 #include <optix_device.h>
 #include <optixu_math_namespace.h>
@@ -16,12 +12,6 @@
 #include "../Light/LightUtil.h"
 
 #include "../Sampler/Sampler.h"
-
-/* SH I. */
-#define GLM_FORCE_CUDA
-#include "glm/glm/glm.hpp"
-
-
 
 //////////////////////////////////////////////////////////////////////////
 //Forward declarations:
@@ -336,109 +326,6 @@ static __device__ __inline__ void ClipQuadToHorizon(optix::float3 L[5], int &n)
         rtPrintf("ClipQuadToHorizon n.\n");
 }
 
-struct Vector : public glm::vec3 {
-
-    __device__ Vector() : glm::vec3() {}
-    __device__ Vector(const optix::float3& vec) : glm::vec3(vec.x,vec.y,vec.z){}
-    __device__ Vector(float x, float y, float z) : glm::vec3(x, y, z) {}
-    __device__ Vector(const glm::vec3& w) : glm::vec3(w) {}
-
-    static inline __device__  float Dot(const glm::vec3& a, const glm::vec3& b) {
-        return glm::dot(a, b);
-    }
-
-    static inline __device__ glm::vec3 Cross(const glm::vec3& a, const glm::vec3& b) {
-        return glm::cross(a, b);
-    }
-
-    static inline __device__ glm::vec3 Normalize(const glm::vec3& a) {
-        return glm::normalize(a);
-    }
-
-    static inline __device__ float Length(const glm::vec3& a) {
-        return glm::length(a);
-    }
-
-#if 0
-    Vector() {}
-    Vector(float x, float y, float z)
-    {
-        this->vec.x = x;
-        this->vec.y = y;
-        this->vec.z = z;
-    }
-    Vector(const Vector& w) {
-        this->vec.x = w.vec.x;
-        this->vec.y = w.vec.y;
-        this->vec.z = w.vec.z;
-    }
-
-    static inline float Dot(const Vector &a, const Vector &b) {
-        return dot(a.vec, b.vec);
-    }
-
-    static inline float3 Cross(const Vector &a, const Vector &b) {
-        return cross(a.vec, b.vec);
-    }
-
-    static inline float3 Normalize(const Vector &a) {
-        return safe_normalize(a.vec);
-    }
-
-    static inline float Length(const Vector &a) {
-        return optix::length(a.vec);
-    }
-
-    float& operator[](int idx) {
-        if (idx == 0)return vec.x;
-        if (idx == 1)return vec.y;
-        if (idx == 2)return vec.z;
-    }
-    const float& operator[](int idx) const
-    {
-        if (idx == 0)return vec.x;
-        if (idx == 1)return vec.y;
-        if (idx == 2)return vec.z;
-    }
-    float& x()
-
-        float3 vec;
-#endif // 0
-};
-
-struct Edge {
-    __device__ Edge() {}
-    __device__ Edge(const Vector& a, const Vector& b) : A(a), B(b) {}
-    Vector A, B;
-};
-
-struct Triangle {
-    __device__ Triangle() {}
-    __device__ Triangle(const Vector& A, const Vector& B, const Vector& C) :e0(Edge(A, B)), e1(Edge(B, C)), e2(Edge(C, A)) {
-
-    }
-
-    __device__ Edge& operator[](int idx) {
-        if (idx == 0)return e0;
-        if (idx == 1)return e1;
-        if (idx == 2)return e2;
-    }
-    __device__ const Edge& operator[](int idx) const
-    {
-        if (idx == 0)return e0;
-        if (idx == 1)return e1;
-        if (idx == 2)return e2;
-    }
-    __device__ int size() const
-    {
-        return 3;
-    }
-
-    Edge e0;
-    Edge e1;
-    Edge e2;
-};
-
 template<>
 static __device__ __inline__ float4 EstimateDirectLighting<CommonStructs::LightType::QuadLight>(
     int lightId,
@@ -450,7 +337,7 @@ static __device__ __inline__ float4 EstimateDirectLighting<CommonStructs::LightT
     {
         rtPrintf("SH Integration supports lambert only.\n");
     }
-#if 1 /* SH Integration */
+#if 0 /* SH Integration */
     /* 1. Get 4 vertices of QuadLight. */
     if (sysLaunch_index.y >= 340 && sysLaunch_index.y <= 360)
     {
