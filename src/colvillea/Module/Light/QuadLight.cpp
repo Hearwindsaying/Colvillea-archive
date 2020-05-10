@@ -1018,6 +1018,9 @@ void QuadLight::initializeAreaLight(optix::Context& context)
 {
     constexpr size_t l = 2; // N=3 order SH, lmax = 2, l goes from [0,2]
     constexpr size_t AProws = (l + 1)*(l + 1);
+    constexpr size_t APcols = (l + 1)*(2 * l + 1);
+    TW_ASSERT(AProws == 9 && APcols == 15);
+    /*constexpr size_t AProws = (l + 1)*(l + 1);
     constexpr size_t APcols = (l + 1)*(2*l + 1);
     TW_ASSERT(AProws == 9 && APcols == 15);
     optix::Buffer areaLightAPMatrixBuffer = context->createBuffer(RT_BUFFER_INPUT, RT_FORMAT_FLOAT, APcols, AProws);
@@ -1034,7 +1037,7 @@ void QuadLight::initializeAreaLight(optix::Context& context)
     memcpy(APMatrixBufferData, APdata.data(), sizeof(float)*APdata.size());
     areaLightAPMatrixBuffer->unmap();
 
-    context["areaLightAPMatrix"]->setBuffer(areaLightAPMatrixBuffer);
+    context["areaLightAPMatrix"]->setBuffer(areaLightAPMatrixBuffer);*/
 
     /* Basis Vector. */
     optix::Buffer areaLightBasisVectorBuffer = context->createBuffer(RT_BUFFER_INPUT, RT_FORMAT_FLOAT3, 2 * l + 1);
@@ -1058,4 +1061,29 @@ void QuadLight::initializeAreaLight(optix::Context& context)
     areaLightFlmVectorBuffer->unmap();
 
     context["areaLightFlmVector"]->setBuffer(areaLightFlmVectorBuffer);
+
+    /* Alpha coeff. */
+    constexpr size_t rawArow = 9;
+    constexpr size_t rawAcol = 5;
+    std::vector<std::vector<float>> rawA = { {1, 0, 0, 0, 0},
+                                             {0.04762, -0.0952401, -1.06303, 0, 0},
+                                             {0.843045, 0.813911, 0.505827, 0, 0 },
+                                             {-0.542607, 1.08521, 0.674436, 0, 0},
+                                             {2.61289, -0.196102, 0.056974, -1.11255, -3.29064},
+                                             {-4.46838, 0.540528, 0.0802047, -0.152141, 4.77508},
+                                             {-3.36974, -6.50662, -1.43347, -6.50662, -3.36977},
+                                             {-2.15306, -2.18249, -0.913913, -2.24328, -1.34185},
+                                             {2.43791, 3.78023, -0.322086, 3.61812, 1.39367}, };
+
+    optix::Buffer areaLightAlphaCoeffBuffer = context->createBuffer(RT_BUFFER_INPUT, RT_FORMAT_FLOAT, rawAcol, rawArow);
+    float *areaLightAlphaCoeffBufferData = static_cast<float *>(areaLightAlphaCoeffBuffer->map());
+    for (int i = 0; i < rawA.size(); ++i)
+    {
+        memcpy(areaLightAlphaCoeffBufferData+i*rawAcol, rawA[i].data(), sizeof(float)*rawAcol);
+    }
+    
+    
+    areaLightAlphaCoeffBuffer->unmap();
+
+    context["areaLightAlphaCoeff"]->setBuffer(areaLightAlphaCoeffBuffer);
 }
