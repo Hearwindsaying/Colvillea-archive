@@ -1054,7 +1054,7 @@ void QuadLight::initializeAreaLight(optix::Context& context)
                                    make_float3(0.557643, -0.727347, -0.4),
                                    make_float3(-0.590828, 0.104509, -0.8), };
     void *areaLightBasisVectorBufferData = areaLightBasisVectorBuffer->map();
-    memcpy(areaLightBasisVectorBufferData, basisData.data(), sizeof(float)*basisData.size());
+    memcpy(areaLightBasisVectorBufferData, basisData.data(), sizeof(float3)*basisData.size());
     areaLightBasisVectorBuffer->unmap();
     context["areaLightBasisVector"]->setBuffer(areaLightBasisVectorBuffer);
 
