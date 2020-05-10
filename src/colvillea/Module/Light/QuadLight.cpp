@@ -626,6 +626,16 @@ void QuadLight::TestSolidAngle()
     printf("\nTest coverage:%f%%(%d/%d) passed!\n", 100.f*static_cast<float>(ntests-nfails)/ntests, ntests - nfails, ntests);
 }
 
+/**
+ * @brief Check polygon. P starts at index 1.
+ */
+bool CheckOrientation(const float3 P[])
+{
+    const auto D = (P[1] + P[2] + P[3]) / 3.0f;
+    const auto N = cross(P[2] - P[1], P[3] - P[1]);
+    return dot(D, N) <= 0.0f;
+}
+
 void QuadLight::TestYlmCoeff()
 {
     float epsilon = 1e-5f;
@@ -677,7 +687,7 @@ void QuadLight::TestYlmCoeff()
         auto D1 = (sphToCartesian(M_PI / 2.f, 0));
 
         //std::vector<float3> v{ make_float3(0.f),A1,B1,C1,D1 };
-        std::vector<float3> v{ make_float3(0.f),A1,C1,D1 };
+        std::vector<float3> v{ make_float3(0.f),A1,D1,C1 };
         //std::vector<float3> v{ make_float3(0.f),A1,B1,D1 };
         std::vector<float> t1 = computeCoeff<3>(make_float3(0.f), v, basisData, true, a);
         //computeCoeff<4>(make_float3(0.f), v, basisData, true, a);
@@ -877,10 +887,7 @@ void QuadLight::TestZHRecurrence()
     computeCoeff<3>(make_float3(0.f), v, basisData, true, a);
     //computeCoeff<4>(make_float3(0.f), v, basisData, true, a);
 
-    
-
-    
-
+#if 0
     auto uniformSamplingHemisphere = [](float x, float y)->float3
     {
         float z = x;
@@ -912,8 +919,8 @@ void QuadLight::TestZHRecurrence()
         std::cout.precision(dbl::max_digits10);
         std::cout << result << std::endl;
     }
+#endif // 0
 
-    
 }
 
 bool QuadLight::TestZHIntegral(int order, const std::vector<optix::float3>& lobeDirections, int maximumIteration)

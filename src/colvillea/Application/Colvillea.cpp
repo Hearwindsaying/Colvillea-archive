@@ -202,7 +202,7 @@ void create_DiningRoom(std::shared_ptr<SceneGraph> &sceneGraph, std::shared_ptr<
 
 int main(int argc, char *argv[])
 {
-/*    QuadLight::TestZHRecurrence();*/
+    QuadLight::TestZHRecurrence();
     /*_CrtSetBreakAlloc(208);*/
     _CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
 

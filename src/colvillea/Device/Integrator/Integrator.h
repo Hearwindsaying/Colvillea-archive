@@ -461,6 +461,22 @@ static __device__ __inline__ void computeCoeff(float3 x, float3 v[]/*, const flo
     }
 }
 
+template<int M>
+static __device__ __inline__ bool CheckOrientation(const float3 P[]);
+
+template<>
+static __device__ __inline__ bool CheckOrientation<3>(const float3 P[])
+{
+    const auto D = (P[1] + P[2] + P[3]) / 3.0f;
+    const auto N = cross(P[2] - P[1], P[3] - P[1]);
+    return dot(D, N) <= 0.0f;
+}
+
+__host__ __device__ __inline__ void swap(float3 & lhs, float3 & rhs)
+{
+    float3 tmp = lhs; lhs = rhs; rhs = tmp;
+}
+
 template<>
 static __device__ __inline__ float4 EstimateDirectLighting<CommonStructs::LightType::QuadLight>(
     int lightId,
@@ -493,6 +509,16 @@ static __device__ __inline__ float4 EstimateDirectLighting<CommonStructs::LightT
         quadShape[2] = BSDFWorldToLocal(quadShape[2], shaderParams.dgShading.dpdu, shaderParams.dgShading.tn, shaderParams.dgShading.nn, isectP);
         quadShape[3] = BSDFWorldToLocal(quadShape[3], shaderParams.dgShading.dpdu, shaderParams.dgShading.tn, shaderParams.dgShading.nn, isectP);
 
+        //if (!CheckOrientation<3>(quadShape))
+        //{
+        //    //rtPrintf("error orientation before clipping!\n");
+        //    swap(quadShape[1], quadShape[3]);
+        //    if (!CheckOrientation<3>(quadShape))
+        //    {
+        //        rtPrintf("STILL error orientation before clipping!\n");
+        //    }
+        //}
+            
 //         if (shaderParams.Reflectance.x >= 0.6f && shaderParams.Reflectance.x <= 0.7f)
 //         {
 //             rtPrintf("%f %f %f, %f %f %f, %f %f %f, %f %f %f\n", quadShape[0].x, quadShape[0].y, quadShape[0].z,
@@ -505,6 +531,9 @@ static __device__ __inline__ float4 EstimateDirectLighting<CommonStructs::LightT
         int clippedQuadVertices = 0;
         ClipQuadToHorizon(quadShape, clippedQuadVertices);
 
+        //if (!CheckOrientation<3>(quadShape))
+        //    rtPrintf("error orientation after clipping:num of vertices: %d!\n",clippedQuadVertices);
+
         /* 4. Compute Ylm projection coefficient. */
         float ylmCoeff[9];
         if (clippedQuadVertices == 3)
@@ -515,12 +544,21 @@ static __device__ __inline__ float4 EstimateDirectLighting<CommonStructs::LightT
         else if (clippedQuadVertices == 4)
         {
             float3 ABCD[5]{ make_float3(0.f),quadShape[0],quadShape[1],quadShape[2],quadShape[3] };
-            computeCoeff<4, 5>(make_float3(0.f), ABCD, ylmCoeff);
+            computeCoeff<4, 5>(make_float3(0.f), ABCD, ylmCoeff); 
         }
-        else
+        else if (clippedQuadVertices == 5)
         {
             float3 ABCDE[6]{ make_float3(0.f),quadShape[0],quadShape[1],quadShape[2],quadShape[3],quadShape[4] };
             computeCoeff<5, 5>(make_float3(0.f), ABCDE, ylmCoeff);
+        }
+        else if (clippedQuadVertices == 0)
+        {
+            for (int i = 0; i < 9; ++i)
+                ylmCoeff[i] = 0.f;
+        }
+        else
+        {
+            rtPrintf("clippedQuadVertices==%d failed!\n", clippedQuadVertices); 
         }
 
         /* 5. Dot Product of Flm and Ylm. */
