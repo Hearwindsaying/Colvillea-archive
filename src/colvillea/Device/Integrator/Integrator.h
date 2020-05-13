@@ -488,14 +488,15 @@ static __device__ __inline__ float4 EstimateDirectLighting<CommonStructs::LightT
     {
         rtPrintf("SH Integration supports lambert only.\n");
     }
-#if 1 /* SH Integration */
+    float4 L = make_float4(0.f);
+
+    /* SH Integration */
     /* 1. Get 4 vertices of QuadLight. */
-    /*if (sysLaunch_index.y >= 0 && sysLaunch_index.y <= 360)*/
+#if 1
+    //if(sysIterationIndex == 0)
     {
         float3 quadShape[5];
         const CommonStructs::QuadLight &quadLight = sysLightBuffers.quadLightBuffer[lightId];
-
-        float4 L = make_float4(0.f);
 
         quadShape[0] = TwUtil::xfmPoint(make_float3(-1.f, -1.f, 0.f), quadLight.lightToWorld);
         quadShape[1] = TwUtil::xfmPoint(make_float3(1.f, -1.f, 0.f), quadLight.lightToWorld);
@@ -509,160 +510,143 @@ static __device__ __inline__ float4 EstimateDirectLighting<CommonStructs::LightT
         quadShape[2] = BSDFWorldToLocal(quadShape[2], shaderParams.dgShading.dpdu, shaderParams.dgShading.tn, shaderParams.dgShading.nn, isectP);
         quadShape[3] = BSDFWorldToLocal(quadShape[3], shaderParams.dgShading.dpdu, shaderParams.dgShading.tn, shaderParams.dgShading.nn, isectP);
 
-        //if (!CheckOrientation<3>(quadShape))
-        //{
-        //    //rtPrintf("error orientation before clipping!\n");
-        //    swap(quadShape[1], quadShape[3]);
-        //    if (!CheckOrientation<3>(quadShape))
-        //    {
-        //        rtPrintf("STILL error orientation before clipping!\n");
-        //    }
-        //}
-            
-//         if (shaderParams.Reflectance.x >= 0.6f && shaderParams.Reflectance.x <= 0.7f)
-//         {
-//             rtPrintf("%f %f %f, %f %f %f, %f %f %f, %f %f %f\n", quadShape[0].x, quadShape[0].y, quadShape[0].z,
-//                 quadShape[1].x, quadShape[1].y, quadShape[1].z,
-//                 quadShape[2].x, quadShape[2].y, quadShape[2].z,
-//                 quadShape[3].x, quadShape[3].y, quadShape[3].z);
-//         }
+        if (!CheckOrientation<3>(quadShape))
+        {
+            /* 3. Clipping. */
+            int clippedQuadVertices = 0;
+            ClipQuadToHorizon(quadShape, clippedQuadVertices);
 
-        /* 3. Clipping. */
-        int clippedQuadVertices = 0;
-        ClipQuadToHorizon(quadShape, clippedQuadVertices);
+            /* 4. Compute Ylm projection coefficient. */
+            float ylmCoeff[9];
+            if (clippedQuadVertices == 3)
+            {
+                float3 ABC[4]{ make_float3(0.f),quadShape[0],quadShape[1],quadShape[2] };
+                computeCoeff<3, 5>(make_float3(0.f), ABC, ylmCoeff);
+            }
+            else if (clippedQuadVertices == 4)
+            {
+                float3 ABCD[5]{ make_float3(0.f),quadShape[0],quadShape[1],quadShape[2],quadShape[3] };
+                computeCoeff<4, 5>(make_float3(0.f), ABCD, ylmCoeff);
+            }
+            else if (clippedQuadVertices == 5)
+            {
+                float3 ABCDE[6]{ make_float3(0.f),quadShape[0],quadShape[1],quadShape[2],quadShape[3],quadShape[4] };
+                computeCoeff<5, 5>(make_float3(0.f), ABCDE, ylmCoeff);
+            }
+            else if (clippedQuadVertices == 0)
+            {
+                for (int i = 0; i < 9; ++i)
+                    ylmCoeff[i] = 0.f;
+            }
+            else
+            {
+                rtPrintf("clippedQuadVertices==%d failed!\n", clippedQuadVertices);
+            }
 
-        //if (!CheckOrientation<3>(quadShape))
-        //    rtPrintf("error orientation after clipping:num of vertices: %d!\n",clippedQuadVertices);
-
-        /* 4. Compute Ylm projection coefficient. */
-        float ylmCoeff[9];
-        if (clippedQuadVertices == 3)
-        {
-            float3 ABC[4]{ make_float3(0.f),quadShape[0],quadShape[1],quadShape[2] };
-            computeCoeff<3, 5>(make_float3(0.f), ABC, ylmCoeff);
-        }
-        else if (clippedQuadVertices == 4)
-        {
-            float3 ABCD[5]{ make_float3(0.f),quadShape[0],quadShape[1],quadShape[2],quadShape[3] };
-            computeCoeff<4, 5>(make_float3(0.f), ABCD, ylmCoeff); 
-        }
-        else if (clippedQuadVertices == 5)
-        {
-            float3 ABCDE[6]{ make_float3(0.f),quadShape[0],quadShape[1],quadShape[2],quadShape[3],quadShape[4] };
-            computeCoeff<5, 5>(make_float3(0.f), ABCDE, ylmCoeff);
-        }
-        else if (clippedQuadVertices == 0)
-        {
+            /* 5. Dot Product of Flm and Ylm. */
             for (int i = 0; i < 9; ++i)
-                ylmCoeff[i] = 0.f;
-        }
-        else
-        {
-            rtPrintf("clippedQuadVertices==%d failed!\n", clippedQuadVertices); 
-        }
+            {
+                L += make_float4(areaLightFlmVector[i] * ylmCoeff[i]);
+            }
 
-        /* 5. Dot Product of Flm and Ylm. */
-        for (int i = 0; i < 9; ++i)
-        {
-            L += make_float4(areaLightFlmVector[i] * ylmCoeff[i]);
+            if (areaLightBasisVector.size() != 5)rtPrintf("assert failed at areaLightBasisVector.size()!=5\n");
+            L *= quadLight.intensity * shaderParams.Reflectance / M_PIf;
         }
-
-        if (areaLightBasisVector.size() != 5)rtPrintf("assert failed at areaLightBasisVector.size()!=5\n");
-        L *= quadLight.intensity * shaderParams.Reflectance / M_PIf;
-        return L;
     }
-//#else
-    //else {
-    //    float4 Ld = make_float4(0.f);
+#endif // SHIntegartionPart
 
-    //    float3 p = isectP;
-    //    float3 wo_world = isectDir;
-    //    float sceneEpsilon = sysSceneEpsilon;
+    {
+        float4 Ld = make_float4(0.f);
 
-    //    float3 outWi = make_float3(0.f);
-    //    float lightPdf = 0.f, bsdfPdf = 0.f;
-    //    Ray shadowRay;
+        float3 p = isectP;
+        float3 wo_world = isectDir;
+        float sceneEpsilon = sysSceneEpsilon;
 
-
-
-    //    /* Sample light source with Mulitple Importance Sampling. */
-    //    float2 randSamples = Get2D(&localSampler);
-    //    float4 Li = Sample_Ld[toUnderlyingValue(CommonStructs::LightType::QuadLight)](p, sceneEpsilon, outWi, lightPdf, randSamples, lightId, shadowRay);
-    //    if (lightPdf > 0.f && !isBlack(Li))
-    //    {
-    //        /* Compute BSDF value using sampled outWi from sampling light source. */
-    //        float4 f = Eval_f[toUnderlyingValue(shaderParams.bsdfType)](wo_world, outWi, shaderParams);
-    //        if (!isBlack(f))
-    //        {
-    //            /* Trace shadow ray and find out its visibility. */
-    //            CommonStructs::PerRayData_shadow shadow_prd;
-    //            shadow_prd.blocked = 0;
-
-    //            const RTrayflags shadowRayFlags = static_cast<RTrayflags>(RTrayflags::RT_RAY_FLAG_DISABLE_ANYHIT | RTrayflags::RT_RAY_FLAG_TERMINATE_ON_FIRST_HIT);
-    //            rtTrace<CommonStructs::PerRayData_shadow>(sysTopShadower, shadowRay, shadow_prd, RT_VISIBILITY_ALL, shadowRayFlags);
-    //            if (!shadow_prd.blocked)
-    //            {
-    //                /* Compute Ld using MIS weight. */
-
-    //                bsdfPdf = Pdf[toUnderlyingValue(shaderParams.bsdfType)](wo_world, outWi, shaderParams);
-    //                float weight = TwUtil::MonteCarlo::PowerHeuristic(1, lightPdf, 1, bsdfPdf);
-    //                Ld += f * Li * (fabs(dot(outWi, shaderParams.dgShading.nn)) * weight / lightPdf);
-    //                /*rtPrintf("%f %f %f Li:%f %f %f weight:%f bsdfPdf:%f,outwi:%f %f %f\n",
-    //                    f.x, f.y, f.z,
-    //                    Li.x, Li.y, Li.z,
-    //                    weight,
-    //                    bsdfPdf,
-    //                    outWi.x, outWi.y, outWi.z);
-    //                rtPrintf("Ld %f %f %f\n", Ld.x, Ld.y, Ld.z);*/
-    //            }
-    //        }
-    //    }
+        float3 outWi = make_float3(0.f);
+        float lightPdf = 0.f, bsdfPdf = 0.f;
+        Ray shadowRay;
 
 
-    //    /* Sample BSDF with Multiple Importance Sampling. */
-    //    randSamples = Get2D(&localSampler);
 
-    //    float4 f = Sample_f[toUnderlyingValue(shaderParams.bsdfType)](wo_world, outWi, randSamples, bsdfPdf, Get1D(&localSampler), shaderParams);
-    //    if (!isBlack(f) && bsdfPdf > 0.)
-    //    {
-    //        float weight = 1.f;
+        /* Sample light source with Mulitple Importance Sampling. */
+        float2 randSamples = Get2D(&localSampler);
+        float4 Li = Sample_Ld[toUnderlyingValue(CommonStructs::LightType::QuadLight)](p, sceneEpsilon, outWi, lightPdf, randSamples, lightId, shadowRay);
+        if (lightPdf > 0.f && !isBlack(Li))
+        {
+            /* Compute BSDF value using sampled outWi from sampling light source. */
+            float4 f = Eval_f[toUnderlyingValue(shaderParams.bsdfType)](wo_world, outWi, shaderParams);
+            if (!isBlack(f))
+            {
+                /* Trace shadow ray and find out its visibility. */
+                CommonStructs::PerRayData_shadow shadow_prd;
+                shadow_prd.blocked = 0;
 
-    //        //todo:should use sampledType while we use overall bsdf type:
-    //        if (shaderParams.bsdfType != BSDFType::SmoothGlass && shaderParams.bsdfType != BSDFType::SmoothMirror)
-    //        {
-    //            lightPdf = LightPdf[toUnderlyingValue(CommonStructs::LightType::QuadLight)](p, outWi, lightId, shadowRay);
+                const RTrayflags shadowRayFlags = static_cast<RTrayflags>(RTrayflags::RT_RAY_FLAG_DISABLE_ANYHIT | RTrayflags::RT_RAY_FLAG_TERMINATE_ON_FIRST_HIT);
+                rtTrace<CommonStructs::PerRayData_shadow>(sysTopShadower, shadowRay, shadow_prd, RT_VISIBILITY_ALL, shadowRayFlags);
+                if (shadow_prd.blocked)
+                {
+                    /* Compute Ld using MIS weight. */
 
-    //            if (lightPdf == 0.f)
-    //                return Ld;
+                    //bsdfPdf = Pdf[toUnderlyingValue(shaderParams.bsdfType)](wo_world, outWi, shaderParams);
+                    //float weight = TwUtil::MonteCarlo::PowerHeuristic(1, lightPdf, 1, bsdfPdf);
+                    Ld += f * Li * (fabs(dot(outWi, shaderParams.dgShading.nn)) / lightPdf);
+                    /*rtPrintf("%f %f %f Li:%f %f %f weight:%f bsdfPdf:%f,outwi:%f %f %f\n",
+                        f.x, f.y, f.z,
+                        Li.x, Li.y, Li.z,
+                        weight,
+                        bsdfPdf,
+                        outWi.x, outWi.y, outWi.z);
+                    rtPrintf("Ld %f %f %f\n", Ld.x, Ld.y, Ld.z);*/
+                }
+            }
+        }
+        L -= Ld;
+#if 0
 
-    //            weight = TwUtil::MonteCarlo::PowerHeuristic(1, bsdfPdf, 1, lightPdf);
-    //        }
+        /* Sample BSDF with Multiple Importance Sampling. */
+        randSamples = Get2D(&localSampler);
+
+        float4 f = Sample_f[toUnderlyingValue(shaderParams.bsdfType)](wo_world, outWi, randSamples, bsdfPdf, Get1D(&localSampler), shaderParams);
+        if (!isBlack(f) && bsdfPdf > 0.)
+        {
+            float weight = 1.f;
+
+            //todo:should use sampledType while we use overall bsdf type:
+            if (shaderParams.bsdfType != BSDFType::SmoothGlass && shaderParams.bsdfType != BSDFType::SmoothMirror)
+            {
+                lightPdf = LightPdf[toUnderlyingValue(CommonStructs::LightType::QuadLight)](p, outWi, lightId, shadowRay);
+
+                if (lightPdf == 0.f)
+                    return Ld;
+
+                weight = TwUtil::MonteCarlo::PowerHeuristic(1, bsdfPdf, 1, lightPdf);
+            }
 
 
-    //        /* Trace shadow ray to find out whether it's blocked down by object. */
-    //        CommonStructs::PerRayData_shadow shadow_prd;
-    //        shadow_prd.blocked = 0;
+            /* Trace shadow ray to find out whether it's blocked down by object. */
+            CommonStructs::PerRayData_shadow shadow_prd;
+            shadow_prd.blocked = 0;
 
-    //        const RTrayflags shadowRayFlags = static_cast<RTrayflags>(RTrayflags::RT_RAY_FLAG_DISABLE_ANYHIT | RTrayflags::RT_RAY_FLAG_TERMINATE_ON_FIRST_HIT);
-    //        rtTrace<CommonStructs::PerRayData_shadow>(sysTopShadower, shadowRay, shadow_prd, RT_VISIBILITY_ALL, shadowRayFlags);
+            const RTrayflags shadowRayFlags = static_cast<RTrayflags>(RTrayflags::RT_RAY_FLAG_DISABLE_ANYHIT | RTrayflags::RT_RAY_FLAG_TERMINATE_ON_FIRST_HIT);
+            rtTrace<CommonStructs::PerRayData_shadow>(sysTopShadower, shadowRay, shadow_prd, RT_VISIBILITY_ALL, shadowRayFlags);
 
-    //        /* In LightPdf we have confirmed that ray is able to intersect the light
-    //         * -- surface from |p| towards |outWi| if there are no objects between
-    //         * them. So now we need to make sure that hypothesis using shadow ray.
-    //         * Given |shadowRay| from LightPdf, ray's |tmax| is narrowed down and
-    //         * could lead to further optimization when tracing shadow ray. */
-    //        if (!shadow_prd.blocked)
-    //        {
-    //            Li = TwUtil::Le_QuadLight(sysLightBuffers.quadLightBuffer[lightId], -outWi);
-    //            if (!isBlack(Li))
-    //                Ld += f * Li * fabsf(dot(outWi, shaderParams.dgShading.nn)) * weight / bsdfPdf;
-    //        }
-    //    }
+            /* In LightPdf we have confirmed that ray is able to intersect the light
+             * -- surface from |p| towards |outWi| if there are no objects between
+             * them. So now we need to make sure that hypothesis using shadow ray.
+             * Given |shadowRay| from LightPdf, ray's |tmax| is narrowed down and
+             * could lead to further optimization when tracing shadow ray. */
+            if (!shadow_prd.blocked)
+            {
+                Li = TwUtil::Le_QuadLight(sysLightBuffers.quadLightBuffer[lightId], -outWi);
+                if (!isBlack(Li))
+                    Ld += f * Li * fabsf(dot(outWi, shaderParams.dgShading.nn)) * weight / bsdfPdf;
+            }
+        }
 
-    //    return Ld;
-    //}
-#endif
-	
+        
+#endif //  0
+    }	
+    return L;
 }
 
 /**
