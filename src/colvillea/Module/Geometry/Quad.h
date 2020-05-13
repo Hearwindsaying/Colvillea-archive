@@ -194,7 +194,8 @@ public:
      */
     float getSurfaceArea() const override
     {
-        return this->m_scale.x * this->m_scale.y;
+        // Quad by default is defined over [-1,1]x[-1,1].
+        return this->m_scale.x * this->m_scale.y * 4.f;
     }
 
     /**

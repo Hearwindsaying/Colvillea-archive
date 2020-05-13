@@ -218,7 +218,7 @@ void Application::render()
         }
         if (this->m_sysIterationIndex > 0)
         {
-            this->drawRenderView(); return;
+            this->drawRenderView();
         }
         this->m_context->launch(toUnderlyingValue(RayGenerationEntryType::Render), this->m_filmWidth, this->m_filmHeight);
         this->m_context->launch(toUnderlyingValue(RayGenerationEntryType::Filter), this->m_filmWidth, this->m_filmHeight);

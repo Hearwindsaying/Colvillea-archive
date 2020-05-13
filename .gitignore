@@ -265,3 +265,4 @@ __pycache__/
 /examples/Cornell/lucy.obj
 !/examples/Dining-room/models/*.*
 *.ma
+/src/Eigen
