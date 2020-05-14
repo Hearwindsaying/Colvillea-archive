@@ -151,6 +151,85 @@ void QuadLight::ClipQuadToHorizon(optix::float3 L[5], int &n)
     TW_ASSERT(n == 0 || n == 3 || n == 4 || n == 5);
 }
 
+template<int N>
+float LegendreP(float x);
+
+template<>
+float LegendreP<0>(float x)
+{
+    return 1.0f;
+}
+template<>
+float LegendreP<1>(float x)
+{
+    return x;
+}
+template<>
+float LegendreP<2>(float x)
+{
+    return 0.5f*(3.f*x*x - 1);
+}
+template<>
+float LegendreP<3>(float x)
+{
+    return 0.5f*(5.f*x*x*x - 3.f*x);
+}
+template<>
+float LegendreP<4>(float x)
+{
+    return 0.125f*(35.f*x*x*x*x-30.f*x*x+3);
+}
+template<>
+float LegendreP<5>(float x)
+{
+    return 0.125f*(63.f*powf(x,5)-70.f*x*x*x+15.f*x);
+}
+template<>
+float LegendreP<6>(float x)
+{
+    return (231.f*powf(x, 6) - 315.f*x*x*x*x + 105.f*x*x-5.f) / 16.f;
+}
+template<>
+float LegendreP<7>(float x)
+{
+    return (429.f*powf(x, 7) - 693.f*powf(x,5) + 315.f*powf(x,3)-35.f*x) / 16.f;
+}
+template<>
+float LegendreP<8>(float x)
+{
+    return (6435.f*powf(x, 8) - 12012.f*powf(x, 6) + 6930.f*powf(x, 4) - 1260.f*powf(x, 2) + 35.f) / 128.f;
+}
+template<>
+float LegendreP<9>(float x)
+{
+    return (12155.f*powf(x, 9) - 25740.f*powf(x, 7) + 18018.f*powf(x, 5) - 4620.f*powf(x, 3) + 315.f*x) / 128.f;
+}
+template<>
+float LegendreP<10>(float x)
+{
+    return (46189.f*powf(x, 10) - 109395.f*powf(x, 8) + 90090.f*powf(x, 6) - 30030.f*powf(x, 4) + 3465.f*powf(x,2)-63.f) / 256.f;
+}
+
+float LegendreP(int l, float x)
+{
+    TW_ASSERT(l <= 10 && l >= 0);
+    switch (l)
+    {
+    case 0:return LegendreP<0>(x);
+    case 1:return LegendreP<1>(x);
+    case 2:return LegendreP<2>(x);
+    case 3:return LegendreP<3>(x);
+    case 4:return LegendreP<4>(x);
+    case 5:return LegendreP<5>(x);
+    case 6:return LegendreP<6>(x);
+    case 7:return LegendreP<7>(x);
+    case 8:return LegendreP<8>(x);
+    case 9:return LegendreP<9>(x);
+    case 10:return LegendreP<10>(x);
+    default:return 0.0f;
+    }
+}
+
 /**
  * @ref code adapted from Wang's glsl.
  */
@@ -236,10 +315,10 @@ float computeSolidAngle(const float3 we[])
  * @ a:alpha_l,d,m
  * @ w:lobe direction
  */
-template<int M>
+template<int M, int lmax>
 std::vector<float> computeCoeff(float3 x, std::vector<float3> & v, /*int n, std::vector<std::vector<float>> const& a,*/ std::vector<float3> const& w, bool vIsProjected, std::vector<std::vector<float>> const& a)
 {
-    constexpr int lmax = 2;
+    //constexpr int lmax = 2;
     std::vector<float> ylmCoeff; ylmCoeff.resize((lmax+1)*(lmax+1));
 
     auto P1 = [](float z)->float {return z; };
@@ -305,34 +384,58 @@ std::vector<float> computeCoeff(float3 x, std::vector<float3> & v, /*int n, std:
             D0e[e] = 0; D1e[e] = gammae[e]; D2e[e] = 3 * B1e[e];
         }
 
-        //for l=2 to n
-        std::vector<float> C1e; C1e.resize(v.size());
-        std::vector<float> B2e; B2e.resize(v.size());
-
-        float B2 = 0;
-        for (int e = 1; e <= M; ++e)
-        {
-            C1e[e] = 1.f / 2.f * ((ae[e]*sin(gammae[e])-be[e]*cos(gammae[e]))*P1
-                                  (ae[e]*cos(gammae[e])+be[e]*sin(gammae[e]))+
-                                  be[e]*P1(ae[e])+(ae[e]*ae[e]+be[e]*be[e]-1.f)*D1e[e]+
-                                  (1.f)*B0e[e]);
-            B2e[e] = 1.5f*(C1e[e]) - 1.f*B0e[e];
-            B2 = B2 + ce[e] * B2e[e];
-            D2e[e] = 3.f * B1e[e] + D0e[e];
-        }
-
         // my code for B1
-        float B1 = 0.f;
+        float Bl_1 = 0.f;
         for (int e = 1; e <= M; ++e)
         {
-            B1 += ce[e] * B1e[e];
+            Bl_1 += ce[e] * B1e[e];
         }
         // B1
-        float S2 = 0.5f*B1;
+        float S2 = 0.5f*Bl_1;
 
+        // Initial Bands l=0, l=1:
         Lw[0][i] = sqrt(1.f / (4.f*M_PIf))*S0;
         Lw[1][i] = sqrt(3.f / (4.f*M_PIf))*S1;
-        Lw[2][i] = sqrt(5.f / (4.f*M_PIf))*S2;
+
+        // Bands starting from l=2:
+        for (int l = 2; l <= lmax; ++l)
+        {
+            float Bl = 0;
+            std::vector<float> Cl_1e; Cl_1e.resize(v.size());
+            std::vector<float> B2_e; B2_e.resize(v.size());
+            for (int e = 1; e <= M; ++e)
+            {
+                Cl_1e[e] = 1.f / l * ((ae[e] * sin(gammae[e]) - be[e] * cos(gammae[e]))*
+                                       LegendreP(l-1, ae[e] * cos(gammae[e]) + be[e] * sin(gammae[e])) +
+                                       be[e] * LegendreP(l-1, ae[e]) + (ae[e] * ae[e] + be[e] * be[e] - 1.f)*D1e[e] +
+                                       (l - 1.f)*B0e[e]);
+                B2_e[e] = ((2.f*l-1.f)/l)*(Cl_1e[e]) - (l-1.f)*B0e[e];
+                Bl = Bl + ce[e] * B2_e[e];
+                D2e[e] = (2.f*l-1.f) * B1e[e] + D0e[e];
+
+                D0e[e] = D1e[e];
+                D1e[e] = D2e[e];
+                B0e[e] = B1e[e];
+                B1e[e] = B2_e[e];
+            }
+
+            // Optimal storage for S (recurrence relation so that only three terms are kept).
+            // S2 is not represented as S2 really (Sl).
+            if (l % 2 == 0)
+            {
+                float S2 = ((2.f*l - 1) / (l*(l + 1))*Bl_1) + ((l - 2.f)*(l - 1.f) / ((l)*(l + 1.f)))*S0;
+                S0 = S2;
+                Lw[l][i] = sqrt((2.f * l + 1) / (4.f*M_PIf))*S2;
+            }
+            else
+            {
+                float S2 = ((2.f*l - 1) / (l*(l + 1))*Bl_1) + ((l - 2.f)*(l - 1.f) / ((l)*(l + 1.f)))*S1;
+                S1 = S2;
+                Lw[l][i] = sqrt((2.f * l + 1) / (4.f*M_PIf))*S2;
+            }
+
+            Bl_1 = Bl;
+        }
     }
 
     for (const auto& l0wi : Lw[0])
@@ -354,7 +457,7 @@ std::vector<float> computeCoeff(float3 x, std::vector<float3> & v, /*int n, std:
     std::cout << "--------------end l2wi" << std::endl;
 
     //TW_ASSERT(9 == a.size());
-    for (int j = 0; j <= 2; ++j)
+    for (int j = 0; j <= lmax; ++j)
     {
         TW_ASSERT(2 * j + 1 == a[j*j+0].size());
         for (int i = 0; i < 2 * j + 1; ++i)
@@ -689,7 +792,7 @@ void QuadLight::TestYlmCoeff()
         //std::vector<float3> v{ make_float3(0.f),A1,B1,C1,D1 };
         std::vector<float3> v{ make_float3(0.f),A1,D1,C1 };
         //std::vector<float3> v{ make_float3(0.f),A1,B1,D1 };
-        std::vector<float> t1 = computeCoeff<3>(make_float3(0.f), v, basisData, true, a);
+        std::vector<float> t1 = computeCoeff<3,2>(make_float3(0.f), v, basisData, true, a);
         //computeCoeff<4>(make_float3(0.f), v, basisData, true, a);
         std::vector<float> t2{ 0.221557, -0.191874,0.112397,-0.271351,0.257516,-0.106667,-0.157696,-0.182091,0.0910456 };
         if (!equal(t1.begin(), t1.end(), t2.begin(), [epsilon](const float& x, const float& y)
@@ -717,7 +820,7 @@ void QuadLight::TestYlmCoeff()
             TW_ASSERT(t2.size() == 9);
             for (int i = 0; i < t1.size(); ++i)
             {
-                printf("Test failed at Line:%d t2[%d]:%f ylmCoeff(GPU)[%d]:%f\n", __LINE__, i, t1[i], i, ylmCoeff[i]);
+                printf("Test failed at Line:%d t1[%d]:%f ylmCoeff(GPU)[%d]:%f\n", __LINE__, i, t1[i], i, ylmCoeff[i]);
             }
         }
         ++ntests;
@@ -752,7 +855,7 @@ void QuadLight::TestYlmCoeff()
 
         std::vector<float3> v{ make_float3(0.f),A1,B1,C1,D1 };
         //std::vector<float3> v{ make_float3(0.f),A1,B1,D1 };
-        std::vector<float> t1 = computeCoeff<4>(make_float3(0.f), v, basisData, true, a);
+        std::vector<float> t1 = computeCoeff<4,2>(make_float3(0.f), v, basisData, true, a);
         std::vector<float> t2{ 0.347247,-0.339578,0.236043,-0.339578,0.343355,-0.278344,-0.148677,-0.278344,0 };
         if (!equal(t1.begin(), t1.end(), t2.begin(), [epsilon](const float& x, const float& y)
         {
@@ -810,7 +913,7 @@ void QuadLight::TestYlmCoeff()
 
         std::vector<float3> v{ make_float3(0.f),A1,B1,C1,D1 };
         //std::vector<float3> v{ make_float3(0.f),A1,B1,D1 };
-        std::vector<float> t1 = computeCoeff<4>(make_float3(0.f), v, basisData, true, a);
+        std::vector<float> t1 = computeCoeff<4,2>(make_float3(0.f), v, basisData, true, a);
         std::vector<float> t2{ 0,-3.72529e-09,1.53499,0,-7.25683e-08,8.81259e-08,-1.43062e-07,-2.99029e-08,7.10429e-08 };
         if (!equal(t1.begin(), t1.end(), t2.begin(), [epsilon](const float& x, const float& y)
         {
@@ -884,7 +987,7 @@ void QuadLight::TestZHRecurrence()
     //std::vector<float3> v{ make_float3(0.f),A1,B1,C1,D1 };
     std::vector<float3> v{ make_float3(0.f),A1,C1,D1 };
     //std::vector<float3> v{ make_float3(0.f),A1,B1,D1 };
-    computeCoeff<3>(make_float3(0.f), v, basisData, true, a);
+    computeCoeff<3,2>(make_float3(0.f), v, basisData, true, a);
     //computeCoeff<4>(make_float3(0.f), v, basisData, true, a);
 
 #if 0
@@ -1019,6 +1122,33 @@ bool QuadLight::TestDiffuseFlmVector_Order3(const std::vector<float>& flmVector,
     }
     std::cout << "Num of failed tests:" << numFailures << std::endl;
     return numFailures == 0;
+}
+
+void QuadLight::TestLegendreP(float epsilon)
+{
+    int nfails = 0;
+    int ntests = 0;
+#if _HAS_CXX17
+    std::random_device rd;  //Will be used to obtain a seed for the random number engine
+    std::mt19937 gen(rd()); //Standard mersenne_twister_engine seeded with rd()
+    std::uniform_real_distribution<> dis(0.0, 1.0);
+    for (int i = 0; i <= 10; ++i)
+    {
+        if (std::abs(std::legendref(i, 0.0f) - LegendreP(i, 0.0f) >= epsilon))
+        {
+            ++nfails;
+            printf("Test failed at Line:i=%d std:%f myP:%f\n", __LINE__, i, std::legendref(i, 0.0f), LegendreP(i, 0.0f));
+        }
+        float x = dis(gen);
+        if (std::abs(std::legendref(i, x) - LegendreP(i, x) >= epsilon))
+        {
+            ++nfails;
+            printf("Test failed at Line:i=%d std:%f myP:%f\n", __LINE__, i, std::legendref(i, x), LegendreP(i, x));
+        }
+        ++ntests;
+    }
+    printf("\nLegender Polynomial Test coverage:%f%%(%d/%d) passed!\n", 100.f*static_cast<float>(ntests - nfails) / ntests, ntests - nfails, ntests);
+#endif
 }
 
 void QuadLight::initializeAreaLight(optix::Context& context)

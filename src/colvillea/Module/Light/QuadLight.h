@@ -120,6 +120,7 @@ public:
     static void TestSolidAngle();
     static void TestYlmCoeff();
     static void TestZHRecurrence();
+    static void TestLegendreP(float epsilon = 1e-5f);
 
     /**
      * @brief UnitTest function for checking ZHIntegral (i.e. P*Cp Column Vector in Laurent's method).
