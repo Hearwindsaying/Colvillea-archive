@@ -410,7 +410,7 @@ std::vector<float> computeCoeff(float3 x, std::vector<float3> & v, /*int n, std:
                                        LegendreP(l-1, ae[e] * cos(gammae[e]) + be[e] * sin(gammae[e])) +
                                        be[e] * LegendreP(l-1, ae[e]) + (ae[e] * ae[e] + be[e] * be[e] - 1.f)*D1e[e] +
                                        (l - 1.f)*B0e[e]);
-                B2_e[e] = ((2.f*l-1.f)/l)*(Cl_1e[e]) - (l-1.f)*B0e[e];
+                B2_e[e] = ((2.f*l-1.f)/l)*(Cl_1e[e]) - (l-1.f)/l*B0e[e];
                 Bl = Bl + ce[e] * B2_e[e];
                 D2e[e] = (2.f*l-1.f) * B1e[e] + D0e[e];
 
@@ -470,11 +470,68 @@ std::vector<float> computeCoeff(float3 x, std::vector<float3> & v, /*int n, std:
 
     if (lmax >= 3)
     {
+        coutx = 1;
         for (const auto& l3wi : Lw[3])
         {
+            if (coutx == 8)break;
             std::cout << "l3wi:   " << l3wi << std::endl;
+            ++coutx;
         }
         std::cout << "--------------end l3wi" << std::endl;
+
+        coutx = 1;
+        for (const auto& l4wi : Lw[4])
+        {
+            if (coutx == 10)break;
+            std::cout << "l4wi:   " << l4wi << std::endl;
+            ++coutx;
+        }
+        std::cout << "--------------end l4wi" << std::endl;
+
+        coutx = 1;
+        for (const auto& l5wi : Lw[5])
+        {
+            if (coutx == 12)break;
+            std::cout << "l5wi:   " << l5wi << std::endl;
+            ++coutx;
+        }
+        std::cout << "--------------end l5wi" << std::endl;
+
+        coutx = 1;
+        for (const auto& l6wi : Lw[6])
+        {
+            if (coutx == 14)break;
+            std::cout << "l6wi:   " << l6wi << std::endl;
+            ++coutx;
+        }
+        std::cout << "--------------end l6wi" << std::endl;
+
+        coutx = 1;
+        for (const auto& l7wi : Lw[7])
+        {
+            if (coutx == 16)break;
+            std::cout << "l7wi:   " << l7wi << std::endl;
+            ++coutx;
+        }
+        std::cout << "--------------end l7wi" << std::endl;
+
+        coutx = 1;
+        for (const auto& l8wi : Lw[8])
+        {
+            if (coutx == 18)break;
+            std::cout << "l8wi:   " << l8wi << std::endl;
+            ++coutx;
+        }
+        std::cout << "--------------end l8wi" << std::endl;
+
+        coutx = 1;
+        for (const auto& l9wi : Lw[9])
+        {
+            if (coutx == 20)break;
+            std::cout << "l9wi:   " << l9wi << std::endl;
+            ++coutx;
+        }
+        std::cout << "--------------end l9wi" << std::endl;
     }
 #endif   
 
@@ -495,10 +552,10 @@ std::vector<float> computeCoeff(float3 x, std::vector<float3> & v, /*int n, std:
     }
 
 #if computeCoeff_DBGINFO
-    for (const auto& ylmC : ylmCoeff)
-    {
-        printf("%f\n", ylmC);
-    }
+     for (const auto& ylmC : ylmCoeff)
+     {
+         printf("%f\n", ylmC);
+     }
 #endif
     
     return ylmCoeff;
@@ -768,7 +825,8 @@ bool CheckOrientation(const float3 P[])
 
 void QuadLight::TestYlmCoeff()
 {
-#define VALIDATE_SH_ORDER3 1
+#define VALIDATE_SH_ORDER3 0
+#define VALIDATE_SH_ORDER9_MC 0
     float epsilon = 8e-5f;
     int nfails = 0;
     int ntests = 0;
@@ -1072,6 +1130,7 @@ void QuadLight::TestYlmCoeff()
                                    make_float3(0.516953, -0.435687, -0.736842),
                                    make_float3(-0.538853, -0.022282, -0.842105),
                                    make_float3(0.226929, 0.225824, -0.947368), };
+#if VALIDATE_SH_ORDER9_MC
 
         {
             // Well projected on hemisphere
@@ -1080,33 +1139,20 @@ void QuadLight::TestYlmCoeff()
             auto C1 = make_float3(0.0f, -1.0f, 0.0f);
             auto D1 = make_float3(1.0f, 0.0f, 0.0f);
 
-            std::vector<float3> basisData2{ make_float3(0.f,0.f,1.f),
-                                   make_float3(-0.397673, -0.364301, 0.842105),
-                                   make_float3(0.059105, 0.673476, 0.736842),
-                                   make_float3(0.471729, -0.615288, 0.631579),
-                                   make_float3(-0.837291, 0.148105, 0.526316),
-                                   make_float3(0.765317, 0.486832, 0.421053),
-                                   make_float3(-0.246321, -0.916299, 0.315789),
-                                   make_float3(-0.450576, 0.867560, 0.210526),
-                                   make_float3(0.934103, -0.341132, 0.105263),
-                                   make_float3(-0.924346, -0.381556, 0.000000),
-                                   make_float3(0.421492, 0.900702, -0.105263),
-                                   make_float3(0.292575, -0.932780, -0.210526),
-                                   make_float3(-0.820937, 0.475752, -0.315789),
-                                   make_float3(0.885880, 0.194759, -0.421053),
-                                   make_float3(-0.489028, -0.695588, -0.526316),
-                                   make_float3(-0.099635, 0.768883, -0.631579),
-                                   make_float3(0.516953, -0.435687, -0.736842),
-                                   make_float3(-0.538853, -0.022282, -0.842105),
-                                   make_float3(0.226929, 0.225824, -0.947368), };
-
             /* MC Validation of canonical cases: */
-            auto uniformSamplingHemisphere = [](float x, float y)->float3
+            /*auto uniformSamplingHemisphere = [](float x, float y)->float3
             {
                 float z = x;
                 float r = std::sqrt(std::max(0.0, 1.0 - z * z));
                 float phi = 2.0 * M_PI * y;
                 return make_float3(r * std::cos(phi), r * std::sin(phi), z);
+            };*/
+            auto uniformSamplingHemisphere = [](float x, float y)->CLTest::CommonStruct::QuadLight_float3
+            {
+                float z = x;
+                float r = std::sqrt(std::max(0.f, 1.f - z * z));
+                float phi = 2 * M_PI * y;
+                return CLTest::CommonStruct::make_QuadLight_float3(r * std::cos(phi), r * std::sin(phi), z);
             };
 
             auto pdfHemisphere = []()->float {return 1.f / (2.f*M_PI); };
@@ -1115,43 +1161,87 @@ void QuadLight::TestYlmCoeff()
             std::uniform_real_distribution<> dis(0.0, 1.0);
 
             constexpr int iteration = 10000000;
+            constexpr int lmax = 9; // order 9
 
-            std::vector<float3> testData{ make_float3(0.f,0.f,1.f) };
-            //testData[0] = TwUtil::safe_normalize(testData[0]);
-            for (const auto& wo : testData)
+            
+            Eigen::VectorXf MCResultCoeffVec((lmax + 1)*(lmax + 1));
+            MCResultCoeffVec = Eigen::VectorXf::Zero((lmax + 1)*(lmax + 1));
+            for (int i = 1; i <= iteration; ++i)
             {
-                double result = 0.0;
-                for (int i = 1; i <= iteration; ++i)
-                {
-                    auto wi = uniformSamplingHemisphere(dis(gen), dis(gen));
-                    result += (sqrt(7.0 / (4.0*M_PI)) * 0.5 * (5.0*(dot(wo, wi)*dot(wo, wi)*dot(wo, wi)) - 3.0*dot(wo, wi))) / pdfHemisphere();
-                    //result += (sqrt(3.0 / (4.0*M_PI))) * dot(wo,wi) / pdfHemisphere();
-                }
-                result = result / iteration;
+                Eigen::VectorXf ylm((lmax + 1)*(lmax + 1));
+                ylm = Eigen::VectorXf::Zero((lmax + 1)*(lmax + 1));
 
-                std::cout.precision(dbl::max_digits10);
-                std::cout << result << std::endl;
+                CLTest::CommonStruct::QuadLight_float3 sample = uniformSamplingHemisphere(dis(gen), dis(gen));
+                SHEvalFast(sample, lmax, ylm);
+                TW_ASSERT(ylm.size() == (lmax + 1)*(lmax + 1));
+                MCResultCoeffVec += ylm / pdfHemisphere();
+            }
+            MCResultCoeffVec *= (1.0 / iteration);
+
+            std::vector<float> MCResultCoeff;
+            for (int i = 0; i < 100; ++i)
+            {
+                MCResultCoeff.push_back(MCResultCoeffVec(i));
             }
 
 
             std::vector<float3> v{ make_float3(0.f),A1,B1,C1,D1 };
             //std::vector<float3> v{ make_float3(0.f),A1,B1,D1 };
-            std::vector<float> t1 = computeCoeff<4, 9>(make_float3(0.f), v, basisData2, true, a);
-            //std::vector<float> t2{ 0,-3.72529e-09,1.53499,0,-7.25683e-08,8.81259e-08,-1.43062e-07,-2.99029e-08,7.10429e-08 };
-            //if (!equal(t1.begin(), t1.end(), t2.begin(), [epsilon](const float& x, const float& y)
-            //{
-            //    return std::abs(x - y) <= epsilon;
-            //}))
-            //{
-            //    ++nfails;
-            //    TW_ASSERT(t1.size() == t2.size());
-            //    for (int i = 0; i < t1.size(); ++i)
-            //    {
-            //        printf("Test failed at Line:%d t1[%d]:%f t2[%d]:%f\n", __LINE__, i, t1[i], i, t2[i]);
-            //    }
-            //}
-            //++ntests;
+            std::vector<float> t1 = computeCoeff<4, 9>(make_float3(0.f), v, basisData, true, a);
+            std::vector<float> t2{ 0,-2.38419e-07,1.53499,-1.78814e-07,8.0361e-09,1.29553e-08,-1.49964e-09,2.37276e-08,-5.70635e-08,1.90735e-06,0,
+1.19209e-07,-0.586183,-1.19209e-07,-1.19209e-07,4.91738e-07,2.90852e-07,-1.73211e-08,3.61446e-07,-5.52696e-07,2.85673e-07,
+2.19718e-07,2.16946e-07,4.27483e-07,2.03351e-07,0,3.21865e-06,-3.93391e-06,-9.53674e-07,1.07288e-06,0.367402,
+-9.53674e-07,3.8147e-06,-1.66893e-06,-7.45058e-07,4.05312e-06,1.59473e-07,8.44052e-07,-1.00783e-07,4.63194e-07,6.57873e-07,
+-1.27605e-07,6.28974e-07,-9.65823e-07,-9.55999e-07,1.80002e-06,-1.09245e-06,-9.892e-07,-3.4858e-07,1.62125e-05,-1.14441e-05,
+2.38419e-06,-2.86102e-06,-4.76837e-06,1.90735e-06,1.81198e-05,-0.26816,3.8147e-06,-3.33786e-06,6.67572e-06,7.62939e-06,
+3.8147e-06,8.58307e-06,-7.62939e-06,-1.8975e-06,-5.77771e-06,-7.41833e-06,-2.07832e-06,-7.66758e-06,-6.26134e-07,3.82385e-06,
+-1.88402e-06,-3.5203e-06,1.18708e-06,8.25938e-06,1.41067e-05,-4.0676e-06,-5.4201e-06,6.67927e-06,-4.89425e-06,-4.6691e-06,
+1.5,0.00292969,0.265625,1.625,0.21875,1.375,0.484375,1.875,-0.625,-0.375,
+-0.4375,1.375,0.65625,-0.00683594,1.25,-0.8125,0.0859375,0.75,0.1875, };
+            TW_ASSERT(t2.size() == 100);
+            if (!equal(t1.begin(), t1.end(), t2.begin(), [epsilon](const float& x, const float& y)
+            {
+                return std::abs(x - y) <= epsilon;
+            }))
+            {
+                ++nfails;
+                TW_ASSERT(t1.size() == t2.size());
+                for (int i = 0; i < t1.size(); ++i)
+                {
+                    printf("Test failed at Line:%d t1[%d]:%f t2[%d]:%f\n", __LINE__, i, t1[i], i, t2[i]);
+                }
+            }
+            ++ntests;
+
+            if (!equal(t1.begin(), t1.end(), MCResultCoeff.begin(), [epsilon](const float& x, const float& y)
+            {
+                return std::abs(x - y) <= epsilon;
+            }))
+            {
+                ++nfails;
+                TW_ASSERT(t1.size() == MCResultCoeff.size());
+                for (int i = 0; i < t1.size(); ++i)
+                {
+                    printf("Test failed at Line:%d t1[%d]:%f MCResultCoeff[%d]:%f\n", __LINE__, i, t1[i], i, MCResultCoeff[i]);
+                }
+            }
+            ++ntests;
+
+            if (!equal(t2.begin(), t2.end(), MCResultCoeff.begin(), [epsilon](const float& x, const float& y)
+            {
+                return std::abs(x - y) <= epsilon;
+            }))
+            {
+                ++nfails;
+                TW_ASSERT(t2.size() == MCResultCoeff.size());
+                for (int i = 0; i < t2.size(); ++i)
+                {
+                    printf("Test failed at Line:%d t2[%d]:%f MCResultCoeff[%d]:%f\n", __LINE__, i, t2[i], i, MCResultCoeff[i]);
+                }
+            }
+            ++ntests;
         }
+#endif 
 
         {
             // Well projected on hemisphere
@@ -1163,7 +1253,16 @@ void QuadLight::TestYlmCoeff()
             std::vector<float3> v{ make_float3(0.f),A1,B1,C1,D1 };
             //std::vector<float3> v{ make_float3(0.f),A1,B1,D1 };
             std::vector<float> t1 = computeCoeff<4, 9>(make_float3(0.f), v, basisData, true, a);
-            std::vector<float> t2{ 0,-3.72529e-09,1.53499,0,-7.25683e-08,8.81259e-08,-1.43062e-07,-2.99029e-08,7.10429e-08 };
+            std::vector<float> t2{ 0,-2.38419e-07,1.53499,-1.78814e-07,8.0361e-09,1.29553e-08,-1.49964e-09,2.37276e-08,-5.70635e-08,1.90735e-06,0,
+1.19209e-07,-0.586183,-1.19209e-07,-1.19209e-07,4.91738e-07,2.90852e-07,-1.73211e-08,3.61446e-07,-5.52696e-07,2.85673e-07,
+2.19718e-07,2.16946e-07,4.27483e-07,2.03351e-07,0,3.21865e-06,-3.93391e-06,-9.53674e-07,1.07288e-06,0.367402,
+-9.53674e-07,3.8147e-06,-1.66893e-06,-7.45058e-07,4.05312e-06,1.59473e-07,8.44052e-07,-1.00783e-07,4.63194e-07,6.57873e-07,
+-1.27605e-07,6.28974e-07,-9.65823e-07,-9.55999e-07,1.80002e-06,-1.09245e-06,-9.892e-07,-3.4858e-07,1.62125e-05,-1.14441e-05,
+2.38419e-06,-2.86102e-06,-4.76837e-06,1.90735e-06,1.81198e-05,-0.26816,3.8147e-06,-3.33786e-06,6.67572e-06,7.62939e-06,
+3.8147e-06,8.58307e-06,-7.62939e-06,-1.8975e-06,-5.77771e-06,-7.41833e-06,-2.07832e-06,-7.66758e-06,-6.26134e-07,3.82385e-06,
+-1.88402e-06,-3.5203e-06,1.18708e-06,8.25938e-06,1.41067e-05,-4.0676e-06,-5.4201e-06,6.67927e-06,-4.89425e-06,-4.6691e-06,
+1.5,0.00292969,0.265625,1.625,0.21875,1.375,0.484375,1.875,-0.625,-0.375,
+-0.4375,1.375,0.65625,-0.00683594,1.25,-0.8125,0.0859375,0.75,0.1875, };
             if (!equal(t1.begin(), t1.end(), t2.begin(), [epsilon](const float& x, const float& y)
             {
                 return std::abs(x - y) <= epsilon;
@@ -1173,7 +1272,7 @@ void QuadLight::TestYlmCoeff()
                 TW_ASSERT(t1.size() == t2.size());
                 for (int i = 0; i < t1.size(); ++i)
                 {
-                    printf("Test failed at Line:%d t1[%d]:%f t2[%d]:%f\n", __LINE__, i, t1[i], i, t2[i]);
+                    printf("Test failed at Line:%d t1[%d]:%f AxialMoment[%d]:%f\n", __LINE__, i, t1[i], i, t2[i]);
                 }
             }
             ++ntests;
@@ -1194,8 +1293,6 @@ void QuadLight::TestYlmCoeff()
             }
             ++ntests;*/
         }
-
-
 
         {
             auto A1 = (sphToCartesian(M_PI / 2.f, M_PI / 2.f));
