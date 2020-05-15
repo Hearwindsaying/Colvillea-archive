@@ -348,16 +348,89 @@ static __device__ __inline__ float computeSolidAngle(const float3 we[])
     return S0;
 }
 
+template<int N>
+static __device__ __host__ float LegendreP(float x);
+
+template<>
+static __device__ __host__ float LegendreP<0>(float x)
+{
+    return 1.0f;
+}
+template<>
+static __device__ __host__ float LegendreP<1>(float x)
+{
+    return x;
+}
+template<>
+static __device__ __host__ float LegendreP<2>(float x)
+{
+    return 0.5f*(3.f*x*x - 1);
+}
+template<>
+static __device__ __host__ float LegendreP<3>(float x)
+{
+    return 0.5f*(5.f*x*x*x - 3.f*x);
+}
+template<>
+static __device__ __host__ float LegendreP<4>(float x)
+{
+    return 0.125f*(35.f*x*x*x*x - 30.f*x*x + 3);
+}
+template<>
+static __device__ __host__ float LegendreP<5>(float x)
+{
+    return 0.125f*(63.f*x*x*x*x*x - 70.f*x*x*x + 15.f*x);
+}
+template<>
+static __device__ __host__ float LegendreP<6>(float x)
+{
+    return (231.f*x*x*x*x*x*x - 315.f*x*x*x*x + 105.f*x*x - 5.f) / 16.f;
+}
+template<>
+static __device__ __host__ float LegendreP<7>(float x)
+{
+    return (429.f*x*x*x*x*x*x*x - 693.f*x*x*x*x*x + 315.f*x*x*x - 35.f*x) / 16.f;
+}
+template<>
+static __device__ __host__ float LegendreP<8>(float x)
+{
+    return (6435.f*pow(x, 8) - 12012.f*pow(x, 6) + 6930.f*x*x*x*x - 1260.f*x*x + 35.f) / 128.f;
+}
+template<>
+static __device__ __host__ float LegendreP<9>(float x)
+{
+    return (12155.f*pow(x, 9) - 25740.f*pow(x, 7) + 18018.f*pow(x, 5) - 4620.f*x*x*x + 315.f*x) / 128.f;
+}
+template<>
+static __device__ __host__ float LegendreP<10>(float x)
+{
+    return (46189.f*pow(x, 10) - 109395.f*pow(x, 8) + 90090.f*pow(x, 6) - 30030.f*x*x*x*x + 3465.f*x*x - 63.f) / 256.f;
+}
+static __device__ __host__ float LegendreP(int l, float x)
+{
+    switch (l)
+    {
+    case 0:return LegendreP<0>(x);
+    case 1:return LegendreP<1>(x);
+    case 2:return LegendreP<2>(x);
+    case 3:return LegendreP<3>(x);
+    case 4:return LegendreP<4>(x);
+    case 5:return LegendreP<5>(x);
+    case 6:return LegendreP<6>(x);
+    case 7:return LegendreP<7>(x);
+    case 8:return LegendreP<8>(x);
+    case 9:return LegendreP<9>(x);
+    case 10:return LegendreP<10>(x);
+    default:return 0.0f;
+    }
+}
+
 /**
  * @brief GPU Version computeCoeff
  */
-template<int M, int wSize>
-static __device__ __inline__ void computeCoeff(float3 x, float3 v[]/*, const float3 w[]*//*, const float a[][5]*/, float ylmCoeff[9])
+template<int M, int lmax>
+static __device__ __inline__ void computeCoeff(float3 x, float3 v[], float ylmCoeff[(lmax + 1)*(lmax + 1)])
 {
-    constexpr int lmax = 2;
-    //int wSize = areaLightBasisVector.size();
-
-    auto P1 = [](float z)->float {return z; };
 #ifdef __CUDACC__
 #undef TW_ASSERT
 #define TW_ASSERT(expr) TW_ASSERT_INFO(expr, ##expr)
@@ -386,11 +459,11 @@ static __device__ __inline__ void computeCoeff(float3 x, float3 v[]/*, const flo
         gammae[e] = acosf(dot(we[e], we_plus_1));
     }
     // Solid angle computation
-    float S0 = computeSolidAngle<M>(we);
+    float solidAngle = computeSolidAngle<M>(we);
 
-    float Lw[lmax + 1][wSize];
+    float Lw[lmax + 1][2 * lmax + 1];
 
-    for (int i = 0; i < wSize; ++i)
+    for (int i = 0; i < 2 * lmax + 1; ++i)
     {
         float ae[M + 1];
         float be[M + 1];
@@ -403,6 +476,7 @@ static __device__ __inline__ void computeCoeff(float3 x, float3 v[]/*, const flo
 
 
         const float3 &wi = areaLightBasisVector[i];
+        float S0 = solidAngle;
         float S1 = 0;
         for (int e = 1; e <= M; ++e)
         {
@@ -414,38 +488,62 @@ static __device__ __inline__ void computeCoeff(float3 x, float3 v[]/*, const flo
             D0e[e] = 0; D1e[e] = gammae[e]; D2e[e] = 3 * B1e[e];
         }
 
-        //for l=2 to n
-        float C1e[M + 1];
-        float B2e[M + 1];
-
-        float B2 = 0;
-        for (int e = 1; e <= M; ++e)
-        {
-            C1e[e] = 1.f / 2.f * ((ae[e] * sin(gammae[e]) - be[e] * cosf(gammae[e]))*P1
-            (ae[e] * cosf(gammae[e]) + be[e] * sinf(gammae[e])) +
-                be[e] * P1(ae[e]) + (ae[e] * ae[e] + be[e] * be[e] - 1.f)*D1e[e] +
-                (1.f)*B0e[e]);
-            B2e[e] = 1.5f*(C1e[e]) - 1.f*B0e[e];
-            B2 = B2 + ce[e] * B2e[e];
-            D2e[e] = 3.f * B1e[e] + D0e[e];
-        }
-
         // my code for B1
-        float B1 = 0.f;
+        float Bl_1 = 0.f;
         for (int e = 1; e <= M; ++e)
         {
-            B1 += ce[e] * B1e[e];
+            Bl_1 += ce[e] * B1e[e];
         }
-        // B1
-        float S2 = 0.5f*B1;
 
+        // Initial Bands l=0, l=1:
         Lw[0][i] = sqrtf(1.f / (4.f*M_PIf))*S0;
         Lw[1][i] = sqrtf(3.f / (4.f*M_PIf))*S1;
-        Lw[2][i] = sqrtf(5.f / (4.f*M_PIf))*S2;
+
+        // Bands starting from l=2:
+        for (int l = 2; l <= lmax; ++l)
+        {
+            float Bl = 0;
+            float Cl_1e[M + 1];
+            float B2_e[M + 1];
+
+            for (int e = 1; e <= M; ++e)
+            {
+                Cl_1e[e] = 1.f / l * ((ae[e] * sin(gammae[e]) - be[e] * cos(gammae[e]))*
+                    LegendreP(l - 1, ae[e] * cos(gammae[e]) + be[e] * sin(gammae[e])) +
+                    be[e] * LegendreP(l - 1, ae[e]) + (ae[e] * ae[e] + be[e] * be[e] - 1.f)*D1e[e] +
+                    (l - 1.f)*B0e[e]);
+                B2_e[e] = ((2.f*l - 1.f) / l)*(Cl_1e[e]) - (l - 1.f) / l * B0e[e];
+                Bl = Bl + ce[e] * B2_e[e];
+                D2e[e] = (2.f*l - 1.f) * B1e[e] + D0e[e];
+
+                D0e[e] = D1e[e];
+                D1e[e] = D2e[e];
+                B0e[e] = B1e[e];
+                B1e[e] = B2_e[e];
+            }
+
+            // Optimal storage for S (recurrence relation so that only three terms are kept).
+            // S2 is not represented as S2 really (Sl).
+            if (l % 2 == 0)
+            {
+                float S2 = ((2.f*l - 1) / (l*(l + 1))*Bl_1) + ((l - 2.f)*(l - 1.f) / ((l)*(l + 1.f)))*S0;
+                S0 = S2;
+                Lw[l][i] = sqrt((2.f * l + 1) / (4.f*M_PIf))*S2;
+            }
+            else
+            {
+                float S2 = ((2.f*l - 1) / (l*(l + 1))*Bl_1) + ((l - 2.f)*(l - 1.f) / ((l)*(l + 1.f)))*S1;
+                S1 = S2;
+                Lw[l][i] = sqrt((2.f * l + 1) / (4.f*M_PIf))*S2;
+            }
+
+            Bl_1 = Bl;
+        }
     }
 
+
     //TW_ASSERT(9 == a.size());
-    for (int j = 0; j <= 2; ++j)
+    for (int j = 0; j <= lmax; ++j)
     {
         //TW_ASSERT(2 * j + 1 == 2*lmax+1); // redundant storage
         for (int i = 0; i < 2 * j + 1; ++i)
@@ -454,7 +552,7 @@ static __device__ __inline__ void computeCoeff(float3 x, float3 v[]/*, const flo
             for (int k = 0; k < 2 * j + 1; ++k)
             {
                 /* Differ from CPU version! access buffer like a coordinates (need a transpose) */
-                coeff += areaLightAlphaCoeff[make_uint2(k,j*j + i)] * Lw[j][k];
+                coeff += areaLightAlphaCoeff[make_uint2(k, j*j + i)] * Lw[j][k];
             }
             ylmCoeff[j*j + i] = coeff;
         }
@@ -510,6 +608,8 @@ static __device__ __inline__ float4 EstimateDirectLighting<CommonStructs::LightT
         quadShape[2] = BSDFWorldToLocal(quadShape[2], shaderParams.dgShading.dpdu, shaderParams.dgShading.tn, shaderParams.dgShading.nn, isectP);
         quadShape[3] = BSDFWorldToLocal(quadShape[3], shaderParams.dgShading.dpdu, shaderParams.dgShading.tn, shaderParams.dgShading.nn, isectP);
 
+        constexpr int lmax = 9;
+
         if (!CheckOrientation<3>(quadShape))
         {
             /* 3. Clipping. */
@@ -517,26 +617,25 @@ static __device__ __inline__ float4 EstimateDirectLighting<CommonStructs::LightT
             ClipQuadToHorizon(quadShape, clippedQuadVertices);
 
             /* 4. Compute Ylm projection coefficient. */
-            float ylmCoeff[9];
+            float ylmCoeff[(lmax+1)*(lmax+1)];
             if (clippedQuadVertices == 3)
             {
                 float3 ABC[4]{ make_float3(0.f),quadShape[0],quadShape[1],quadShape[2] };
-                computeCoeff<3, 5>(make_float3(0.f), ABC, ylmCoeff);
+                computeCoeff<3, 9>(make_float3(0.f), ABC, ylmCoeff);
             }
             else if (clippedQuadVertices == 4)
             {
                 float3 ABCD[5]{ make_float3(0.f),quadShape[0],quadShape[1],quadShape[2],quadShape[3] };
-                computeCoeff<4, 5>(make_float3(0.f), ABCD, ylmCoeff);
+                computeCoeff<4, 9>(make_float3(0.f), ABCD, ylmCoeff);
             }
             else if (clippedQuadVertices == 5)
             {
                 float3 ABCDE[6]{ make_float3(0.f),quadShape[0],quadShape[1],quadShape[2],quadShape[3],quadShape[4] };
-                computeCoeff<5, 5>(make_float3(0.f), ABCDE, ylmCoeff);
+                computeCoeff<5, 9>(make_float3(0.f), ABCDE, ylmCoeff);
             }
             else if (clippedQuadVertices == 0)
             {
-                for (int i = 0; i < 9; ++i)
-                    ylmCoeff[i] = 0.f;
+
             }
             else
             {
@@ -544,12 +643,16 @@ static __device__ __inline__ float4 EstimateDirectLighting<CommonStructs::LightT
             }
 
             /* 5. Dot Product of Flm and Ylm. */
-            for (int i = 0; i < 9; ++i)
+            if (clippedQuadVertices != 0)
             {
-                L += make_float4(areaLightFlmVector[i] * ylmCoeff[i]);
+                for (int i = 0; i < (lmax + 1)*(lmax + 1); ++i)
+                {
+                    L += make_float4(areaLightFlmVector[i] * ylmCoeff[i]);
+                }
             }
+            
 
-            if (areaLightBasisVector.size() != 5)rtPrintf("assert failed at areaLightBasisVector.size()!=5\n");
+            if (areaLightBasisVector.size() != 2*lmax+1)rtPrintf("assert failed at areaLightBasisVector.size()!=5\n");
             L *= quadLight.intensity * shaderParams.Reflectance / M_PIf;
         }
     }
