@@ -406,23 +406,146 @@ static __device__ __host__ float LegendreP<10>(float x)
 {
     return (46189.f*pow(x, 10) - 109395.f*pow(x, 8) + 90090.f*pow(x, 6) - 30030.f*x*x*x*x + 3465.f*x*x - 63.f) / 256.f;
 }
-static __device__ __host__ float LegendreP(int l, float x)
+
+// Unrolling loops by recursive template:
+template<int l, int M>
+static __device__ __inline__ void computeLw_unroll(float Lw[][19], float ae[], float gammae[], float be[], float ce[], float D1e[], float B0e[], float D2e[], float B1e[], float D0e[], int i, float Bl_1, float S0, float S1)
 {
-    switch (l)
+    float Bl = 0;
+    float Cl_1e[M + 1];
+    float B2_e[M + 1];
+
+    for (int e = 1; e <= M; ++e)
     {
-    case 0:return LegendreP<0>(x);
-    case 1:return LegendreP<1>(x);
-    case 2:return LegendreP<2>(x);
-    case 3:return LegendreP<3>(x);
-    case 4:return LegendreP<4>(x);
-    case 5:return LegendreP<5>(x);
-    case 6:return LegendreP<6>(x);
-    case 7:return LegendreP<7>(x);
-    case 8:return LegendreP<8>(x);
-    case 9:return LegendreP<9>(x);
-    case 10:return LegendreP<10>(x);
-    default:return 0.0f;
+        Cl_1e[e] = 1.f / l * ((ae[e] * sinf(gammae[e]) - be[e] * cosf(gammae[e]))*
+            LegendreP<l - 1>(ae[e] * cosf(gammae[e]) + be[e] * sinf(gammae[e])) +
+            be[e] * LegendreP<l - 1>(ae[e]) + (ae[e] * ae[e] + be[e] * be[e] - 1.f)*D1e[e] +
+            (l - 1.f)*B0e[e]);
+        B2_e[e] = ((2.f*l - 1.f) / l)*(Cl_1e[e]) - (l - 1.f) / l * B0e[e];
+        Bl = Bl + ce[e] * B2_e[e];
+        D2e[e] = (2.f*l - 1.f) * B1e[e] + D0e[e];
+
+        D0e[e] = D1e[e];
+        D1e[e] = D2e[e];
+        B0e[e] = B1e[e];
+        B1e[e] = B2_e[e];
     }
+
+    // Optimal storage for S (recurrence relation so that only three terms are kept).
+    // S2 is not represented as S2 really (Sl).
+    if (l % 2 == 0)
+    {
+        float S2 = ((2.f*l - 1) / (l*(l + 1))*Bl_1) + ((l - 2.f)*(l - 1.f) / ((l)*(l + 1.f)))*S0;
+        S0 = S2;
+        Lw[l][i] = sqrtf((2.f * l + 1) / (4.f*M_PIf))*S2;
+    }
+    else
+    {
+        float S2 = ((2.f*l - 1) / (l*(l + 1))*Bl_1) + ((l - 2.f)*(l - 1.f) / ((l)*(l + 1.f)))*S1;
+        S1 = S2;
+        Lw[l][i] = sqrtf((2.f * l + 1) / (4.f*M_PIf))*S2;
+    }
+
+    Bl_1 = Bl;
+
+    computeLw_unroll<l + 1, M>(Lw, ae, gammae, be, ce, D1e, B0e, D2e, B1e, D0e, i, Bl_1, S0, S1);
+}
+
+// Partial specialization is not supported in function templates:
+template<>
+static __device__ __inline__ void computeLw_unroll<9, 5>(float Lw[][19], float ae[], float gammae[], float be[], float ce[], float D1e[], float B0e[], float D2e[], float B1e[], float D0e[], int i, float Bl_1, float S0, float S1)
+{
+    float Bl = 0;
+    float Cl_1e[5 + 1];
+    float B2_e[5 + 1];
+
+    for (int e = 1; e <= 5; ++e)
+    {
+        Cl_1e[e] = 1.f / 9 * ((ae[e] * sinf(gammae[e]) - be[e] * cosf(gammae[e]))*
+            LegendreP<9 - 1>(ae[e] * cosf(gammae[e]) + be[e] * sinf(gammae[e])) +
+            be[e] * LegendreP<9 - 1>(ae[e]) + (ae[e] * ae[e] + be[e] * be[e] - 1.f)*D1e[e] +
+            (9 - 1.f)*B0e[e]);
+        B2_e[e] = ((2.f*9 - 1.f) / 9)*(Cl_1e[e]) - (9 - 1.f) / 9 * B0e[e];
+        Bl = Bl + ce[e] * B2_e[e];
+        D2e[e] = (2.f*9 - 1.f) * B1e[e] + D0e[e];
+
+        D0e[e] = D1e[e];
+        D1e[e] = D2e[e];
+        B0e[e] = B1e[e];
+        B1e[e] = B2_e[e];
+    }
+
+    // Optimal storage for S (recurrence relation so that only three terms are kept).
+    // S2 is not represented as S2 really (Sl).
+    float S2 = ((2.f*9 - 1) / (9*(9 + 1))*Bl_1) + ((9 - 2.f)*(9 - 1.f) / ((9)*(9 + 1.f)))*S1;
+    S1 = S2;
+    Lw[9][i] = sqrtf((2.f * 9 + 1) / (4.f*M_PIf))*S2;
+
+    Bl_1 = Bl;
+}
+
+template<>
+static __device__ __inline__ void computeLw_unroll<9, 4>(float Lw[][19], float ae[], float gammae[], float be[], float ce[], float D1e[], float B0e[], float D2e[], float B1e[], float D0e[], int i, float Bl_1, float S0, float S1)
+{
+    float Bl = 0;
+    float Cl_1e[4 + 1];
+    float B2_e[4 + 1];
+
+    for (int e = 1; e <= 4; ++e)
+    {
+        Cl_1e[e] = 1.f / 9 * ((ae[e] * sinf(gammae[e]) - be[e] * cosf(gammae[e]))*
+            LegendreP<9 - 1>(ae[e] * cosf(gammae[e]) + be[e] * sinf(gammae[e])) +
+            be[e] * LegendreP<9 - 1>(ae[e]) + (ae[e] * ae[e] + be[e] * be[e] - 1.f)*D1e[e] +
+            (9 - 1.f)*B0e[e]);
+        B2_e[e] = ((2.f * 9 - 1.f) / 9)*(Cl_1e[e]) - (9 - 1.f) / 9 * B0e[e];
+        Bl = Bl + ce[e] * B2_e[e];
+        D2e[e] = (2.f * 9 - 1.f) * B1e[e] + D0e[e];
+
+        D0e[e] = D1e[e];
+        D1e[e] = D2e[e];
+        B0e[e] = B1e[e];
+        B1e[e] = B2_e[e];
+    }
+
+    // Optimal storage for S (recurrence relation so that only three terms are kept).
+    // S2 is not represented as S2 really (Sl).
+    float S2 = ((2.f * 9 - 1) / (9 * (9 + 1))*Bl_1) + ((9 - 2.f)*(9 - 1.f) / ((9)*(9 + 1.f)))*S1;
+    S1 = S2;
+    Lw[9][i] = sqrtf((2.f * 9 + 1) / (4.f*M_PIf))*S2;
+
+    Bl_1 = Bl;
+}
+
+template<>
+static __device__ __inline__ void computeLw_unroll<9, 3>(float Lw[][19], float ae[], float gammae[], float be[], float ce[], float D1e[], float B0e[], float D2e[], float B1e[], float D0e[], int i, float Bl_1, float S0, float S1)
+{
+    float Bl = 0;
+    float Cl_1e[3 + 1];
+    float B2_e[3 + 1];
+
+    for (int e = 1; e <= 3; ++e)
+    {
+        Cl_1e[e] = 1.f / 9 * ((ae[e] * sinf(gammae[e]) - be[e] * cosf(gammae[e]))*
+            LegendreP<9 - 1>(ae[e] * cosf(gammae[e]) + be[e] * sinf(gammae[e])) +
+            be[e] * LegendreP<9 - 1>(ae[e]) + (ae[e] * ae[e] + be[e] * be[e] - 1.f)*D1e[e] +
+            (9 - 1.f)*B0e[e]);
+        B2_e[e] = ((2.f * 9 - 1.f) / 9)*(Cl_1e[e]) - (9 - 1.f) / 9 * B0e[e];
+        Bl = Bl + ce[e] * B2_e[e];
+        D2e[e] = (2.f * 9 - 1.f) * B1e[e] + D0e[e];
+
+        D0e[e] = D1e[e];
+        D1e[e] = D2e[e];
+        B0e[e] = B1e[e];
+        B1e[e] = B2_e[e];
+    }
+
+    // Optimal storage for S (recurrence relation so that only three terms are kept).
+    // S2 is not represented as S2 really (Sl).
+    float S2 = ((2.f * 9 - 1) / (9 * (9 + 1))*Bl_1) + ((9 - 2.f)*(9 - 1.f) / ((9)*(9 + 1.f)))*S1;
+    S1 = S2;
+    Lw[9][i] = sqrtf((2.f * 9 + 1) / (4.f*M_PIf))*S2;
+
+    Bl_1 = Bl;
 }
 
 /**
@@ -499,46 +622,7 @@ static __device__ __inline__ void computeCoeff(float3 x, float3 v[], float ylmCo
         Lw[0][i] = sqrtf(1.f / (4.f*M_PIf))*S0;
         Lw[1][i] = sqrtf(3.f / (4.f*M_PIf))*S1;
 
-        // Bands starting from l=2:
-        for (int l = 2; l <= lmax; ++l)
-        {
-            float Bl = 0;
-            float Cl_1e[M + 1];
-            float B2_e[M + 1];
-
-            for (int e = 1; e <= M; ++e)
-            {
-                Cl_1e[e] = 1.f / l * ((ae[e] * sin(gammae[e]) - be[e] * cos(gammae[e]))*
-                    LegendreP(l - 1, ae[e] * cos(gammae[e]) + be[e] * sin(gammae[e])) +
-                    be[e] * LegendreP(l - 1, ae[e]) + (ae[e] * ae[e] + be[e] * be[e] - 1.f)*D1e[e] +
-                    (l - 1.f)*B0e[e]);
-                B2_e[e] = ((2.f*l - 1.f) / l)*(Cl_1e[e]) - (l - 1.f) / l * B0e[e];
-                Bl = Bl + ce[e] * B2_e[e];
-                D2e[e] = (2.f*l - 1.f) * B1e[e] + D0e[e];
-
-                D0e[e] = D1e[e];
-                D1e[e] = D2e[e];
-                B0e[e] = B1e[e];
-                B1e[e] = B2_e[e];
-            }
-
-            // Optimal storage for S (recurrence relation so that only three terms are kept).
-            // S2 is not represented as S2 really (Sl).
-            if (l % 2 == 0)
-            {
-                float S2 = ((2.f*l - 1) / (l*(l + 1))*Bl_1) + ((l - 2.f)*(l - 1.f) / ((l)*(l + 1.f)))*S0;
-                S0 = S2;
-                Lw[l][i] = sqrt((2.f * l + 1) / (4.f*M_PIf))*S2;
-            }
-            else
-            {
-                float S2 = ((2.f*l - 1) / (l*(l + 1))*Bl_1) + ((l - 2.f)*(l - 1.f) / ((l)*(l + 1.f)))*S1;
-                S1 = S2;
-                Lw[l][i] = sqrt((2.f * l + 1) / (4.f*M_PIf))*S2;
-            }
-
-            Bl_1 = Bl;
-        }
+        computeLw_unroll<2,M>(Lw, ae, gammae, be, ce, D1e, B0e, D2e, B1e, D0e, i, Bl_1, S0, S1);
     }
 
 
