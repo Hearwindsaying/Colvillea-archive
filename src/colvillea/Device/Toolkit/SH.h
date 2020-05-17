@@ -323,6 +323,38 @@ namespace Cl
     }
 
 
+    template<int l>
+    static __device__ __inline__ void computeYlm_unroll(float *ylmCoeff, float Lw[9 + 1][2 * 9 + 1])
+    {
+        for (int i = 0; i < 2 * l + 1; ++i)
+        {
+            float coeff = 0.0f;
+            for (int k = 0; k < 2 * l + 1; ++k)
+            {
+                /* Differ from CPU version! access buffer like a coordinates (need a transpose) */
+                coeff += areaLightAlphaCoeff[make_uint2(k, l * l + i)] * Lw[l][k];
+            }
+            ylmCoeff[l * l + i] = coeff;
+        }
+        computeYlm_unroll<l + 1>(ylmCoeff, Lw);
+    }
+
+    template<>
+    static __device__ __inline__ void computeYlm_unroll<9>(float *ylmCoeff, float Lw[9 + 1][2 * 9 + 1])
+    {
+        //TW_ASSERT(2 * j + 1 == 2*lmax+1); // redundant storage
+        for (int i = 0; i < 2 * 9 + 1; ++i)
+        {
+            float coeff = 0.0f;
+            for (int k = 0; k < 2 * 9 + 1; ++k)
+            {
+                /* Differ from CPU version! access buffer like a coordinates (need a transpose) */
+                coeff += areaLightAlphaCoeff[make_uint2(k, 9 * 9 + i)] * Lw[9][k];
+            }
+            ylmCoeff[9 * 9 + i] = coeff;
+        }
+    }
+
     /**
      * @brief GPU Version computeCoeff
      * @param[in] we Area Light vertices in local shading space.
@@ -384,7 +416,7 @@ namespace Cl
             for (int e = 1; e <= M; ++e)
             {
                 ae[e] = optix::dot(wi, we[e]); be[e] = optix::dot(wi, lambdae[e]); ce[e] = optix::dot(wi, ue[e]);
-                S1 += 0.5*ce[e] * gammae[e];
+                S1 += 0.5f*ce[e] * gammae[e];
 
                 B0e[e] = gammae[e];
                 B1e[e] = ae[e] * sinf(gammae[e]) - be[e] * cosf(gammae[e]) + be[e];
@@ -407,20 +439,21 @@ namespace Cl
 
 
         //TW_ASSERT(9 == a.size());
-        for (int j = 0; j <= lmax; ++j)
-        {
-            //TW_ASSERT(2 * j + 1 == 2*lmax+1); // redundant storage
-            for (int i = 0; i < 2 * j + 1; ++i)
-            {
-                float coeff = 0.0f;
-                for (int k = 0; k < 2 * j + 1; ++k)
-                {
-                    /* Differ from CPU version! access buffer like a coordinates (need a transpose) */
-                    coeff += areaLightAlphaCoeff[make_uint2(k, j*j + i)] * Lw[j][k];
-                }
-                ylmCoeff[j*j + i] = coeff;
-            }
-        }
+        //for (int j = 0; j <= lmax; ++j)
+        //{
+        //    //TW_ASSERT(2 * j + 1 == 2*lmax+1); // redundant storage
+        //    for (int i = 0; i < 2 * j + 1; ++i)
+        //    {
+        //        float coeff = 0.0f;
+        //        for (int k = 0; k < 2 * j + 1; ++k)
+        //        {
+        //            /* Differ from CPU version! access buffer like a coordinates (need a transpose) */
+        //            coeff += areaLightAlphaCoeff[make_uint2(k, j*j + i)] * Lw[j][k];
+        //        }
+        //        ylmCoeff[j*j + i] = coeff;
+        //    }
+        //}
+        computeYlm_unroll<0>(ylmCoeff, Lw);
     }
 }
 
