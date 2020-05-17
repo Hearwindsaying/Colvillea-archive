@@ -533,6 +533,7 @@ std::vector<float> computeCoeff(float3 x, std::vector<float3> & v, /*int n, std:
 #endif   
 
     //TW_ASSERT(9 == a.size());
+    //printf("------\n");
     for (int j = 0; j <= lmax; ++j)
     {
         if(lmax == 2)
@@ -542,9 +543,11 @@ std::vector<float> computeCoeff(float3 x, std::vector<float3> & v, /*int n, std:
             float coeff = 0.0f;
             for (int k = 0; k < 2 * j + 1; ++k)
             {
+                //printf("cpuVersion Lw[%d][%d]=%f\n", j, k, Lw[j][k]);
                 coeff += a[j*j+i][k] * Lw[j][k];
             }
             ylmCoeff[j*j + i] = coeff;
+            //printf("\n");
         }
     }
 
@@ -774,6 +777,7 @@ void computeCoeff(float3 x, float3 v[], const float3 w[], const float a[][2*lmax
 #endif
 
     //TW_ASSERT(9 == a.size());
+    //printf("------\n");
     for (int j = 0; j <= lmax; ++j)
     {
         //TW_ASSERT(2 * j + 1 == 2*lmax+1); // redundant storage
@@ -782,9 +786,11 @@ void computeCoeff(float3 x, float3 v[], const float3 w[], const float a[][2*lmax
             float coeff = 0.0f;
             for (int k = 0; k < 2 * j + 1; ++k)
             {
+                //printf("gpuVersion Lw[%d][%d]=%f\n", j, k, Lw[j][k]);
                 coeff += a[j*j + i][k] * Lw[j][k];
             }
             ylmCoeff[j*j + i] = coeff;
+            //printf("\n");
         }
     }
 }

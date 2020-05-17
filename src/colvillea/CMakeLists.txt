@@ -79,6 +79,7 @@ set(SOURCE_LIST
 	"${CMAKE_CURRENT_SOURCE_DIR}/Device/Toolkit/NvRandom.h"
 	"${CMAKE_CURRENT_SOURCE_DIR}/Device/Toolkit/Serialize.h"
 	"${CMAKE_CURRENT_SOURCE_DIR}/Device/Toolkit/Utility.h"
+	"${CMAKE_CURRENT_SOURCE_DIR}/Device/Toolkit/SH.h"
 	
 	"${CMAKE_CURRENT_SOURCE_DIR}/Module/Camera/Camera.cpp"
 	"${CMAKE_CURRENT_SOURCE_DIR}/Module/Camera/Camera.h"
@@ -214,6 +215,7 @@ OPTIX_add_sample_executable( colvillea
 	${CMAKE_CURRENT_SOURCE_DIR}/Device/Toolkit/NvRandom.h
 	${CMAKE_CURRENT_SOURCE_DIR}/Device/Toolkit/Serialize.h
 	${CMAKE_CURRENT_SOURCE_DIR}/Device/Toolkit/Utility.h
+	${CMAKE_CURRENT_SOURCE_DIR}/Device/Toolkit/SH.h
 	
 	${CMAKE_CURRENT_SOURCE_DIR}/Module/Camera/Camera.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/Module/Camera/Camera.h
