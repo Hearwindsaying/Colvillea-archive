@@ -208,6 +208,8 @@ void Application::render()
 {
     try
     {
+        if (this->m_sysIterationIndex == 0)
+            this->m_cameraController->cameraInfoFromFile();
         if (this->m_resetRenderParamsNotification)
         {
             this->m_sysIterationIndex = 0;

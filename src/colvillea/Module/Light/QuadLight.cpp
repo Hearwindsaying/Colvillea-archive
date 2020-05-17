@@ -308,6 +308,37 @@ float computeSolidAngle(const float3 we[])
     return S0;
 }
 
+template<int l>
+void computeYlm_unroll(std::vector<float> & ylmCoeff, std::vector<std::vector<float>> const& Lw, std::vector<std::vector<float>> const& areaLightAlphaCoeff)
+{
+    for (int i = 0; i < 2 * l + 1; ++i)
+    {
+        float coeff = 0.0f;
+        for (int k = 0; k < 2 * l + 1; ++k)
+        {
+            /* Differ from CPU version! access buffer like a coordinates (need a transpose) */
+            coeff += areaLightAlphaCoeff[l * l + i][k] * Lw[l][k];
+        }
+        ylmCoeff[l * l + i] = coeff;
+    }
+    computeYlm_unroll<l + 1>(ylmCoeff, Lw, areaLightAlphaCoeff);
+}
+template<>
+void computeYlm_unroll<9>(std::vector<float> & ylmCoeff, std::vector<std::vector<float>> const& Lw, std::vector<std::vector<float>> const& areaLightAlphaCoeff)
+{
+    constexpr int l = 9;
+    for (int i = 0; i < 2 * l + 1; ++i)
+    {
+        float coeff = 0.0f;
+        for (int k = 0; k < 2 * l + 1; ++k)
+        {
+            /* Differ from CPU version! access buffer like a coordinates (need a transpose) */
+            coeff += areaLightAlphaCoeff[l * l + i][k] * Lw[l][k];
+        }
+        ylmCoeff[l * l + i] = coeff;
+    }
+}
+
 /**
  * @ x:shading point in world space
  * @ v:vertices of quad/polygonal light in world space, size==M+1, index starting from 1
@@ -532,8 +563,8 @@ std::vector<float> computeCoeff(float3 x, std::vector<float3> & v, /*int n, std:
     }
 #endif   
 
-    //TW_ASSERT(9 == a.size());
-    //printf("------\n");
+    ////TW_ASSERT(9 == a.size());
+    ////printf("------\n");
     for (int j = 0; j <= lmax; ++j)
     {
         if(lmax == 2)
@@ -541,23 +572,24 @@ std::vector<float> computeCoeff(float3 x, std::vector<float3> & v, /*int n, std:
         for (int i = 0; i < 2 * j + 1; ++i)
         {
             float coeff = 0.0f;
+            //printf("ylmCoeff[%d]=", j*j + i);
             for (int k = 0; k < 2 * j + 1; ++k)
             {
-                //printf("cpuVersion Lw[%d][%d]=%f\n", j, k, Lw[j][k]);
+                //printf("%ff*Lw[%d][%d]",a[j*j+i][k],j,k);
+                //if(k!=2*j)
+                //    printf("+");
                 coeff += a[j*j+i][k] * Lw[j][k];
             }
+            //printf(";\n");
             ylmCoeff[j*j + i] = coeff;
-            //printf("\n");
         }
     }
-
 #if computeCoeff_DBGINFO
      for (const auto& ylmC : ylmCoeff)
      {
          printf("%f\n", ylmC);
      }
 #endif
-    
     return ylmCoeff;
 }
 
