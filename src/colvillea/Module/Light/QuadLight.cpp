@@ -1876,6 +1876,7 @@ void QuadLight::initializeAreaLight(optix::Context& context)
 
     context["areaLightFlmVector"]->setBuffer(areaLightFlmVectorBuffer);
 
+#if 0
     /* Alpha coeff. */
     constexpr size_t rawArow = (lmax+1)*(lmax+1);
     constexpr size_t rawAcol = (2*lmax+1);
@@ -2001,6 +2002,8 @@ void QuadLight::initializeAreaLight(optix::Context& context)
     areaLightAlphaCoeffBuffer->unmap();
 
     context["areaLightAlphaCoeff"]->setBuffer(areaLightAlphaCoeffBuffer);
+#endif
+
 #elif SHIntegration_Order2
     constexpr size_t l = 2; // N=3 order SH, lmax = 2, l goes from [0,2]
     constexpr size_t AProws = (l + 1)*(l + 1);

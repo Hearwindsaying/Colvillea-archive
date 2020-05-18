@@ -266,7 +266,7 @@ rtBuffer<float> areaLightFlmVector;
 /* Basis Directions. */
 rtBuffer<float3, 1> areaLightBasisVector;
 
-rtBuffer<float, 2> areaLightAlphaCoeff;
+//rtBuffer<float, 2> areaLightAlphaCoeff;
 #endif
 
 namespace Cl
@@ -353,19 +353,12 @@ namespace Cl
     static __device__ __inline__ void ClipQuadToHorizon(optix::float3 L[5], int &n)
     {
         /* Make a copy of L[]. */
-        optix::float3 Lorg[4];
-
-        //memcpy(&Lorg[0], &L[0], sizeof(optix::float3) * 4);
-        for (int i = 0; i <= 3; ++i)
-            Lorg[i] = L[i];
+        optix::float3 Lorg[4]{ L[0],L[1],L[2],L[3] };
 
         auto IntersectRayZ0 = [](const optix::float3 &A, const optix::float3 &B)->optix::float3
         {
-            optix::float3 o = A;
-            optix::float3 d = TwUtil::safe_normalize(B - A);
             float t = -A.z * (optix::length(B - A) / (B - A).z);
-            if (!(t >= 0.f))rtPrintf("error in IntersectRayZ0.\n");
-            return o + t * d;
+            return A + t * TwUtil::safe_normalize(B - A);
         };
 
         n = 0;
@@ -388,13 +381,7 @@ namespace Cl
             {
                 L[n++] = IntersectRayZ0(A, B);
             }
-            else
-            {
-                rtPrintf("ClipQuadToHorizon A B.z.\n");
-            }
         }
-        if (!(n == 0 || n == 3 || n == 4 || n == 5))
-            rtPrintf("ClipQuadToHorizon n.\n");
     }
 
     /**
@@ -418,7 +405,10 @@ namespace Cl
         return S0;
     }
 
-
+    /**
+     * @brief Convert point in world space into TBN local coordinates without
+     * hemisphere projection.
+     */
     static __device__ __inline__ optix::float3 BSDFWorldToLocal(const optix::float3 & v, const optix::float3 & sn, const optix::float3 & tn, const optix::float4 & nn, const optix::float3 &worldPoint)
     {
         optix::float3 pt;
@@ -426,6 +416,19 @@ namespace Cl
         pt.y = optix::dot(v, tn) - optix::dot(worldPoint, tn);
         pt.z = TwUtil::dot(v, nn) - TwUtil::dot(worldPoint, nn);
         return pt;
+    }
+
+    /**
+     * @brief Convert point in world space into TBN local coordinates, and
+     * project into unit hemisphere.
+     */
+    static __device__ __inline__ optix::float3 BSDFWorldToLocal_Project(const optix::float3 & v, const optix::float3 & sn, const optix::float3 & tn, const optix::float4 & nn, const optix::float3 &worldPoint)
+    {
+        optix::float3 pt;
+        pt.x = optix::dot(v, sn) - optix::dot(worldPoint, sn);
+        pt.y = optix::dot(v, tn) - optix::dot(worldPoint, tn);
+        pt.z = TwUtil::dot(v, nn) - TwUtil::dot(worldPoint, nn);
+        return TwUtil::safe_normalize(pt);
     }
 
     /************************************************************************/
@@ -574,41 +577,6 @@ namespace Cl
     }
 
 
-    template<int l>
-    static __device__ __inline__ void computeYlm_unroll(float *ylmCoeff, float Lw[9 + 1][2 * 9 + 1])
-    {
-        //if (sysLaunch_index == make_uint2(1280 / 2, 720 / 2))
-            //rtPrintf("*****Lw[8][0]:%f , %f %f %f %f %f  \n", Lw[8][0], Lw[8][1], Lw[8][2], Lw[8][3], Lw[8][4], Lw[8][5]);
-        for (int i = 0; i < 2 * l + 1; ++i)
-        {
-            float coeff = 0.0f;
-            for (int k = 0; k < 2 * l + 1; ++k)
-            {
-                /* Differ from CPU version! access buffer like a coordinates (need a transpose) */
-                coeff += areaLightAlphaCoeff[make_uint2(k, l * l + i)] * Lw[l][k];
-                /*if (sysLaunch_index == make_uint2(1280 / 2, 720 / 2))
-                    rtPrintf("Lw[%d][%d]:%f Coeff:%f\n", l,k,Lw[l][k],coeff);*/
-            }
-            ylmCoeff[l * l + i] = coeff;
-        }
-        computeYlm_unroll<l + 1>(ylmCoeff, Lw);
-    }
-
-    template<>
-    static __device__ __inline__ void computeYlm_unroll<9>(float *ylmCoeff, float Lw[9 + 1][2 * 9 + 1])
-    {
-        //TW_ASSERT(2 * j + 1 == 2*lmax+1); // redundant storage
-        for (int i = 0; i < 2 * 9 + 1; ++i)
-        {
-            float coeff = 0.0f;
-            for (int k = 0; k < 2 * 9 + 1; ++k)
-            {
-                /* Differ from CPU version! access buffer like a coordinates (need a transpose) */
-                coeff += areaLightAlphaCoeff[make_uint2(k, 9 * 9 + i)] * Lw[9][k];
-            }
-            ylmCoeff[9 * 9 + i] = coeff;
-        }
-    }
 
     /**
      * @brief GPU Version computeCoeff
@@ -616,7 +584,7 @@ namespace Cl
      *  Note that this parameter will be modified and should
      *  not be used after calling this function. The vertices
      *  indices starts from 1, to M.
-     *  They could be not normalized.
+     *  They must be normalized (i.e. projected on unit hemisphere)
      * @note Since it's assumed that |we| are in local shading space.
      *  The original |x| parameter is set by default to (0,0,0)
      */
@@ -630,13 +598,6 @@ namespace Cl
 #endif
         //TW_ASSERT(v.size() == M + 1);
         //TW_ASSERT(n == 2);
-        // for all edges:
-
-        for (int e = 1; e <= M; ++e)
-        {
-            we[e] = TwUtil::safe_normalize(we[e]);
-        }
-
         float3 lambdae[M + 1];
         float3 ue[M + 1];
         float gammae[M + 1];
@@ -692,23 +653,7 @@ namespace Cl
             computeLw_unroll<2, M>(Lw, ae, gammae, be, ce, D1e, B0e, D2e, B1e, D0e, i, Bl_1, S0, S1);
         }
 
-
-        //TW_ASSERT(9 == a.size());
-        //for (int j = 0; j <= lmax; ++j)
-        //{
-        //    //TW_ASSERT(2 * j + 1 == 2*lmax+1); // redundant storage
-        //    for (int i = 0; i < 2 * j + 1; ++i)
-        //    {
-        //        float coeff = 0.0f;
-        //        for (int k = 0; k < 2 * j + 1; ++k)
-        //        {
-        //            /* Differ from CPU version! access buffer like a coordinates (need a transpose) */
-        //            coeff += areaLightAlphaCoeff[make_uint2(k, j*j + i)] * Lw[j][k];
-        //        }
-        //        ylmCoeff[j*j + i] = coeff;
-        //    }
-        //}
-
+#pragma region REGION_YLMCoeff_MUL
         ylmCoeff[0] = 1.000000f*Lw[0][0];
         ylmCoeff[1] = 0.684451f*Lw[1][0] + 0.359206f*Lw[1][1] + -1.290530f*Lw[1][2];
         ylmCoeff[2] = 0.491764f*Lw[1][0] + 0.430504f*Lw[1][1] + 0.232871f*Lw[1][2];
@@ -809,10 +754,7 @@ namespace Cl
         ylmCoeff[97] = -1062.069946f*Lw[9][0] + 2209.780029f*Lw[9][1] + -2182.310059f*Lw[9][2] + 1229.069946f*Lw[9][3] + -1862.270020f*Lw[9][4] + 3611.850098f*Lw[9][5] + 2412.590088f*Lw[9][6] + -6359.959961f*Lw[9][7] + -5351.250000f*Lw[9][8] + -273.013000f*Lw[9][9] + -5350.439941f*Lw[9][10] + -6360.089844f*Lw[9][11] + 2411.989990f*Lw[9][12] + 3611.870117f*Lw[9][13] + -1861.829956f*Lw[9][14] + 1228.810059f*Lw[9][15] + -2182.179932f*Lw[9][16] + 2210.479980f*Lw[9][17] + -1062.010010f*Lw[9][18];
         ylmCoeff[98] = 7764.910156f*Lw[9][0] + -16152.299805f*Lw[9][1] + 15962.099609f*Lw[9][2] + -8985.759766f*Lw[9][3] + 13610.299805f*Lw[9][4] + -26396.800781f*Lw[9][5] + -17643.599609f*Lw[9][6] + 46496.101563f*Lw[9][7] + 39121.101563f*Lw[9][8] + 1997.650024f*Lw[9][9] + 39123.300781f*Lw[9][10] + 46497.601563f*Lw[9][11] + -17644.300781f*Lw[9][12] + -26395.699219f*Lw[9][13] + 13609.599609f*Lw[9][14] + -8987.129883f*Lw[9][15] + 15960.500000f*Lw[9][16] + -16150.200195f*Lw[9][17] + 7764.959961f*Lw[9][18];
         ylmCoeff[99] = -7382.979980f*Lw[9][0] + 15356.700195f*Lw[9][1] + -15175.599609f*Lw[9][2] + 8543.610352f*Lw[9][3] + -12939.799805f*Lw[9][4] + 25096.900391f*Lw[9][5] + 16775.500000f*Lw[9][6] + -44208.699219f*Lw[9][7] + -37195.898438f*Lw[9][8] + -1899.550049f*Lw[9][9] + -37196.699219f*Lw[9][10] + -44209.000000f*Lw[9][11] + 16776.199219f*Lw[9][12] + 25096.800781f*Lw[9][13] + -12939.799805f*Lw[9][14] + 8544.309570f*Lw[9][15] + -15175.299805f*Lw[9][16] + 15355.799805f*Lw[9][17] + -7383.100098f*Lw[9][18];
-
-        //if (sysLaunch_index == make_uint2(1280 / 2, 720 / 2))
-        //    rtPrintf("Lw[8][0]:%f , %f %f %f %f %f  \n", Lw[8][0], Lw[8][1], Lw[8][2], Lw[8][3], Lw[8][4], Lw[8][5]);
-        //computeYlm_unroll<0>(ylmCoeff, Lw);
+#pragma endregion REGION_YLMCoeff_MUL
     }
 }
 
@@ -839,6 +781,9 @@ static __device__ __inline__ float4 EstimateDirectLighting<CommonStructs::LightT
     /* SH Integration */
     /* 1. Get 4 vertices of QuadLight. */
 #if SHINTEGRATION_ANALYTIC
+    // Todo: 1.this works for BRDF but not BTDF.
+    // Todo: 2.this does not account for the "strict normal" issue.
+    if(TwUtil::dot(isectDir, shaderParams.nGeometry) >= 0.f)
     {
         float3 quadShape[5];
         const CommonStructs::QuadLight &quadLight = sysLightBuffers.quadLightBuffer[lightId];
@@ -850,10 +795,10 @@ static __device__ __inline__ float4 EstimateDirectLighting<CommonStructs::LightT
         quadShape[4] = make_float3(0.f);
 
         /* 2. Convert QuadLight from World To BSDFLocal (or just use directional information and call WorldToLocal only. */
-        quadShape[0] = Cl::BSDFWorldToLocal(quadShape[0], shaderParams.dgShading.dpdu, shaderParams.dgShading.tn, shaderParams.dgShading.nn, isectP);
-        quadShape[1] = Cl::BSDFWorldToLocal(quadShape[1], shaderParams.dgShading.dpdu, shaderParams.dgShading.tn, shaderParams.dgShading.nn, isectP);
-        quadShape[2] = Cl::BSDFWorldToLocal(quadShape[2], shaderParams.dgShading.dpdu, shaderParams.dgShading.tn, shaderParams.dgShading.nn, isectP);
-        quadShape[3] = Cl::BSDFWorldToLocal(quadShape[3], shaderParams.dgShading.dpdu, shaderParams.dgShading.tn, shaderParams.dgShading.nn, isectP);
+        quadShape[0] = Cl::BSDFWorldToLocal_Project(quadShape[0], shaderParams.dgShading.dpdu, shaderParams.dgShading.tn, shaderParams.dgShading.nn, isectP);
+        quadShape[1] = Cl::BSDFWorldToLocal_Project(quadShape[1], shaderParams.dgShading.dpdu, shaderParams.dgShading.tn, shaderParams.dgShading.nn, isectP);
+        quadShape[2] = Cl::BSDFWorldToLocal_Project(quadShape[2], shaderParams.dgShading.dpdu, shaderParams.dgShading.tn, shaderParams.dgShading.nn, isectP);
+        quadShape[3] = Cl::BSDFWorldToLocal_Project(quadShape[3], shaderParams.dgShading.dpdu, shaderParams.dgShading.tn, shaderParams.dgShading.nn, isectP);
 
         constexpr int lmax = 9;
 
@@ -903,9 +848,6 @@ static __device__ __inline__ float4 EstimateDirectLighting<CommonStructs::LightT
                     L += make_float4(areaLightFlmVector[i] * ylmCoeff[i]);
                 }
             }
-            
-
-            //if (areaLightBasisVector.size() != 2*lmax+1)rtPrintf("assert failed at areaLightBasisVector.size()!=5\n");
             L *= quadLight.intensity * shaderParams.Reflectance / M_PIf;
 #if MEASURE_TIMING_SH_COEFF
             if (sysLaunch_index == make_uint2(960, 640))
