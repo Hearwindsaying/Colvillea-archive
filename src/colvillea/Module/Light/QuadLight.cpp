@@ -1461,6 +1461,7 @@ void QuadLight::TestYlmCoeff()
                                    make_float3(-0.538853, -0.022282, -0.842105),
                                    make_float3(0.226929, 0.225824, -0.947368), };
 
+        // Unit Test Polygon with edge = 4. UnitHemisphere case.
         {
             // Well projected on hemisphere
             auto A1 = make_float3(0.0f, 1.0f, 0.0f);
@@ -1483,7 +1484,7 @@ void QuadLight::TestYlmCoeff()
             std::mt19937 gen(rd()); //Standard mersenne_twister_engine seeded with rd()
             std::uniform_real_distribution<> dis(0.0, 1.0);
 
-            constexpr int iteration = 10000000;
+            constexpr int iteration = 1000000;
             constexpr int lmax = 9; // order 9
 
             
@@ -1498,6 +1499,9 @@ void QuadLight::TestYlmCoeff()
                 SHEvalFast(sample, lmax, ylm);
                 TW_ASSERT(ylm.size() == (lmax + 1)*(lmax + 1));
                 MCResultCoeffVec += ylm / pdfHemisphere();
+
+                std::cout << "MC Progress: " << i << " / " << iteration << "     \r";
+                std::cout.flush();
             }
             MCResultCoeffVec *= (1.0 / iteration);
 
@@ -1529,6 +1533,25 @@ void QuadLight::TestYlmCoeff()
                 printf("}\n");
             }
             ++ntests;
+
+#if VALIDATE_SH_ORDER9_MC
+            if (!equal(MCResultCoeff.begin(), MCResultCoeff.end(), &ylmCoeff[0], [epsilon](const float& x, const float& y)
+            {
+                return std::abs(x - y) <= epsilon;
+            }))
+            {
+                ++nfails;
+                TW_ASSERT(MCResultCoeff.size() == 100);
+                printf("{\n");
+                for (int i = 0; i < MCResultCoeff.size(); ++i)
+                {
+                    printf("Test failed at Line:%d t1[%d]:%.7f ylmCoeff(GPU)[%d]:%.7f\n", __LINE__, i, MCResultCoeff[i], i, ylmCoeff[i]);
+                }
+                printf("}\n");
+            }
+            ++ntests;
+            std::exit(0);
+#endif
 
             std::vector<float> t2{ 0,-2.38419e-07,1.53499,-1.78814e-07,8.0361e-09,1.29553e-08,-1.49964e-09,2.37276e-08,-5.70635e-08,1.90735e-06,0,
 1.19209e-07,-0.586183,-1.19209e-07,-1.19209e-07,4.91738e-07,2.90852e-07,-1.73211e-08,3.61446e-07,-5.52696e-07,2.85673e-07,
@@ -1584,6 +1607,154 @@ void QuadLight::TestYlmCoeff()
             ++ntests;
 #endif
         } 
+
+        // Unit Test Polygon with edge = 5. UnitHemisphere case.
+         {
+         // Well projected on hemisphere
+         auto A1 = make_float3(0.0f, 1.0f, 0.0f);
+         auto B1 = make_float3(-1.0f, 0.0f, 0.0f);
+         auto C1 = make_float3(0.0f, -1.0f, 0.0f);
+         auto D1 = make_float3(1.0f, 0.0f, 0.0f);
+         auto E1 = make_float3(sqrt(2) / 2.f, sqrt(2) / 2.f, 0.f);
+
+         /* MC Validation of canonical cases: */
+#if VALIDATE_SH_ORDER9_MC
+         auto uniformSamplingHemisphere = [](float x, float y)->CLTest::CommonStruct::QuadLight_float3
+         {
+             float z = x;
+             float r = std::sqrt(std::max(0.f, 1.f - z * z));
+             float phi = 2 * M_PI * y;
+             return CLTest::CommonStruct::make_QuadLight_float3(r * std::cos(phi), r * std::sin(phi), z);
+         };
+
+         auto pdfHemisphere = []()->float {return 1.f / (2.f*M_PI); };
+         std::random_device rd;  //Will be used to obtain a seed for the random number engine
+         std::mt19937 gen(rd()); //Standard mersenne_twister_engine seeded with rd()
+         std::uniform_real_distribution<> dis(0.0, 1.0);
+
+         constexpr int iteration = 100000;
+         constexpr int lmax = 9; // order 9
+
+
+         Eigen::VectorXf MCResultCoeffVec((lmax + 1)*(lmax + 1));
+         MCResultCoeffVec = Eigen::VectorXf::Zero((lmax + 1)*(lmax + 1));
+         for (int i = 1; i <= iteration; ++i)
+         {
+             Eigen::VectorXf ylm((lmax + 1)*(lmax + 1));
+             ylm = Eigen::VectorXf::Zero((lmax + 1)*(lmax + 1));
+
+             CLTest::CommonStruct::QuadLight_float3 sample = uniformSamplingHemisphere(dis(gen), dis(gen));
+             SHEvalFast(sample, lmax, ylm);
+             TW_ASSERT(ylm.size() == (lmax + 1)*(lmax + 1));
+             MCResultCoeffVec += ylm / pdfHemisphere();
+
+             std::cout << "MC Progress: " << i << " / " << iteration << "     \r";
+             std::cout.flush();
+         }
+         MCResultCoeffVec *= (1.0 / iteration);
+
+         std::vector<float> MCResultCoeff;
+         for (int i = 0; i < 100; ++i)
+         {
+             MCResultCoeff.push_back(MCResultCoeffVec(i));
+         }
+#endif
+
+         std::vector<float3> v{ make_float3(0.f),A1,B1,C1,D1,E1 };
+         //std::vector<float3> v{ make_float3(0.f),A1,B1,D1 };
+         std::vector<float> t1 = computeCoeff<5, 9>(make_float3(0.f), v, basisData, true, a);
+
+         float ylmCoeff[100];
+         computeCoeff<5, 9>(make_float3(0.f), v.data(), basisData.data(), rawA, ylmCoeff);
+         if (!equal(t1.begin(), t1.end(), &ylmCoeff[0], [epsilon](const float& x, const float& y)
+         {
+             return std::abs(x - y) <= epsilon;
+         }))
+         {
+             ++nfails;
+             TW_ASSERT(t1.size() == 100);
+             printf("{\n");
+             for (int i = 0; i < t1.size(); ++i)
+             {
+                 printf("Test failed at Line:%d t1[%d]:%.7f ylmCoeff(GPU)[%d]:%.7f\n", __LINE__, i, t1[i], i, ylmCoeff[i]);
+             }
+             printf("}\n");
+         }
+         ++ntests;
+
+#if VALIDATE_SH_ORDER9_MC
+         if (!equal(MCResultCoeff.begin(), MCResultCoeff.end(), &ylmCoeff[0], [epsilon](const float& x, const float& y)
+         {
+             return std::abs(x - y) <= epsilon;
+         }))
+         {
+             ++nfails;
+             TW_ASSERT(MCResultCoeff.size() == 100);
+             printf("{\n");
+             for (int i = 0; i < MCResultCoeff.size(); ++i)
+             {
+                 printf("Test failed at Line:%d MonteCarlo[%d]:%.7f ylmCoeff(GPU)[%d]:%.7f\n", __LINE__, i, MCResultCoeff[i], i, ylmCoeff[i]);
+             }
+             printf("}\n");
+         }
+         ++ntests;
+         std::exit(0);
+#endif
+
+         std::vector<float> t2{ 0,-2.38419e-07,1.53499,-1.78814e-07,8.0361e-09,1.29553e-08,-1.49964e-09,2.37276e-08,-5.70635e-08,1.90735e-06,0,
+1.19209e-07,-0.586183,-1.19209e-07,-1.19209e-07,4.91738e-07,2.90852e-07,-1.73211e-08,3.61446e-07,-5.52696e-07,2.85673e-07,
+2.19718e-07,2.16946e-07,4.27483e-07,2.03351e-07,0,3.21865e-06,-3.93391e-06,-9.53674e-07,1.07288e-06,0.367402,
+-9.53674e-07,3.8147e-06,-1.66893e-06,-7.45058e-07,4.05312e-06,1.59473e-07,8.44052e-07,-1.00783e-07,4.63194e-07,6.57873e-07,
+-1.27605e-07,6.28974e-07,-9.65823e-07,-9.55999e-07,1.80002e-06,-1.09245e-06,-9.892e-07,-3.4858e-07,1.62125e-05,-1.14441e-05,
+2.38419e-06,-2.86102e-06,-4.76837e-06,1.90735e-06,1.81198e-05,-0.26816,3.8147e-06,-3.33786e-06,6.67572e-06,7.62939e-06,
+3.8147e-06,8.58307e-06,-7.62939e-06,-1.8975e-06,-5.77771e-06,-7.41833e-06,-2.07832e-06,-7.66758e-06,-6.26134e-07,3.82385e-06,
+-1.88402e-06,-3.5203e-06,1.18708e-06,8.25938e-06,1.41067e-05,-4.0676e-06,-5.4201e-06,6.67927e-06,-4.89425e-06,-4.6691e-06,
+1.5,0.00292969,0.265625,1.625,0.21875,1.375,0.484375,1.875,-0.625,-0.375,
+-0.4375,1.375,0.65625,-0.00683594,1.25,-0.8125,0.0859375,0.75,0.1875, };
+         TW_ASSERT(t2.size() == 100);
+         if (!equal(t1.begin(), t1.end(), t2.begin(), [epsilon](const float& x, const float& y)
+         {
+             return std::abs(x - y) <= epsilon;
+         }))
+         {
+             ++nfails;
+             TW_ASSERT(t1.size() == t2.size());
+             for (int i = 0; i < t1.size(); ++i)
+             {
+                 printf("Test failed at Line:%d t1[%d]:%f t2[%d]:%f\n", __LINE__, i, t1[i], i, t2[i]);
+             }
+         }
+         ++ntests;
+#if VALIDATE_SH_ORDER9_MC
+         if (!equal(t1.begin(), t1.end(), MCResultCoeff.begin(), [epsilon](const float& x, const float& y)
+         {
+             return std::abs(x - y) <= epsilon;
+         }))
+         {
+             ++nfails;
+             TW_ASSERT(t1.size() == MCResultCoeff.size());
+             for (int i = 0; i < t1.size(); ++i)
+             {
+                 printf("Test failed at Line:%d t1[%d]:%f MCResultCoeff[%d]:%f\n", __LINE__, i, t1[i], i, MCResultCoeff[i]);
+             }
+         }
+         ++ntests;
+
+         if (!equal(t2.begin(), t2.end(), MCResultCoeff.begin(), [epsilon](const float& x, const float& y)
+         {
+             return std::abs(x - y) <= epsilon;
+         }))
+         {
+             ++nfails;
+             TW_ASSERT(t2.size() == MCResultCoeff.size());
+             for (int i = 0; i < t2.size(); ++i)
+             {
+                 printf("Test failed at Line:%d t2[%d]:%f MCResultCoeff[%d]:%f\n", __LINE__, i, t2[i], i, MCResultCoeff[i]);
+             }
+         }
+         ++ntests;
+#endif
+        }
 
 //        {
 //            // Well projected on hemisphere
@@ -2402,8 +2573,15 @@ void QuadLight::initializeAreaLight(optix::Context& context)
     context["areaLightBasisVector"]->setBuffer(areaLightBasisVectorBuffer);
 
     /* Flm diffuse Vector. */
-    std::vector<float> Flm_data{ 0.268985,0.000214693,0.336971,-0.00179676,-0.00377481,0.000431436,0.178585,-0.00309102,0.00110261,0.000244611,-0.00270744,-0.000907655,0.00505085,-0.00282868,0.00296516,-0.00409108,-0.00139595,-0.000243531,0.000206071,-0.00431938,-0.0337186,-0.0016056,0.00408457,-0.00476357,0.00109925,-5.56032e-05,-0.00203488,-0.00167503,0.00396617,-0.00848528,0.00180117,0.00132287,0.00390038,-0.00464888,0.00149478,0.00307399,0.00216639,-0.00166132,-0.00221808,-0.0033795,0.00494139,-0.00662686,0.0164715,0.00305539,0.00112277,-0.00355957,0.000907865,0.00509134,0.00189163,0.000922727,0.00271026,-0.00314071,-0.0030905,-0.00420886,0.0039766,-0.00101252,0.000895643,0.00350988,-0.00303527,-0.00366246,-0.000299833,0.00525,0.00204088,0.0034147,-0.00212067,0.00185999,0.00212068,-0.00184453,-0.00372554,-0.00204841,0.00387355,0.00441764,-0.00851125,0.00168139,-0.00681009,-0.00414122,-0.00158837,0.00210927,0.00215199,0.00537809,0.00213542,-0.000394887,-0.00258227,0.00287402,0.000434673,0.00139832,-0.00323931,0.0033196,0.00479884,0.00683564,-0.00169632,-0.000511877,-0.00804228,-0.00350908,-0.00234572,3.40814e-05,0.000449437,0.002933,0.00289487,-0.000556304, };
-    /*std::vector<float> Flm_data{ 0.886227012, -0, 1.02332675, -0, 0, -0, 0.495415896, -0, 0, -0, 0, -0, 0, -0, 0, -0, -0, 0, -0, 0, -0.110778376, 0, -0, 0, -0, -0, 0, -0, 0, -0, 0, -0, 0, -0, 0, -0, 0, -0, 0, -0, 0, -0, 0.0499271452, -0, 0, -0, 0, -0, 0, -0, 0, -0, 0, -0, 0, -0, 0, -0, 0, -0, 0, -0, 0, -0, -0, 0, -0, 0, -0, 0, -0, 0, -0.0285469331, 0, -0, 0, -0, 0, -0, 0, -0, -0, 0, -0, 0, -0, 0, -0, 0, -0, 0, -0, 0, -0, 0, -0, 0, -0, 0, -0, };*/
+#if 1
+    // Randomly multiplied BSDFMatrix with Ylm.
+    std::vector<float> Flm_data{ 0.268985,0.000214693,0.336971,-0.00179676,-0.00377481,0.000431436,0.178585,-0.00309102,0.00110261,0.000244611,-0.00270744,-0.000907655,0.00505085,-0.00282868,0.00296516,-0.00409108,-0.00139595,-0.000243531,0.000206071,-0.00431938,-0.0337186,-0.0016056,0.00408457,-0.00476357,0.00109925,-5.56032e-05,-0.00203488,-0.00167503,0.00396617,-0.00848528,0.00180117,0.00132287,0.00390038,-0.00464888,0.00149478,0.00307399,0.00216639,-0.00166132,-0.00221808,-0.0033795,0.00494139,-0.00662686,0.0164715,0.00305539,0.00112277,-0.00355957,0.000907865,0.00509134,0.00189163,0.000922727,0.00271026,-0.00314071,-0.0030905,-0.00420886,0.0039766,-0.00101252,0.000895643,0.00350988,-0.00303527,-0.00366246,-0.000299833,0.00525,0.00204088,0.0034147,-0.00212067,0.00185999,0.00212068,-0.00184453,-0.00372554,-0.00204841,0.00387355,0.00441764,-0.00851125,0.00168139,-0.00681009,-0.00414122,-0.00158837,0.00210927,0.00215199,0.00537809,0.00213542,-0.000394887,-0.00258227,0.00287402,0.000434673,0.00139832,-0.00323931,0.0033196,0.00479884,0.00683564,-0.00169632,
+        -0.000511877,-0.00804228,-0.00350908,-0.00234572,3.40814e-05,0.000449437,0.002933,0.00289487,-0.000556304, };
+#else
+    std::vector<float> Flm_data{ 0.886227012, -0, 1.02332675, -0, 0, -0, 0.495415896, -0, 0, -0, 0, -0, 0, -0, 0, -0, -0, 0, -0, 0, -0.110778376, 0, -0, 0, -0, -0, 0, -0, 0, -0, 0, -0, 0, -0, 0, -0, 0, -0, 0, -0, 0, -0, 0.0499271452, -0, 0, -0, 0, -0, 0, -0, 0, -0, 0, -0, 0, -0, 0, -0, 0, -0, 0, -0, 0, -0, -0, 0, -0, 0, -0, 0, -0, 0, -0.0285469331, 0, -0, 0, -0, 0, -0, 0, -0, -0, 0, -0, 0, -0, 0, -0, 0, -0, 0, -0, 0, -0, 0, -0, 0, -0, 0, -0, };
+    // Add 1.f/M_PI
+    std::for_each(Flm_data.begin(), Flm_data.end(), [](float& v) {v *= 1.f / M_PIf; });
+#endif
     TW_ASSERT(Flm_data.size() == 100);
     //TW_ASSERT(TestDiffuseFlmVector_Order3(Flm_data, 100000));
 

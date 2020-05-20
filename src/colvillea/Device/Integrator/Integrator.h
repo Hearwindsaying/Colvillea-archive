@@ -975,10 +975,10 @@ static __device__ __inline__ float4 EstimateDirectLighting<CommonStructs::LightT
         quadShape[4] = make_float3(0.f);
 
         /* 2. Convert QuadLight from World To BSDFLocal (or just use directional information and call WorldToLocal only. */
-        quadShape[0] = Cl::BSDFWorldToLocal_Project(quadShape[0], shaderParams.dgShading.dpdu, shaderParams.dgShading.tn, shaderParams.dgShading.nn, isectP);
-        quadShape[1] = Cl::BSDFWorldToLocal_Project(quadShape[1], shaderParams.dgShading.dpdu, shaderParams.dgShading.tn, shaderParams.dgShading.nn, isectP);
-        quadShape[2] = Cl::BSDFWorldToLocal_Project(quadShape[2], shaderParams.dgShading.dpdu, shaderParams.dgShading.tn, shaderParams.dgShading.nn, isectP);
-        quadShape[3] = Cl::BSDFWorldToLocal_Project(quadShape[3], shaderParams.dgShading.dpdu, shaderParams.dgShading.tn, shaderParams.dgShading.nn, isectP);
+        quadShape[0] = Cl::BSDFWorldToLocal(quadShape[0], shaderParams.dgShading.dpdu, shaderParams.dgShading.tn, shaderParams.dgShading.nn, isectP);
+        quadShape[1] = Cl::BSDFWorldToLocal(quadShape[1], shaderParams.dgShading.dpdu, shaderParams.dgShading.tn, shaderParams.dgShading.nn, isectP);
+        quadShape[2] = Cl::BSDFWorldToLocal(quadShape[2], shaderParams.dgShading.dpdu, shaderParams.dgShading.tn, shaderParams.dgShading.nn, isectP);
+        quadShape[3] = Cl::BSDFWorldToLocal(quadShape[3], shaderParams.dgShading.dpdu, shaderParams.dgShading.tn, shaderParams.dgShading.nn, isectP);
 
         constexpr int lmax = 9;
 
@@ -993,6 +993,13 @@ static __device__ __inline__ float4 EstimateDirectLighting<CommonStructs::LightT
             /* 3. Clipping. */
             int clippedQuadVertices = 0;
             Cl::ClipQuadToHorizon(quadShape, clippedQuadVertices);
+
+            // Clip Quad shape but not spherical quad.
+            // We need to normalize (to project) after clipping
+            for (int i = 0; i < clippedQuadVertices; ++i)
+            {
+                quadShape[i] = safe_normalize(quadShape[i]);
+            }
 
             /* 4. Compute Ylm projection coefficient. */
             float ylmCoeff[(lmax+1)*(lmax+1)];
@@ -1059,11 +1066,11 @@ static __device__ __inline__ float4 EstimateDirectLighting<CommonStructs::LightT
                     {
                         L += make_float4(FlmVector[i] * ylmCoeff[i]);
                     }
+                    // 1.f / M_PIf is included in Flm.
                     L *= quadLight.intensity * shaderParams.Reflectance;
                 }
                 
-            }
-            
+
 #if MEASURE_TIMING_SH_COEFF
             if (sysLaunch_index == make_uint2(960, 640))
             {
