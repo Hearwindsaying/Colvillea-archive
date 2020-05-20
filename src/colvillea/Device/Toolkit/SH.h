@@ -12,8 +12,11 @@
 /* Flm Diffuse Matrix. */
 rtBuffer<float> areaLightFlmVector;
 
+/* BSDF Matrix -- Plastic BSDF. */
+rtBuffer<float, 2> BSDFMatrix;
+
 /* Basis Directions. */
-rtBuffer<optix::float3, 1> areaLightBasisVector;
+rtBuffer<float3, 1> areaLightBasisVector;
 
 //rtBuffer<float, 2> areaLightAlphaCoeff;
 #endif

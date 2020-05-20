@@ -263,6 +263,9 @@ static __device__ __inline__ float4 EstimateDirectLighting<CommonStructs::LightT
 /* Flm Diffuse Matrix. */
 rtBuffer<float> areaLightFlmVector;
 
+/* BSDF Matrix -- Plastic BSDF. */
+rtBuffer<float, 2> BSDFMatrix;
+
 /* Basis Directions. */
 rtBuffer<float3, 1> areaLightBasisVector;
 
@@ -756,6 +759,183 @@ namespace Cl
         ylmCoeff[99] = -7382.979980f*Lw[9][0] + 15356.700195f*Lw[9][1] + -15175.599609f*Lw[9][2] + 8543.610352f*Lw[9][3] + -12939.799805f*Lw[9][4] + 25096.900391f*Lw[9][5] + 16775.500000f*Lw[9][6] + -44208.699219f*Lw[9][7] + -37195.898438f*Lw[9][8] + -1899.550049f*Lw[9][9] + -37196.699219f*Lw[9][10] + -44209.000000f*Lw[9][11] + 16776.199219f*Lw[9][12] + 25096.800781f*Lw[9][13] + -12939.799805f*Lw[9][14] + 8544.309570f*Lw[9][15] + -15175.299805f*Lw[9][16] + 15355.799805f*Lw[9][17] + -7383.100098f*Lw[9][18];
 #pragma endregion REGION_YLMCoeff_MUL
     }
+
+    /**
+     * @param 9-order SH Eval.
+     */
+    static __device__ __inline__ void SHEvalFast9(const optix::float3 &w, float *pOut) {
+        const float fX = w.x;
+        const float fY = w.y;
+        const float fZ = w.z;
+
+        float fC0, fS0, fC1, fS1, fPa, fPb, fPc;
+        {
+            float fZ2 = fZ * fZ;
+            pOut[0] = 0.282094791774;
+            pOut[2] = 0.488602511903f*fZ;
+            pOut[6] = (0.946174695758f*fZ2) + -0.315391565253f;
+            pOut[12] = fZ * ((fZ2* 1.86588166295f) + -1.11952899777f);
+            pOut[20] = ((fZ* 1.9843134833f)*pOut[12]) + (-1.00623058987f*pOut[6]);
+            pOut[30] = ((fZ* 1.98997487421f)*pOut[20]) + (-1.00285307284f*pOut[12]);
+            pOut[42] = ((fZ* 1.99304345718f)*pOut[30]) + (-1.00154202096f*pOut[20]);
+            pOut[56] = ((fZ* 1.99489143482f)*pOut[42]) + (-1.00092721392f*pOut[30]);
+            pOut[72] = ((fZ* 1.99608992783f)*pOut[56]) + (-1.00060078107f*pOut[42]);
+            pOut[90] = ((fZ* 1.99691119507f)*pOut[72]) + (-1.00041143799f*pOut[56]);
+            fC0 = fX;
+            fS0 = fY;
+            fPa = -0.488602511903f;
+            pOut[3] = fPa * fC0;
+            pOut[1] = fPa * fS0;
+            fPb = -1.09254843059f*fZ;
+            pOut[7] = fPb * fC0;
+            pOut[5] = fPb * fS0;
+            fPc = (-2.28522899732f*fZ2) + 0.457045799464f;
+            pOut[13] = fPc * fC0;
+            pOut[11] = fPc * fS0;
+            fPa = fZ * ((fZ2* -4.6833258049f) + 2.00713963067f);
+            pOut[21] = fPa * fC0;
+            pOut[19] = fPa * fS0;
+            fPb = ((fZ* 2.03100960116f)*fPa) + (-0.991031208965f*fPc);
+            pOut[31] = fPb * fC0;
+            pOut[29] = fPb * fS0;
+            fPc = ((fZ* 2.02131498924f)*fPb) + (-0.995226703056f*fPa);
+            pOut[43] = fPc * fC0;
+            pOut[41] = fPc * fS0;
+            fPa = ((fZ* 2.01556443707f)*fPc) + (-0.997155044022f*fPb);
+            pOut[57] = fPa * fC0;
+            pOut[55] = fPa * fS0;
+            fPb = ((fZ* 2.01186954041f)*fPa) + (-0.99816681789f*fPc);
+            pOut[73] = fPb * fC0;
+            pOut[71] = fPb * fS0;
+            fPc = ((fZ* 2.00935312974f)*fPb) + (-0.998749217772f*fPa);
+            pOut[91] = fPc * fC0;
+            pOut[89] = fPc * fS0;
+            fC1 = (fX*fC0) - (fY*fS0);
+            fS1 = (fX*fS0) + (fY*fC0);
+            fPa = 0.546274215296f;
+            pOut[8] = fPa * fC1;
+            pOut[4] = fPa * fS1;
+            fPb = 1.44530572132f*fZ;
+            pOut[14] = fPb * fC1;
+            pOut[10] = fPb * fS1;
+            fPc = (3.31161143515f*fZ2) + -0.473087347879f;
+            pOut[22] = fPc * fC1;
+            pOut[18] = fPc * fS1;
+            fPa = fZ * ((fZ2* 7.19030517746f) + -2.39676839249f);
+            pOut[32] = fPa * fC1;
+            pOut[28] = fPa * fS1;
+            fPb = ((fZ* 2.11394181566f)*fPa) + (-0.973610120462f*fPc);
+            pOut[44] = fPb * fC1;
+            pOut[40] = fPb * fS1;
+            fPc = ((fZ* 2.08166599947f)*fPb) + (-0.984731927835f*fPa);
+            pOut[58] = fPc * fC1;
+            pOut[54] = fPc * fS1;
+            fPa = ((fZ* 2.06155281281f)*fPc) + (-0.99033793766f*fPb);
+            pOut[74] = fPa * fC1;
+            pOut[70] = fPa * fS1;
+            fPb = ((fZ* 2.04812235836f)*fPa) + (-0.99348527267f*fPc);
+            pOut[92] = fPb * fC1;
+            pOut[88] = fPb * fS1;
+            fC0 = (fX*fC1) - (fY*fS1);
+            fS0 = (fX*fS1) + (fY*fC1);
+            fPa = -0.590043589927f;
+            pOut[15] = fPa * fC0;
+            pOut[9] = fPa * fS0;
+            fPb = -1.77013076978f*fZ;
+            pOut[23] = fPb * fC0;
+            pOut[17] = fPb * fS0;
+            fPc = (-4.40314469492f*fZ2) + 0.489238299435f;
+            pOut[33] = fPc * fC0;
+            pOut[27] = fPc * fS0;
+            fPa = fZ * ((fZ2* -10.1332578547f) + 2.76361577854f);
+            pOut[45] = fPa * fC0;
+            pOut[39] = fPa * fS0;
+            fPb = ((fZ* 2.20794021658f)*fPa) + (-0.9594032236f*fPc);
+            pOut[59] = fPb * fC0;
+            pOut[53] = fPb * fS0;
+            fPc = ((fZ* 2.1532216877f)*fPb) + (-0.97521738656f*fPa);
+            pOut[75] = fPc * fC0;
+            pOut[69] = fPc * fS0;
+            fPa = ((fZ* 2.11804417119f)*fPc) + (-0.983662844979f*fPb);
+            pOut[93] = fPa * fC0;
+            pOut[87] = fPa * fS0;
+            fC1 = (fX*fC0) - (fY*fS0);
+            fS1 = (fX*fS0) + (fY*fC0);
+            fPa = 0.625835735449f;
+            pOut[24] = fPa * fC1;
+            pOut[16] = fPa * fS1;
+            fPb = 2.07566231488f*fZ;
+            pOut[34] = fPb * fC1;
+            pOut[26] = fPb * fS1;
+            fPc = (5.55021390802f*fZ2) + -0.504564900729f;
+            pOut[46] = fPc * fC1;
+            pOut[38] = fPc * fS1;
+            fPa = fZ * ((fZ2* 13.4918050467f) + -3.11349347232f);
+            pOut[60] = fPa * fC1;
+            pOut[52] = fPa * fS1;
+            fPb = ((fZ* 2.30488611432f)*fPa) + (-0.948176387355f*fPc);
+            pOut[76] = fPb * fC1;
+            pOut[68] = fPb * fS1;
+            fPc = ((fZ* 2.22917715071f)*fPb) + (-0.967152839723f*fPa);
+            pOut[94] = fPc * fC1;
+            pOut[86] = fPc * fS1;
+            fC0 = (fX*fC1) - (fY*fS1);
+            fS0 = (fX*fS1) + (fY*fC1);
+            fPa = -0.65638205684f;
+            pOut[35] = fPa * fC0;
+            pOut[25] = fPa * fS0;
+            fPb = -2.36661916223f*fZ;
+            pOut[47] = fPb * fC0;
+            pOut[37] = fPb * fS0;
+            fPc = (-6.74590252336f*fZ2) + 0.51891557872f;
+            pOut[61] = fPc * fC0;
+            pOut[51] = fPc * fS0;
+            fPa = fZ * ((fZ2* -17.2495531105f) + 3.4499106221f);
+            pOut[77] = fPa * fC0;
+            pOut[67] = fPa * fS0;
+            fPb = ((fZ* 2.40163634692f)*fPa) + (-0.939224604204f*fPc);
+            pOut[95] = fPb * fC0;
+            pOut[85] = fPb * fS0;
+            fC1 = (fX*fC0) - (fY*fS0);
+            fS1 = (fX*fS0) + (fY*fC0);
+            fPa = 0.683184105192f;
+            pOut[48] = fPa * fC1;
+            pOut[36] = fPa * fS1;
+            fPb = 2.6459606618f*fZ;
+            pOut[62] = fPb * fC1;
+            pOut[50] = fPb * fS1;
+            fPc = (7.98499149089f*fZ2) + -0.53233276606f;
+            pOut[78] = fPc * fC1;
+            pOut[66] = fPc * fS1;
+            fPa = fZ * ((fZ2* 21.3928901909f) + -3.77521591604f);
+            pOut[96] = fPa * fC1;
+            pOut[84] = fPa * fS1;
+            fC0 = (fX*fC1) - (fY*fS1);
+            fS0 = (fX*fS1) + (fY*fC1);
+            fPa = -0.707162732525f;
+            pOut[63] = fPa * fC0;
+            pOut[49] = fPa * fS0;
+            fPb = -2.9157066407f*fZ;
+            pOut[79] = fPb * fC0;
+            pOut[65] = fPb * fS0;
+            fPc = (-9.26339318285f*fZ2) + 0.544905481344f;
+            pOut[97] = fPc * fC0;
+            pOut[83] = fPc * fS0;
+            fC1 = (fX*fC0) - (fY*fS0);
+            fS1 = (fX*fS0) + (fY*fC0);
+            fPa = 0.728926660175f;
+            pOut[80] = fPa * fC1;
+            pOut[64] = fPa * fS1;
+            fPb = 3.17731764895f*fZ;
+            pOut[98] = fPb * fC1;
+            pOut[82] = fPb * fS1;
+            fC0 = (fX*fC1) - (fY*fS1);
+            fS0 = (fX*fS1) + (fY*fC1);
+            fPc = -0.748900951853f;
+            pOut[99] = fPc * fC0;
+            pOut[81] = fPc * fS0;
+        }
+    }
 }
 
 /************************************************************************/
@@ -771,10 +951,10 @@ static __device__ __inline__ float4 EstimateDirectLighting<CommonStructs::LightT
 {
 #define MEASURE_TIMING_SH_COEFF 0
 #define SHINTEGRATION_ANALYTIC 1
-#define SHINTEGRATION_MCSAMPLING 1
-    if (shaderParams.bsdfType != BSDFType::Lambert)
+#define SHINTEGRATION_MCSAMPLING 0
+    if (shaderParams.bsdfType != BSDFType::Lambert && shaderParams.bsdfType != BSDFType::Plastic)
     {
-        rtPrintf("SH Integration supports lambert only.\n");
+        rtPrintf("SH Integration supports lambert+plastic only.\n");
     }
     float4 L = make_float4(0.f);
 
@@ -843,12 +1023,47 @@ static __device__ __inline__ float4 EstimateDirectLighting<CommonStructs::LightT
             /* 5. Dot Product of Flm and Ylm. */
             if (clippedQuadVertices != 0)
             {
-                for (int i = 0; i < (lmax + 1)*(lmax + 1); ++i)
+                if (shaderParams.bsdfType == BSDFType::Lambert || shaderParams.bsdfType == BSDFType::Plastic)
                 {
-                    L += make_float4(areaLightFlmVector[i] * ylmCoeff[i]);
+                    for (int i = 0; i < (lmax + 1)*(lmax + 1); ++i)
+                    {
+                        L += make_float4(areaLightFlmVector[i] * ylmCoeff[i]);
+                    }
+                    L *= quadLight.intensity * shaderParams.Reflectance/* / M_PIf*/;
                 }
+                else if (shaderParams.bsdfType == BSDFType::Plastic)
+                {
+                    float ylmVector[(lmax + 1)*(lmax + 1)];
+                    //Cl::SHEvalFast9(isectDir, ylmVector);
+                    Cl::SHEvalFast9(make_float3(0.f,0.f,1.f), ylmVector);
+                    float FlmVector[(lmax + 1)*(lmax + 1)];
+                    /* Matrix Multiplication. */
+                    for (int j = 0; j < BSDFMatrix.size().y; ++j)
+                    {
+                        float result = 0.0f;
+                        for (int i = 0; i < BSDFMatrix.size().x; ++i)
+                        {
+                            result += BSDFMatrix[make_uint2(i, j)] * ylmVector[i];
+                        }
+                        FlmVector[j] = result;
+                    }
+                    /*if (sysLaunch_index == make_uint2(1280 / 2, 720 / 2))
+                    {
+                        for (int i = 0; i < 100; ++i)
+                        {
+                            rtPrintf("Proj[%d]:%.7f\n", i, FlmVector[i]);
+                        }
+                    }*/
+                    
+                    for (int i = 0; i < (lmax + 1)*(lmax + 1); ++i)
+                    {
+                        L += make_float4(FlmVector[i] * ylmCoeff[i]);
+                    }
+                    L *= quadLight.intensity * shaderParams.Reflectance;
+                }
+                
             }
-            L *= quadLight.intensity * shaderParams.Reflectance / M_PIf;
+            
 #if MEASURE_TIMING_SH_COEFF
             if (sysLaunch_index == make_uint2(960, 640))
             {
