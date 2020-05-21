@@ -2001,7 +2001,8 @@ void QuadLight::TestBSDFProjectionMatrix()
     auto Eval_f = [](float3 wo, float3 wi)->float
     {
         //TW_ASSERT(wi.z > 0.f);
-        if (wo.z < 0.f || wi.z < 0.f)return 0.f;
+        //if (wo.z < 0.f || wi.z < 0.f)return 0.f;
+        if (wi.z < 0.f)return 0.f;
         return fabsf(wi.z) / M_PIf;
     };
 
@@ -2028,6 +2029,25 @@ void QuadLight::TestBSDFProjectionMatrix()
         std::cout << "I Progress: " << i << " / " << iteration << "     \r";
         std::cout.flush();
     }*/
+
+    // See factorPerRow[0]
+#ifdef SEEfactorPerRow0
+    std::vector<float> factorPerRow(100, 0.f);
+    for (int i = 0; i < iteration; ++i)
+    {
+        float3 dir = uniformSamplingHemisphere(dis(gen), dis(gen));
+        float ylmVector[(lmax + 1)*(lmax + 1)];
+        SHEvalFast9(dir, ylmVector);
+        for (int j = 0; j < 1; ++j)
+        {
+            factorPerRow[j] += dir.z / M_PIf * 1.f / (iteration*pdfHemiSphere())*ylmVector[j];
+            
+        }
+        //std::cout << "I Progress: " << i << " / " << iteration << "     \r";
+        //std::cout.flush();
+    }
+    std::cout << factorPerRow[0] << std::endl;
+#endif
     for (int y = 0; y < 100; ++y)
     {
         std::vector<float> bsdfMatrixRow(100, 0.f);
@@ -2053,8 +2073,12 @@ void QuadLight::TestBSDFProjectionMatrix()
                 }
                 
             }
-
-
+            //for (int j = 0; j < 100; ++j)
+            //{
+            //    if(fabsf(factorPerRow[j]-0.2820947f)>=1e-2f)
+            //        printf("osamples:%d   xxxxxxxx[%d]=%.7f\n", osamples,j, factorPerRow[j]);
+            //    //printf("factorPerRow0[%d]=%.7f\n", j, factorPerRow[j]);
+            //}
 
             float ylmVector_wo[(lmax + 1)*(lmax + 1)];
             SHEvalFast9(wo, ylmVector_wo);
@@ -2064,6 +2088,12 @@ void QuadLight::TestBSDFProjectionMatrix()
                 bsdfMatrixRow[j] += 1.f * factorPerRow[j] / (iteration*pdfSphere())*ylmVector_wo[j];
             }
         }
+        /*for (int j = 0; j < 100; ++j)
+        {
+            printf("bsdfMatrixRow0[%d]=%.7f\n", j, bsdfMatrixRow[j]);
+        }
+        std::exit(0);*/
+
         bsdfMatrix.push_back(std::move(bsdfMatrixRow));
 
         std::cout << "II Progress: " << y << " / " << 100 << "     \r";
