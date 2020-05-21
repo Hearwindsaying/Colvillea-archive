@@ -1975,7 +1975,7 @@ void QuadLight::TestBSDFProjectionMatrix()
     float epsilon = 1e-5f;
     int nfails = 0;
     int ntests = 0;
-    int iteration = 1000;
+    constexpr int iteration = 1000;
 
     auto uniformSamplingHemisphere = [](float x, float y)->float3
     {
@@ -2001,8 +2001,8 @@ void QuadLight::TestBSDFProjectionMatrix()
     auto Eval_f = [](float3 wo, float3 wi)->float
     {
         //TW_ASSERT(wi.z > 0.f);
-        //if (wo.z < 0.f || wi.z < 0.f)return 0.f;
-        if (wi.z < 0.f)return 0.f;
+        if (wo.z < 0.f || wi.z < 0.f)return 0.f; // Single Side BRDF
+        //if (wi.z < 0.f)return 0.f; // This is consistent with PBRT's SH BSDF computation
         return fabsf(wi.z) / M_PIf;
     };
 
@@ -2014,7 +2014,7 @@ void QuadLight::TestBSDFProjectionMatrix()
 #if 1
 
 #if WRITE_BSDFMATRIX
-    std::vector<std::vector<float>> bsdfMatrix;
+    //std::vector<std::vector<float>> bsdfMatrix;
 
     /*std::vector<float> factorPerRow(100, 0.f);
     for (int i = 0; i < iteration; ++i)
@@ -2048,6 +2048,48 @@ void QuadLight::TestBSDFProjectionMatrix()
     }
     std::cout << factorPerRow[0] << std::endl;
 #endif
+    std::vector<float3> w;
+    float pbrtMatrixCompute_ylmVector[100 * iteration];
+    for (int wsamples = 0; wsamples < iteration; ++wsamples)
+    {
+        float3 dir = UniformSampleSphere(dis(gen), dis(gen));
+        SHEvalFast9(dir, &pbrtMatrixCompute_ylmVector[wsamples * 100]);
+        w.push_back(std::move(dir));
+    }
+
+    std::vector<std::vector<float>> pbrtBSDFMatrix;
+    pbrtBSDFMatrix.resize(100);
+    for (auto& row : pbrtBSDFMatrix)
+    {
+        row.resize(100,0.f);
+    }
+
+    for (int osamples = 0; osamples < iteration; ++osamples)
+    {
+        float3 &wo = w[osamples];
+        for (int isamples = 0; isamples < iteration; ++isamples)
+        {
+            float3 &wi = w[isamples];
+            if (Eval_f(wo, wi) != 0.f)
+            {
+                for (int y = 0; y < 100; ++y)
+                {
+                    float *ylmVector_wi = &pbrtMatrixCompute_ylmVector[isamples * 100];
+                    float *ylmVector_wo = &pbrtMatrixCompute_ylmVector[osamples * 100];
+
+                    for (int x = 0; x < 100; ++x)
+                    {
+                        float factorPerRow_x_ = Eval_f(wo, wi) * 1.f / (iteration*pdfSphere())*ylmVector_wi[y];
+                        pbrtBSDFMatrix[y][x] += 1.f * factorPerRow_x_ / (iteration*pdfSphere())*ylmVector_wo[x];
+                    }
+                }
+            }
+        }
+        std::cout << "II Progress: " << osamples << " / " << 100 << "     \r";
+        std::cout.flush();
+    }
+
+#if 0
     for (int y = 0; y < 100; ++y)
     {
         std::vector<float> bsdfMatrixRow(100, 0.f);
@@ -2073,12 +2115,6 @@ void QuadLight::TestBSDFProjectionMatrix()
                 }
                 
             }
-            //for (int j = 0; j < 100; ++j)
-            //{
-            //    if(fabsf(factorPerRow[j]-0.2820947f)>=1e-2f)
-            //        printf("osamples:%d   xxxxxxxx[%d]=%.7f\n", osamples,j, factorPerRow[j]);
-            //    //printf("factorPerRow0[%d]=%.7f\n", j, factorPerRow[j]);
-            //}
 
             float ylmVector_wo[(lmax + 1)*(lmax + 1)];
             SHEvalFast9(wo, ylmVector_wo);
@@ -2088,20 +2124,17 @@ void QuadLight::TestBSDFProjectionMatrix()
                 bsdfMatrixRow[j] += 1.f * factorPerRow[j] / (iteration*pdfSphere())*ylmVector_wo[j];
             }
         }
-        /*for (int j = 0; j < 100; ++j)
-        {
-            printf("bsdfMatrixRow0[%d]=%.7f\n", j, bsdfMatrixRow[j]);
-        }
-        std::exit(0);*/
 
         bsdfMatrix.push_back(std::move(bsdfMatrixRow));
 
         std::cout << "II Progress: " << y << " / " << 100 << "     \r";
         std::cout.flush();
     }
-    
+#endif 
     std::ofstream file("diffuseBSDFMatrix.dat", std::ios_base::trunc);
-    for (const auto& row : bsdfMatrix)
+    std::cout << "Trying writing" << std::endl;
+
+    for (const auto& row : pbrtBSDFMatrix)
     {
         for (const auto& col : row)
         {
@@ -2109,6 +2142,7 @@ void QuadLight::TestBSDFProjectionMatrix()
         }
         file << std::endl;
     }
+    std::cout << "End writing" << std::endl;
 #endif // 
 
     float ylmVector[(lmax + 1)*(lmax + 1)];
@@ -2121,7 +2155,7 @@ void QuadLight::TestBSDFProjectionMatrix()
         for (int i = 0; i < (lmax + 1)*(lmax + 1); ++i)
         {
 #if WRITE_BSDFMATRIX
-            result += bsdfMatrix[j][i] * ylmVector[i];
+            result += pbrtBSDFMatrix[j][i] * ylmVector[i];
 #else
             result += BSDFMatrix_Rawdata[j][i] * ylmVector[i];
 #endif
@@ -2142,8 +2176,9 @@ void QuadLight::TestBSDFProjectionMatrix()
         }
         ++nfails;
     }
-    //std::exit(0);
-
+#if WRITE_BSDFMATRIX
+    std::exit(0);
+#endif
 
     //printf("{\n");
     //for (int i = 0; i < 100; ++i)
