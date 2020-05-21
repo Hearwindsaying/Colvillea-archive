@@ -1030,7 +1030,7 @@ static __device__ __inline__ float4 EstimateDirectLighting<CommonStructs::LightT
             /* 5. Dot Product of Flm and Ylm. */
             if (clippedQuadVertices != 0)
             {
-                if (shaderParams.bsdfType == BSDFType::Lambert || shaderParams.bsdfType == BSDFType::Plastic)
+                if (shaderParams.bsdfType == BSDFType::Lambert)
                 {
                     for (int i = 0; i < (lmax + 1)*(lmax + 1); ++i)
                     {
@@ -1041,8 +1041,8 @@ static __device__ __inline__ float4 EstimateDirectLighting<CommonStructs::LightT
                 else if (shaderParams.bsdfType == BSDFType::Plastic)
                 {
                     float ylmVector[(lmax + 1)*(lmax + 1)];
-                    //Cl::SHEvalFast9(isectDir, ylmVector);
-                    Cl::SHEvalFast9(make_float3(0.f,0.f,1.f), ylmVector);
+                    Cl::SHEvalFast9(isectDir, ylmVector);
+                    //Cl::SHEvalFast9(make_float3(0.f, 0.f, 1.f), ylmVector);
                     float FlmVector[(lmax + 1)*(lmax + 1)];
                     /* Matrix Multiplication. */
                     for (int j = 0; j < BSDFMatrix.size().y; ++j)
@@ -1061,16 +1061,17 @@ static __device__ __inline__ float4 EstimateDirectLighting<CommonStructs::LightT
                             rtPrintf("Proj[%d]:%.7f\n", i, FlmVector[i]);
                         }
                     }*/
-                    
+
                     for (int i = 0; i < (lmax + 1)*(lmax + 1); ++i)
                     {
                         L += make_float4(FlmVector[i] * ylmCoeff[i]);
                     }
                     // 1.f / M_PIf is included in Flm.
-                    L *= quadLight.intensity * shaderParams.Reflectance;
+                    // Remember not to multiply reflectance when using BRDFMatrix to simulate diffuse BRDF!
+                    L *= quadLight.intensity/* * shaderParams.Reflectance*/;
                 }
-                
 
+            }
 #if MEASURE_TIMING_SH_COEFF
             if (sysLaunch_index == make_uint2(960, 640))
             {
