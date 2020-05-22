@@ -1041,7 +1041,11 @@ static __device__ __inline__ float4 EstimateDirectLighting<CommonStructs::LightT
                 else if (shaderParams.bsdfType == BSDFType::Plastic)
                 {
                     float ylmVector[(lmax + 1)*(lmax + 1)];
-                    Cl::SHEvalFast9(isectDir, ylmVector);
+
+                    float3 wo_Local = TwUtil::BSDFMath::WorldToLocal(isectDir, shaderParams.dgShading.dpdu, shaderParams.dgShading.tn, shaderParams.dgShading.nn);
+                    wo_Local = safe_normalize(wo_Local);
+
+                    Cl::SHEvalFast9(wo_Local, ylmVector);
                     //Cl::SHEvalFast9(make_float3(0.f, 0.f, 1.f), ylmVector);
                     float FlmVector[(lmax + 1)*(lmax + 1)];
                     /* Matrix Multiplication. */
@@ -1054,13 +1058,20 @@ static __device__ __inline__ float4 EstimateDirectLighting<CommonStructs::LightT
                         }
                         FlmVector[j] = result;
                     }
-                    /*if (sysLaunch_index == make_uint2(1280 / 2, 720 / 2))
+                    //if (sysLaunch_index == make_uint2(1280 / 2, 720 / 2))
+                    //{
+                    //    for (int i = 0; i < 100; ++i)
+                    //    {
+                    //        rtPrintf("wo_:%f %f %f isectDir:%f %f %f Proj[%d]:%.7f\n", wo_Local.x,wo_Local.y,wo_Local.z,isectDir.x,isectDir.y,isectDir.z,i, FlmVector[i]);
+                    //    }
+                    //}
+                    if (sysLaunch_index == make_uint2(520, 720 - 560))
                     {
                         for (int i = 0; i < 100; ++i)
                         {
-                            rtPrintf("Proj[%d]:%.7f\n", i, FlmVector[i]);
+                            rtPrintf("wo_:%f %f %f isectDir:%f %f %f Proj[%d]:%.7f\n", wo_Local.x, wo_Local.y, wo_Local.z, isectDir.x, isectDir.y, isectDir.z, i, FlmVector[i]);
                         }
-                    }*/
+                    }
 
                     for (int i = 0; i < (lmax + 1)*(lmax + 1); ++i)
                     {
