@@ -1065,13 +1065,17 @@ static __device__ __inline__ float4 EstimateDirectLighting<CommonStructs::LightT
                     //        rtPrintf("wo_:%f %f %f isectDir:%f %f %f Proj[%d]:%.7f\n", wo_Local.x,wo_Local.y,wo_Local.z,isectDir.x,isectDir.y,isectDir.z,i, FlmVector[i]);
                     //    }
                     //}
-                    if (sysLaunch_index == make_uint2(520, 720 - 560))
-                    {
-                        for (int i = 0; i < 100; ++i)
-                        {
-                            rtPrintf("wo_:%f %f %f isectDir:%f %f %f Proj[%d]:%.7f\n", wo_Local.x, wo_Local.y, wo_Local.z, isectDir.x, isectDir.y, isectDir.z, i, FlmVector[i]);
-                        }
-                    }
+                    //if (sysLaunch_index == make_uint2(694, 720 - 526)|| sysLaunch_index == make_uint2(693, 720 - 526)/*||
+                    //    sysLaunch_index == make_uint2(695, 720 - 526)*/)
+                    //{
+                    //    float phi = TwUtil::sphericalPhi(wo_Local);
+                    //    float theta = TwUtil::sphericalTheta(wo_Local);
+                    //    rtPrintf("dpdu %f %f %f | dpdv %f %f %f}wo:(%f,%f)\n", shaderParams.dgShading.dpdu.x, shaderParams.dgShading.dpdu.y, shaderParams.dgShading.dpdu.z, shaderParams.dgShading.tn.x, shaderParams.dgShading.tn.y, shaderParams.dgShading.tn.z,theta,phi);
+                    //    for (int i = 0; i < 100; ++i)
+                    //    {
+                    //        //rtPrintf("%d|wo_:%f %f %f isectDir:%f %f %f Proj[%d]:%.7f\n", sysLaunch_index.x, wo_Local.x, wo_Local.y, wo_Local.z, isectDir.x, isectDir.y, isectDir.z, i, FlmVector[i]);
+                    //    }
+                    //}
 
                     for (int i = 0; i < (lmax + 1)*(lmax + 1); ++i)
                     {
