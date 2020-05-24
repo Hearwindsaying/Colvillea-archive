@@ -267,3 +267,6 @@ __pycache__/
 *.ma
 /data/diffuseBSDF.txt
 /data/plasticBSDF.csv
+/examples/Cornell/.mayaSwatches
+/examples/Cornell/sphere.obj
+/examples/Cornell/green - original_bak.obj

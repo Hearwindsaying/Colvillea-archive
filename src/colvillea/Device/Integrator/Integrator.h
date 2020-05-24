@@ -619,10 +619,11 @@ namespace Cl
             const optix::float3& we_plus_1 = (e == M ? we[1] : we[e + 1]);
             lambdae[e] = optix::cross(TwUtil::safe_normalize(cross(we[e], we_plus_1)), we[e]);
             ue[e] = optix::cross(we[e], lambdae[e]);
-            gammae[e] = acosf(optix::dot(we[e], we_plus_1));
+            gammae[e] = acosf(optix::clamp(optix::dot(we[e], we_plus_1),-1.f,1.f));
         }
         // Solid angle computation
         float solidAngle = computeSolidAngle<M>(we);
+        //if(solidAngle <= 1e-7f) // todo:early exit
 
         float Lw[lmax + 1][2 * lmax + 1];
 
@@ -661,9 +662,6 @@ namespace Cl
             // Initial Bands l=0, l=1:
             Lw[0][i] = sqrtf(1.f / (4.f*M_PIf))*S0;
             Lw[1][i] = sqrtf(3.f / (4.f*M_PIf))*S1;
-
-            if (isnan(Lw[0][i]) || isnan(Lw[1][i]))
-                rtPrintf("%d,%d]%f %f Lw[0/1][%d]\n", sysLaunch_index.x, sysLaunch_index.y, S0, S1, i);
 
             computeLw_unroll<2, M>(Lw, ae, gammae, be, ce, D1e, B0e, D2e, B1e, D0e, i, Bl_1, S0, S1);
         }
