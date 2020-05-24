@@ -402,8 +402,17 @@ namespace Cl
 
             float3 tmpa = optix::cross(we[e], we_minus_1);
             float3 tmpb = optix::cross(we[e], we_plus_1);
-            S0 += acosf(optix::dot(tmpa, tmpb) / (optix::length(tmpa)*optix::length(tmpb))); // Typo in Wang's paper, length is inside acos evaluation!
+            S0 += acosf(optix::clamp(optix::dot(tmpa, tmpb) / (optix::length(tmpa)*optix::length(tmpb)), -1.f, 1.f)); // Typo in Wang's paper, length is inside acos evaluation!
+            //float cmp = optix::clamp(optix::dot(tmpa, tmpb) / (optix::length(tmpa)*optix::length(tmpb)), -1.f, 1.f);
+            //if (isnan(S0))
+            //    rtPrintf("acos(%.7f)=%.7f\n", cmp, acosf(cmp));
         }
+        /*if (isnan(S0))
+        {
+            rtPrintf("%d,%d] M:%d ", sysLaunch_index.x, sysLaunch_index.y, M);
+            rtPrintf("we:%f,%f,%f %f,%f,%f %f,%f,%f %f,%f,%f\n", we[1].x, we[1].y, we[1].z,
+                we[2].x, we[2].y, we[2].z, we[3].x, we[3].y, we[3].z, we[4].x, we[4].y, we[4].z);
+        }*/
         S0 -= (M - 2)*M_PIf;
         return S0;
     }
@@ -652,6 +661,9 @@ namespace Cl
             // Initial Bands l=0, l=1:
             Lw[0][i] = sqrtf(1.f / (4.f*M_PIf))*S0;
             Lw[1][i] = sqrtf(3.f / (4.f*M_PIf))*S1;
+
+            if (isnan(Lw[0][i]) || isnan(Lw[1][i]))
+                rtPrintf("%d,%d]%f %f Lw[0/1][%d]\n", sysLaunch_index.x, sysLaunch_index.y, S0, S1, i);
 
             computeLw_unroll<2, M>(Lw, ae, gammae, be, ce, D1e, B0e, D2e, B1e, D0e, i, Bl_1, S0, S1);
         }
@@ -1034,7 +1046,15 @@ static __device__ __inline__ float4 EstimateDirectLighting<CommonStructs::LightT
                 {
                     for (int i = 0; i < (lmax + 1)*(lmax + 1); ++i)
                     {
+                        /*if (isnan(ylmCoeff[i]))
+                        {
+                            rtPrintf("%d,%d] ylmCoeff[%d]=%f\n", sysLaunch_index.x, sysLaunch_index.y,i,ylmCoeff[i]);
+                        }*/
                         L += make_float4(areaLightFlmVector[i] * ylmCoeff[i]);
+                    }
+                    if (sysLaunch_index == make_uint2(589,720-290)|| sysLaunch_index == make_uint2(590, 720 - 290))
+                    {
+                        //rtPrintf("%d]L:%f %f %f\n", sysLaunch_index.x, L.x, L.y, L.z);
                     }
                     L *= quadLight.intensity * shaderParams.Reflectance/* / M_PIf*/;
                 }

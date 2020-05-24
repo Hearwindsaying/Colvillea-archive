@@ -936,6 +936,25 @@ void QuadLight::TestSolidAngle()
         ++ntests;
     }
     {
+        //-0.188715, 0.177517, 0.965854 - 0.073109, 0.063692, 0.995288 0.271268, -0.273699, 0.922769 0.536259, -0.531516, 0.655680;
+        auto A1 = make_float3(-0.188715, 0.177517, 0.965854);
+        auto B1 = make_float3(-0.073109, 0.063692, 0.995288);
+        auto C1 = make_float3(0.271268, -0.273699, 0.922769);
+        auto D1 = make_float3(0.536259, -0.531516, 0.655680);
+        std::vector<float3> v2{ A1,B1,C1,D1 };
+        float t1 = solid_angle(v2.data(), 4);
+
+        std::vector<float3> v22{ make_float3(0.f), A1,B1,C1,D1 };
+        float t2 = computeSolidAngle<4>(v22);
+        float t3 = computeSolidAngle<4>(v22.data());
+        if (!(EQ(t1, t2) && EQ(t2, t3)))
+        {
+            ++nfails;
+            printf("Test failed at %d: t1==%f t2==%f t3==%f != %f\n", __LINE__, t1, t2, t3, M_PIf / sqrt(8));
+        }
+        ++ntests;
+    }
+    {
         std::random_device rd;  //Will be used to obtain a seed for the random number engine
         std::mt19937 gen(rd()); //Standard mersenne_twister_engine seeded with rd()
         std::uniform_real_distribution<> dis(0.0, 1.0);
@@ -2701,7 +2720,7 @@ void QuadLight::TestBSDFProjectionMatrix()
 
 void QuadLight::TestZHRecurrence()
 {
-    //TestSolidAngle();
+    TestSolidAngle();
     TestBSDFProjectionMatrix();
     //TestYlmCoeff();
     auto sphToCartesian = [](const float theta, const float phi)->float3
