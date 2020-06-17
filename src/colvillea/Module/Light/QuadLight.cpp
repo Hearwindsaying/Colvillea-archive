@@ -2321,20 +2321,18 @@ void QuadLight::TestBSDFProjectionMatrix()
 #if 0
     {
         float ylmVector_wi[(lmax + 1)*(lmax + 1)];
-        float3 wi = sphToCartesian(M_PI/6.f, M_PI);
+        /*float3 wi = sphToCartesian(M_PI/6.f, M_PI);*/
+        float3 wi = sphToCartesian(M_PI / 2.2f, M_PI);
         //float3 wi = sphToCartesian(0.f,0.f)
         SHEvalFast9(wi, ylmVector_wi);
-        
-        std::vector<float> Flm_data2{ 0.886227012, -0, 1.02332675, -0, 0, -0, 0.495415896, -0, 0, -0, 0, -0, 0, -0, 0, -0, -0, 0, -0, 0, -0.110778376, 0, -0, 0, -0, -0, 0, -0, 0, -0, 0, -0, 0, -0, 0, -0, 0, -0, 0, -0, 0, -0, 0.0499271452, -0, 0, -0, 0, -0, 0, -0, 0, -0, 0, -0, 0, -0, 0, -0, 0, -0, 0, -0, 0, -0, -0, 0, -0, 0, -0, 0, -0, 0, -0.0285469331, 0, -0, 0, -0, 0, -0, 0, -0, -0, 0, -0, 0, -0, 0, -0, 0, -0, 0, -0, 0, -0, 0, -0, 0, -0, 0, -0, };
-        std::for_each(Flm_data2.begin(), Flm_data2.end(), [](float& flm) {flm *= 1.f / M_PIf; });
 
         // Validate with BSDF, not projection coeff.
         for (float theta = 0.0f; theta <= M_PIf / 2.f; theta += 0.5f*M_PIf / 180.f)
         {
             float ylmVector[(lmax + 1)*(lmax + 1)];
             float FlmVectorRandom[(lmax + 1)*(lmax + 1)];
-            //float3 wo = sphToCartesian(theta, 0.0f);
-            float3 wo = make_float3(-0.175900, 0.248031, 0.952649);
+            float3 wo = sphToCartesian(theta, 0.0f);
+            //float3 wo = make_float3(-0.175900, 0.248031, 0.952649);
 
             SHEvalFast9(wo, ylmVector);
             /* Matrix Multiplication. */

@@ -72,13 +72,14 @@ void create_CornellBoxScene(std::shared_ptr<SceneGraph> &sceneGraph, std::shared
      std::shared_ptr<BSDF> lamBSDF_grey;
      int lamIdx_grey = materialPool->createLambertMaterial(optix::make_float4(0.725f, 0.71f, 0.68f, 1.f), lamBSDF_grey);
      //int lamIdx_grey = materialPool->createPlasticMaterial(0.1f, 1.5f, make_float4(0.05f), make_float4(0.04f), lamBSDF_grey);
-     /*sceneGraph->createTriangleMesh(
-         basePath + "Cornell\\grey.obj",
-         lamIdx_grey, lamBSDF_grey);*/
+     //int lamIdx_grey = materialPool->createPlasticMaterial(0.1f, 1.5f, "F:\\Graphics\\Classroom\\textures\\CCORK.png", make_float4(0.04f), lamBSDF_grey); 
      sceneGraph->createTriangleMesh(
-         basePath + "Cornell\\sphere.obj",
+         basePath + "Cornell\\grey.obj",
          lamIdx_grey, lamBSDF_grey);
-
+         /*sceneGraph->createTriangleMesh(
+             basePath + "Cornell\\sphere.obj",
+             lamIdx_grey, lamBSDF_grey);
+    */
     /* Create light. */
      std::shared_ptr<BSDF> emissiveBSDF;
      int emissiveIdx = materialPool->getEmissiveMaterial(emissiveBSDF);
