@@ -89,3 +89,34 @@ void SceneGraph::createTriangleSoup(int32_t materialIndex, const std::shared_ptr
     this->m_topGeometryGroup_GeometryTriangles->addChild(triSoup->getGeometryInstance());
     this->rebuildGeometryTriangles();
 }
+
+
+std::shared_ptr<Sphere> SceneGraph::createSphere(SceneGraph * sceneGraph, int32_t materialIndex, const optix::float3 & center, const float radius, const std::shared_ptr<BSDF>& bsdf)
+{
+    std::shared_ptr<Sphere> sphere = Sphere::createSphere(sceneGraph, this->m_context, this->m_programsMap, center, radius, this->m_integrator->getIntegratorMaterial(), materialIndex);
+    /* Bind BSDF's corresponding shape. */
+    bsdf->setShape(sphere);
+
+    this->m_shapes_Geometry.push_back(sphere);
+
+    /* Update OptiX Graph. */
+    this->m_topGeometryGroup_Geometry->addChild(sphere->getGeometryInstance());
+    this->rebuildGeometry();
+
+    return sphere;
+}
+
+std::shared_ptr<Sphere> SceneGraph::createSphere(int32_t materialIndex, const optix::float3 & center, const float radius, int32_t sphereLightIndex, const std::shared_ptr<BSDF>& bsdf)
+{
+    std::shared_ptr<Sphere> sphere = Sphere::createSphere(this->m_context, this->m_programsMap, center, radius, sphereLightIndex, this->m_integrator->getIntegratorMaterial(), materialIndex);
+    /* Shared BSDF for SphereLight's underlying Sphere. */
+    //bsdf->setShape(quad);
+
+    this->m_shapes_Geometry.push_back(sphere);
+
+    /* Update OptiX Graph. */
+    this->m_topGeometryGroup_Geometry->addChild(sphere->getGeometryInstance());
+    this->rebuildGeometry();
+
+    return sphere;
+}

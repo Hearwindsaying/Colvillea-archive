@@ -5,7 +5,6 @@
 
 #include "colvillea/Module/Geometry/GeometryShape.h"
 #include "colvillea/Device/Toolkit/Utility.h"
-#include "tinyobjloader/tiny_obj_loader.h"
 
 class Application;
 class SceneGraph;
@@ -81,10 +80,10 @@ public:
      * @param[in] scale            Z-component is zero
      */
     Quad(SceneGraph *sceneGraph, optix::Context context, const std::map<std::string, optix::Program> &programsMap, const optix::float3 &position, const optix::float3 &rotation, const optix::float3 &scale, optix::Material integrator, int32_t materialIndex)
-        : GeometryShape(context, programsMap, "Quad", integrator, materialIndex, "Quad", IEditableObject::IEditableObjectType::QuadGeometry), 
+        : GeometryShape(context, programsMap, "Quad", integrator, materialIndex, "Quad", IEditableObject::IEditableObjectType::QuadGeometry, false), 
         m_sceneGraph(sceneGraph),
         m_position(position), m_rotationRad(rotation), m_scale(scale),
-        m_quadLightIndex(-1), m_isAreaLight(false)
+        m_quadLightIndex(-1)
     {
         TW_ASSERT(sceneGraph);
         /* Check whether transform matrix has z-component scale. */
@@ -103,10 +102,10 @@ public:
      * @param[in] scale            Z-component is zero
      */
     Quad(optix::Context context, const std::map<std::string, optix::Program> &programsMap, const optix::float3 &position, const optix::float3 &rotation, const optix::float3 &scale, int32_t quadLightIndex, optix::Material integrator, int32_t materialIndex)
-        : GeometryShape(context, programsMap, "Quad", integrator, materialIndex, "Quad", IEditableObject::IEditableObjectType::QuadGeometry),
+        : GeometryShape(context, programsMap, "Quad", integrator, materialIndex, "Quad", IEditableObject::IEditableObjectType::QuadGeometry, true),
          m_sceneGraph(nullptr),
          m_position(position), m_rotationRad(rotation), m_scale(scale),  
-         m_quadLightIndex(quadLightIndex), m_isAreaLight(true)
+         m_quadLightIndex(quadLightIndex)
     {
         TW_ASSERT(quadLightIndex >= 0);
 
@@ -131,11 +130,6 @@ public:
         this->m_geometryInstance["quadLightIndex"]->setInt(this->m_isAreaLight ? this->m_quadLightIndex : -1);
     }
 public:
-    bool isAreaLight() const
-    {
-        return this->m_isAreaLight;
-    }
-
     optix::float3 getPosition() const
     {
         return this->m_position;
@@ -252,7 +246,6 @@ private:
 
 private:
     /// Store index to |quadLightBuffer|, be careful for the circular reference if we want to have another std::shared_ptr to quadLight
-    bool m_isAreaLight;
     int32_t  m_quadLightIndex;
 
     /// Record user-friendly transform elements.

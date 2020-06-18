@@ -69,7 +69,7 @@ public:
      * @param filename filename with path
      */
     OrdinaryTriangleMesh(optix::Context context, const std::map<std::string, optix::Program> &programsMap, const std::string &filename, optix::Material integrator, const int materialIndex) :
-        GeometryShape(context, programsMap, "TriangleMesh", integrator, materialIndex, "TriangleMesh", IEditableObject::IEditableObjectType::QuadGeometry /*hack*/),
+        GeometryShape(context, programsMap, "TriangleMesh", integrator, materialIndex, "TriangleMesh", IEditableObject::IEditableObjectType::QuadGeometry /*hack*/, false),
         m_filename(filename), m_verticesCount(-1), hasNormals(false), hasTexcoords(false)
     {
 

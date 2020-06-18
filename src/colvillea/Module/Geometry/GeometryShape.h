@@ -19,7 +19,7 @@
 class GeometryShape : public Shape
 {
 public:
-    GeometryShape(optix::Context context, const std::map<std::string, optix::Program> &programsMap, const std::string &shapeClassName, optix::Material integrator, int32_t materialIndex, const std::string &shapeObjectName, IEditableObject::IEditableObjectType objectType) :
+    GeometryShape(optix::Context context, const std::map<std::string, optix::Program> &programsMap, const std::string &shapeClassName, optix::Material integrator, int32_t materialIndex, const std::string &shapeObjectName, IEditableObject::IEditableObjectType objectType, bool isAreaLight) :
         Shape(context, programsMap, integrator, materialIndex, shapeObjectName, objectType)
     {
         std::cout << "[Info] Derived class name from Shape is: " << shapeClassName << std::endl;
@@ -32,11 +32,19 @@ public:
         programItr = this->m_programsMap.find("Intersect_" + shapeClassName);
         TW_ASSERT(programItr != this->m_programsMap.end());
         this->m_intersectionProgram = programItr->second;
+
+        this->m_isAreaLight = isAreaLight;
     }
 
     optix::Geometry getGeometry() const
     {
         return this->m_geometry;
+    }
+
+
+    bool isAreaLight() const
+    {
+        return this->m_isAreaLight;
     }
 
 protected:
@@ -75,4 +83,7 @@ protected:
     optix::Geometry m_geometry;
     optix::Program  m_boundingBoxProgram;
     optix::Program  m_intersectionProgram;
+
+    /// Area Light support for non-triangle mesh GeometryShape.
+    bool m_isAreaLight;
 };
