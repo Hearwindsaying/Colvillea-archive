@@ -47,6 +47,8 @@ Here are some motivations and objectives of building Colvillea:
 
 ### Geometry
  - Triangle Mesh (Wavefront OBJ)
+ - Quad
+ - Sphere
 
 ### Miscellaneous
  - LDR/HDR Image I/O with Gamma Correction
