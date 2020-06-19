@@ -952,7 +952,9 @@ namespace Cl
 /*         Integrating Clipped Spherical Harmonics Expansions           */
 /************************************************************************/
 
-#if 1
+#define SAMPLING_DIRECT_LIGHTING 1
+
+#if 0
 template<>
 static __device__ __inline__ float4 EstimateDirectLighting<CommonStructs::LightType::QuadLight>(
     int lightId,
@@ -1214,6 +1216,8 @@ static __device__ __inline__ float4 EstimateDirectLighting<CommonStructs::LightT
     return L;
 }
 #else
+// No shadowing
+
 template<>
 static __device__ __inline__ float4 EstimateDirectLighting<CommonStructs::LightType::QuadLight>(
     int lightId,
@@ -1309,6 +1313,106 @@ static __device__ __inline__ float4 EstimateDirectLighting<CommonStructs::LightT
 }
 #endif
 
+#if SAMPLING_DIRECT_LIGHTING
+template<>
+static __device__ __inline__ float4 EstimateDirectLighting<CommonStructs::LightType::SphereLight>(
+    int lightId,
+    const CommonStructs::ShaderParams & shaderParams,
+    const float3 & isectP, const float3 & isectDir,
+    GPUSampler &localSampler)
+{
+    float4 Ld = make_float4(0.f);
+
+    float3 p = isectP;
+    float3 wo_world = isectDir;
+    float sceneEpsilon = sysSceneEpsilon;
+
+    float3 outWi = make_float3(0.f);
+    float lightPdf = 0.f, bsdfPdf = 0.f;
+    Ray shadowRay;
+
+    /* Sample light source with Mulitple Importance Sampling. */
+    float2 randSamples = Get2D(&localSampler);
+    float4 Li = Sample_Ld[toUnderlyingValue(CommonStructs::LightType::SphereLight)](p, sceneEpsilon, outWi, lightPdf, randSamples, lightId, shadowRay);
+    if (lightPdf > 0.f && !isBlack(Li))
+    {
+        /* Compute BSDF value using sampled outWi from sampling light source. */
+        float4 f = Eval_f[toUnderlyingValue(shaderParams.bsdfType)](wo_world, outWi, shaderParams);
+        if (!isBlack(f))
+        {
+            /* Trace shadow ray and find out its visibility. */
+            CommonStructs::PerRayData_shadow shadow_prd;
+            shadow_prd.blocked = 0;
+
+            const RTrayflags shadowRayFlags = static_cast<RTrayflags>(RTrayflags::RT_RAY_FLAG_DISABLE_ANYHIT | RTrayflags::RT_RAY_FLAG_TERMINATE_ON_FIRST_HIT);
+            rtTrace<CommonStructs::PerRayData_shadow>(sysTopShadower, shadowRay, shadow_prd, RT_VISIBILITY_ALL, shadowRayFlags);
+            //if (!shadow_prd.blocked)
+            {
+                /* Compute Ld using MIS weight. */
+
+                bsdfPdf = Pdf[toUnderlyingValue(shaderParams.bsdfType)](wo_world, outWi, shaderParams);
+                float weight = TwUtil::MonteCarlo::PowerHeuristic(1, lightPdf, 1, bsdfPdf);
+                Ld += f * Li * (fabs(dot(outWi, shaderParams.dgShading.nn)) * weight / lightPdf);
+                /*rtPrintf("%f %f %f Li:%f %f %f weight:%f bsdfPdf:%f,outwi:%f %f %f\n",
+                    f.x, f.y, f.z,
+                    Li.x, Li.y, Li.z,
+                    weight,
+                    bsdfPdf,
+                    outWi.x, outWi.y, outWi.z);
+                rtPrintf("Ld %f %f %f\n", Ld.x, Ld.y, Ld.z);*/
+            }
+        }
+    }
+
+#if 1
+    /* Sample BSDF with Multiple Importance Sampling. */
+    randSamples = Get2D(&localSampler);
+
+    float4 f = Sample_f[toUnderlyingValue(shaderParams.bsdfType)](wo_world, outWi, randSamples, bsdfPdf, Get1D(&localSampler), shaderParams);
+    if (!isBlack(f) && bsdfPdf > 0.)
+    {
+        float weight = 1.f;
+
+        //todo:should use sampledType while we use overall bsdf type:
+        if (shaderParams.bsdfType != BSDFType::SmoothGlass && shaderParams.bsdfType != BSDFType::SmoothMirror)
+        {
+            lightPdf = LightPdf[toUnderlyingValue(CommonStructs::LightType::SphereLight)](p, outWi, lightId, shadowRay);
+
+            if (lightPdf == 0.f)
+                return Ld;
+
+            weight = TwUtil::MonteCarlo::PowerHeuristic(1, bsdfPdf, 1, lightPdf);
+        }
+
+
+        /* Trace shadow ray to find out whether it's blocked down by object. */
+        CommonStructs::PerRayData_shadow shadow_prd;
+        shadow_prd.blocked = 0;
+
+        const RTrayflags shadowRayFlags = static_cast<RTrayflags>(RTrayflags::RT_RAY_FLAG_DISABLE_ANYHIT | RTrayflags::RT_RAY_FLAG_TERMINATE_ON_FIRST_HIT);
+        rtTrace<CommonStructs::PerRayData_shadow>(sysTopShadower, shadowRay, shadow_prd, RT_VISIBILITY_ALL, shadowRayFlags);
+
+        /* In LightPdf we have confirmed that ray is able to intersect the light
+         * -- surface from |p| towards |outWi| if there are no objects between
+         * them. So now we need to make sure that hypothesis using shadow ray.
+         * Given |shadowRay| from LightPdf, ray's |tmax| is narrowed down and
+         * could lead to further optimization when tracing shadow ray. */
+         //if (!shadow_prd.blocked)
+        {
+            // Orientation test is moved to LightPdf_Sphere(). If sampled point's normal
+            // and -outWi are inconsistent, LightPdf_Sphere() return 0.0f.
+            // Li = TwUtil::Le_SphereLight(sysLightBuffers.sphereLightBuffer[lightId], -outWi);
+            //if (!isBlack(Li))
+            Li = sysLightBuffers.sphereLightBuffer[lightId].intensity;
+            Ld += f * Li * fabsf(dot(outWi, shaderParams.dgShading.nn)) * weight / bsdfPdf;
+        }
+    }
+#endif
+    return Ld;
+}
+#else
+#endif
+
 /**
  * @brief Uniformly sample all lights available in the scene and
  * compute direct lighting contribution to the surface interaction.
@@ -1345,6 +1449,14 @@ static __device__ __inline__ float4 SampleLightsAggregate(const CommonStructs::S
         for (int i = 0; i < sysLightBuffers.quadLightBuffer.size(); ++i)
         {
             L += EstimateDirectLighting<CommonStructs::LightType::QuadLight>(i, shaderParams, isectP, isectDir, localSampler);
+        }
+    }
+
+    if (sysLightBuffers.sphereLightBuffer != RT_BUFFER_ID_NULL)
+    {
+        for (int i = 0; i < sysLightBuffers.sphereLightBuffer.size(); ++i)
+        {
+            L += EstimateDirectLighting<CommonStructs::LightType::SphereLight>(i, shaderParams, isectP, isectDir, localSampler);
         }
     }
     

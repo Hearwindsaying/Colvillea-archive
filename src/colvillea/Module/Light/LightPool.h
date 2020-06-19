@@ -21,6 +21,7 @@
 #include "colvillea/Module/Light/PointLight.h"
 #include "colvillea/Module/Light/HDRILight.h"
 #include "colvillea/Module/Light/QuadLight.h"
+#include "colvillea/Module/Light/SphereLight.h"
 #include "colvillea/Device/Toolkit/CommonStructs.h"
 #include "colvillea/Application/TWAssert.h"
 #include "colvillea/Application/SceneGraph.h"
@@ -53,6 +54,7 @@ public:
 
         this->m_csLightBuffers.pointLightBuffer     = RT_BUFFER_ID_NULL;
         this->m_csLightBuffers.quadLightBuffer      = RT_BUFFER_ID_NULL;
+        this->m_csLightBuffers.sphereLightBuffer    = RT_BUFFER_ID_NULL;
 
         this->updateLightBuffers();
     }
@@ -106,7 +108,6 @@ public:
 
         this->updateAllPointLights();
     }
-
 
     /**
     * @brief Remove a PointLight.
@@ -183,6 +184,56 @@ public:
         this->updateAllQuadLights(true);
     }
 
+    /**
+     * @brief Create a sphereLight object and add to SceneGraph.
+
+     * @param[in] center
+     * @param[in] radius
+     * @param[in] color
+     * @param[in] intensity
+     * @param[in] materialIndex index to materialBuffer, call
+     * MaterialPool::createEmissiveMaterial() to create the material
+     * for sphereLight.
+     */
+    void createSphereLight(const optix::float3 &center, float radius, const optix::float3 &color, float intensity, int32_t materialIndex, const std::shared_ptr<BSDF> &bsdf)
+    {
+        std::shared_ptr<Sphere> sphereQuadShape = this->m_sceneGraph->createSphere(materialIndex,
+            center, radius,
+            static_cast<int32_t>(this->m_quadLights.size()) /* size() is the index we want for the current creating sphere */,
+            bsdf);
+        std::shared_ptr<SphereLight> sphereLight = SphereLight::createSphereLight(this->m_context, this->m_programsMap, color, intensity, sphereQuadShape, this);
+        this->m_sphereLights.push_back(sphereLight);
+
+        this->updateAllSphereLights(true);
+    }
+
+    /**
+     * @brief Remove a SphereLight.
+     * @note The underlying Quad shape is removed as well.
+     */
+    void removeSphereLight(const std::shared_ptr<SphereLight> &sphereLight)
+    {
+        auto itrToErase = std::find_if(this->m_sphereLights.cbegin(), this->m_sphereLights.cend(),
+            [&sphereLight](const auto& curSphereLight)
+        {
+            return curSphereLight->getId() == sphereLight->getId();
+        });
+
+        TW_ASSERT(itrToErase != this->m_sphereLights.end());
+
+        /* 1.Remove Sphere shape. */
+        std::shared_ptr<Sphere> sphereShape = (*itrToErase)->getSphereShape();
+        sphereShape->getGeometry()->destroy();
+        this->m_sceneGraph->removeGeometry(sphereShape);
+        sphereShape->getGeometryInstance()->destroy();
+
+        /* 2.Remove SphereLight. */
+        this->m_sphereLights.erase(itrToErase);
+
+        /* 3.Update SphereLights. */
+        this->updateAllSphereLights(true);
+    }
+
 
     /************************************************************************/
     /*                         Getters & Setters                            */
@@ -210,6 +261,14 @@ public:
     const std::vector<std::shared_ptr<QuadLight>> &getQuadLights() const
     {
         return this->m_quadLights;
+    }
+
+    /**
+     * @brief Getter for |m_sphereLights|.
+     */
+    const std::vector<std::shared_ptr<SphereLight>> &getSphereLights() const
+    {
+        return this->m_sphereLights;
     }
 
 
@@ -342,6 +401,60 @@ private:
         quadLightBuffer->unmap();
     }
 
+    /**
+     * @brief Update all SphereLights. This is applicable for all modification operations to
+     * SphereLight, adding, modifying and removing.
+     *
+     * @todo Rewrite createSphereLight() and this function to support update one
+     * single SphereLight a time.
+     *       -- add "bool resizeBuffer" to avoid unnecessary resizing.
+     *
+     * @param[in] rebuildAccel acceleration structure should be rebuilt? This is required
+     * when adding, modifying light transform and removing light.
+     */
+    void updateAllSphereLights(bool rebuildAccel)
+    {
+        optix::Buffer sphereLightBuffer;
+        /* SphereLight Buffer has yet to be set up. */
+        if (this->m_csLightBuffers.sphereLightBuffer.getId() == RT_BUFFER_ID_NULL)
+        {
+            TW_ASSERT(rebuildAccel);
+
+            sphereLightBuffer = this->m_context->createBuffer(RT_BUFFER_INPUT, RT_FORMAT_USER, this->m_sphereLights.size());
+            sphereLightBuffer->setElementSize(sizeof(CommonStructs::SphereLight));
+
+            this->m_csLightBuffers.sphereLightBuffer = sphereLightBuffer->getId();
+
+            std::cout << "[Info] Created SphereLight Buffer." << std::endl;
+        }
+        else
+        {
+            sphereLightBuffer = this->m_context->getBufferFromId(this->m_csLightBuffers.sphereLightBuffer.getId());
+            TW_ASSERT(sphereLightBuffer);
+            sphereLightBuffer->setSize(this->m_sphereLights.size());
+
+            std::cout << "[Info] Updated SphereLight Buffer." << std::endl;
+        }
+
+        /* Setup spherLight buffer for GPU Program */
+        auto sphereLightArray = static_cast<CommonStructs::SphereLight *>(sphereLightBuffer->map());
+        for (int32_t sphereLightIndex = 0; sphereLightIndex < this->m_sphereLights.size(); ++sphereLightIndex)
+        {
+            this->m_sphereLights[sphereLightIndex]->getSphereShape()->setSphereLightIndex(sphereLightIndex);
+            sphereLightArray[sphereLightIndex] = this->m_sphereLights[sphereLightIndex]->getCommonStructsLight();
+        }
+
+        this->updateLightBuffers();
+
+        if (rebuildAccel)
+        {
+            this->m_sceneGraph->rebuildGeometry();
+        }
+
+        /* Unmap buffer. */
+        sphereLightBuffer->unmap();
+    }
+
 
     void updateLightBuffers()
     {
@@ -358,10 +471,12 @@ private:
     std::shared_ptr<HDRILight>                  m_HDRILight; 
     std::vector<std::shared_ptr<PointLight>>    m_pointLights;
     std::vector<std::shared_ptr<QuadLight>>     m_quadLights;
+    std::vector<std::shared_ptr<SphereLight>>   m_sphereLights;
 
     CommonStructs::LightBuffers m_csLightBuffers;
 
     friend class HDRILight;
     friend class PointLight;
     friend class QuadLight;
+    friend class SphereLight;
 };

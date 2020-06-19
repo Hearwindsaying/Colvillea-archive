@@ -33,6 +33,31 @@ namespace TwUtil
     }
 
     /**
+     * @brief Evaluate emission radiance for a direction |w| for diffuse
+     * sphereLight. SphereLight is single-sided so an extra parameter |n|
+     * related to sphereLight's normal is necessary.
+     * Currently, only points outside sphere surface could be lit. 
+     * Flipping normal is yet to be supported. 
+     * Issue related: https://github.com/Hearwindsaying/Colvillea/issues/1
+     *
+     * @param[in] sphereLight    SphereLight
+     * @param[in] w              direction w
+     * @param[in] sampledPoint   sampled point on sphere surface in world space
+     *
+     * @return Return the intensity of sphereLight when |w| and sphereLight's
+     * orientation is consistent.
+     */
+    static __device__ __inline__ optix::float4 Le_SphereLight(const CommonStructs::SphereLight &sphereLight, const optix::float3 & w, const optix::float3 & sampledPoint)
+    {
+        /* !! Note that for xfmNormal() we need to pass in inverse matrix. */
+        //optix::float3 n = TwUtil::safe_normalize(TwUtil::xfmNormal(
+        //    optix::make_float3(0.f, 0.f, (sphereLight.reverseOrientation ? -1.f : 1.f)), sphereLight.worldToLight));
+        //return dot(n, w) > 0.f ? sphereLight.intensity : optix::make_float4(0.f);
+        optix::float3 n = TwUtil::safe_normalize(sampledPoint - sphereLight.center);
+        return optix::dot(n, w) > 0.f ? sphereLight.intensity : optix::make_float4(0.f);
+    }
+
+    /**
      * @brief Evaluate emission radiance for a direction |w| for HDRILight. 
      * 
      * @param[in] w            direction w
