@@ -39,6 +39,7 @@ Here are some motivations and objectives of building Colvillea:
 ### Light Source Models
  - Point Light
  - Quad Light (Spherical Rectangular Sampling)
+ - Sphere Light
  - Image-Based Lighting (HDRI Probe)
 
 ### Camera 
