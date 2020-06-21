@@ -176,6 +176,6 @@ private:
     float m_intensity;
 
     static constexpr int lmax = 9;
-    static const float BSDFMatrix_Rawdata[(lmax + 1)*(lmax + 1)][(lmax + 1)*(lmax + 1)];
+    static const float BSDFMatrix_Rawdata[(lmax + 1)*(lmax + 1)][256];
 };
 
