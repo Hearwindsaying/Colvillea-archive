@@ -75,10 +75,12 @@ public:
         HDRILight,
         PointLight,
         QuadLight,
+        SphereLight,
 
         QuadGeometry,
         TriangleMeshGeometry,
         TriangleSoupGeometry,
+        SphereGeometry,
 
         BSDF
     };

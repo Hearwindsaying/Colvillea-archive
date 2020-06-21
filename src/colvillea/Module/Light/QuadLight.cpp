@@ -3656,7 +3656,7 @@ void QuadLight::initializeAreaLight(optix::Context& context)
     for (int i = 0; i < (lmax + 1)*(lmax + 1); ++i)
     {
         std::vector<float> row;
-        for (int j = 0; j < 256; ++j)
+        for (int j = 0; j < (lmax + 1)*(lmax + 1); ++j)
         {
             row.push_back(BSDFMatrix_Rawdata[i][j]);
         }
@@ -3664,11 +3664,11 @@ void QuadLight::initializeAreaLight(optix::Context& context)
     }
 
     TW_ASSERT(BSDFMatrix_data.size() == (lmax + 1)*(lmax + 1));
-    optix::Buffer BSDFMatrixBuffer = context->createBuffer(RT_BUFFER_INPUT, RT_FORMAT_FLOAT, 256,(lmax + 1)*(lmax + 1));
+    optix::Buffer BSDFMatrixBuffer = context->createBuffer(RT_BUFFER_INPUT, RT_FORMAT_FLOAT, (lmax + 1)*(lmax + 1), (lmax + 1)*(lmax + 1));
     float *BSDFMatrixBufferData = static_cast<float *>(BSDFMatrixBuffer->map());
     for (int i = 0; i < BSDFMatrix_data.size(); ++i)
     {
-        memcpy(BSDFMatrixBufferData+i * 256, BSDFMatrix_data[i].data(), sizeof(float)*256);
+        memcpy(BSDFMatrixBufferData+i * (lmax + 1)*(lmax + 1), BSDFMatrix_data[i].data(), sizeof(float)*(lmax + 1)*(lmax + 1));
     }
     
     BSDFMatrixBuffer->unmap();

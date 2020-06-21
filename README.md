@@ -39,6 +39,7 @@ Here are some motivations and objectives of building Colvillea:
 ### Light Source Models
  - Point Light
  - Quad Light (Spherical Rectangular Sampling)
+ - Sphere Light
  - Image-Based Lighting (HDRI Probe)
 
 ### Camera 
@@ -47,6 +48,8 @@ Here are some motivations and objectives of building Colvillea:
 
 ### Geometry
  - Triangle Mesh (Wavefront OBJ)
+ - Quad
+ - Sphere
 
 ### Miscellaneous
  - LDR/HDR Image I/O with Gamma Correction

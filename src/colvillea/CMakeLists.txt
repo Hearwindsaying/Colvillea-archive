@@ -45,6 +45,8 @@ set(SOURCE_LIST
 	"${CMAKE_CURRENT_SOURCE_DIR}/Device/Camera/SphericalSkybox.cu"
 	"${CMAKE_CURRENT_SOURCE_DIR}/Device/Geometry/Quad.cu"
 	"${CMAKE_CURRENT_SOURCE_DIR}/Device/Geometry/Quad.h"
+	"${CMAKE_CURRENT_SOURCE_DIR}/Device/Geometry/Sphere.cu"
+	"${CMAKE_CURRENT_SOURCE_DIR}/Device/Geometry/Sphere.h"
 	"${CMAKE_CURRENT_SOURCE_DIR}/Device/Geometry/TriangleMesh.cu"
 	"${CMAKE_CURRENT_SOURCE_DIR}/Device/Integrator/DirectLighting.cu"
 	"${CMAKE_CURRENT_SOURCE_DIR}/Device/Integrator/PathTracing.cu"
@@ -54,6 +56,7 @@ set(SOURCE_LIST
 	"${CMAKE_CURRENT_SOURCE_DIR}/Device/Light/LightUtil.h"
 	"${CMAKE_CURRENT_SOURCE_DIR}/Device/Light/PointLight.cu"
 	"${CMAKE_CURRENT_SOURCE_DIR}/Device/Light/QuadLight.cu"
+	"${CMAKE_CURRENT_SOURCE_DIR}/Device/Light/SphereLight.cu"
 	"${CMAKE_CURRENT_SOURCE_DIR}/Device/Sampler/HaltonSampler.h"
 	"${CMAKE_CURRENT_SOURCE_DIR}/Device/Sampler/HaltonSampler_Common.h"
 	"${CMAKE_CURRENT_SOURCE_DIR}/Device/Sampler/Sampler.h"
@@ -94,6 +97,8 @@ set(SOURCE_LIST
 	"${CMAKE_CURRENT_SOURCE_DIR}/Module/Geometry/GeometryShape.h"
 	"${CMAKE_CURRENT_SOURCE_DIR}/Module/Geometry/TriangleMesh.cpp"
 	"${CMAKE_CURRENT_SOURCE_DIR}/Module/Geometry/TriangleMesh.h"
+	"${CMAKE_CURRENT_SOURCE_DIR}/Module/Geometry/Sphere.cpp"
+	"${CMAKE_CURRENT_SOURCE_DIR}/Module/Geometry/Sphere.h"
 	
 	"${CMAKE_CURRENT_SOURCE_DIR}/Module/Image/ImageLoader.cpp"
 	"${CMAKE_CURRENT_SOURCE_DIR}/Module/Image/ImageLoader.h"
@@ -112,6 +117,8 @@ set(SOURCE_LIST
 	"${CMAKE_CURRENT_SOURCE_DIR}/Module/Light/PointLight.cpp"
 	"${CMAKE_CURRENT_SOURCE_DIR}/Module/Light/QuadLight.h"
 	"${CMAKE_CURRENT_SOURCE_DIR}/Module/Light/QuadLight.cpp"
+	"${CMAKE_CURRENT_SOURCE_DIR}/Module/Light/SphereLight.h"
+	"${CMAKE_CURRENT_SOURCE_DIR}/Module/Light/SphereLight.cpp"
 	
 	"${CMAKE_CURRENT_SOURCE_DIR}/Module/Material/MaterialPool.h"
 	"${CMAKE_CURRENT_SOURCE_DIR}/Module/Material/MaterialPool.cpp"
@@ -181,6 +188,8 @@ OPTIX_add_sample_executable( colvillea
 	${CMAKE_CURRENT_SOURCE_DIR}/Device/Camera/SphericalSkybox.cu
 	${CMAKE_CURRENT_SOURCE_DIR}/Device/Geometry/Quad.cu
 	${CMAKE_CURRENT_SOURCE_DIR}/Device/Geometry/Quad.h
+	${CMAKE_CURRENT_SOURCE_DIR}/Device/Geometry/Sphere.cu
+	${CMAKE_CURRENT_SOURCE_DIR}/Device/Geometry/Sphere.h
 	${CMAKE_CURRENT_SOURCE_DIR}/Device/Geometry/TriangleMesh.cu
 	${CMAKE_CURRENT_SOURCE_DIR}/Device/Integrator/DirectLighting.cu
 	${CMAKE_CURRENT_SOURCE_DIR}/Device/Integrator/PathTracing.cu
@@ -190,6 +199,7 @@ OPTIX_add_sample_executable( colvillea
 	${CMAKE_CURRENT_SOURCE_DIR}/Device/Light/LightUtil.h
 	${CMAKE_CURRENT_SOURCE_DIR}/Device/Light/PointLight.cu
 	${CMAKE_CURRENT_SOURCE_DIR}/Device/Light/QuadLight.cu
+	${CMAKE_CURRENT_SOURCE_DIR}/Device/Light/SphereLight.cu
 	${CMAKE_CURRENT_SOURCE_DIR}/Device/Sampler/HaltonSampler.h
 	${CMAKE_CURRENT_SOURCE_DIR}/Device/Sampler/HaltonSampler_Common.h
 	${CMAKE_CURRENT_SOURCE_DIR}/Device/Sampler/Sampler.h
@@ -230,6 +240,8 @@ OPTIX_add_sample_executable( colvillea
 	${CMAKE_CURRENT_SOURCE_DIR}/Module/Geometry/GeometryShape.h
 	${CMAKE_CURRENT_SOURCE_DIR}/Module/Geometry/TriangleMesh.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/Module/Geometry/TriangleMesh.h
+	${CMAKE_CURRENT_SOURCE_DIR}/Module/Geometry/Sphere.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/Module/Geometry/Sphere.h
 	
 	${CMAKE_CURRENT_SOURCE_DIR}/Module/Image/ImageLoader.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/Module/Image/ImageLoader.h
@@ -245,9 +257,11 @@ OPTIX_add_sample_executable( colvillea
 	${CMAKE_CURRENT_SOURCE_DIR}/Module/Light/Light.h
 	${CMAKE_CURRENT_SOURCE_DIR}/Module/Light/LightPool.h
 	${CMAKE_CURRENT_SOURCE_DIR}/Module/Light/PointLight.h
-	${CMAKE_CURRENT_SOURCE_DIR}/Module/Light/QuadLight.h
 	${CMAKE_CURRENT_SOURCE_DIR}/Module/Light/PointLight.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/Module/Light/QuadLight.h
 	${CMAKE_CURRENT_SOURCE_DIR}/Module/Light/QuadLight.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/Module/Light/SphereLight.h
+	${CMAKE_CURRENT_SOURCE_DIR}/Module/Light/SphereLight.cpp
 	
 	${CMAKE_CURRENT_SOURCE_DIR}/Module/Material/MaterialPool.h
 	${CMAKE_CURRENT_SOURCE_DIR}/Module/Material/MaterialPool.cpp

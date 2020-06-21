@@ -1428,6 +1428,232 @@ void Application::drawInspector()
 
         ImGui::EndGroup();
     }
+    else if (objectType == IEditableObject::IEditableObjectType::SphereGeometry)
+    {
+        std::shared_ptr<Sphere> sphere = std::static_pointer_cast<Sphere>(this->m_currentHierarchyNode);
+        TW_ASSERT(sphere);
+
+
+        std::string sphereName = sphere->getName();
+        if (ImGui::InputText("##Object Name", &sphereName))
+        {
+            sphere->setName(sphereName);
+        }
+
+        ImGui::Separator();
+
+        if (ImGui::CollapsingHeader("General##Sphere Geometry", ImGuiTreeNodeFlags_CollapsingHeader))
+        {
+            ImGui::AlignTextToFramePadding();
+            ImGui::Text("                                 Mesh"); ImGui::SameLine(200.f);
+            ImGui::SetNextItemWidth(165);
+            ImGui::Button("Sphere", ImVec2(165.f, 0.0f));
+            ImGui::SameLine();
+            ImGui::Button("M");
+        }
+        if (ImGui::CollapsingHeader("Transform##Sphere Geometry", ImGuiTreeNodeFlags_CollapsingHeader))
+        {
+            float3 center = sphere->getPosition();
+            float  radius = sphere->getRadius();
+
+            ImGui::AlignTextToFramePadding();
+            ImGui::Text("                         Center");
+            ImGui::SameLine(178.f);
+            ImGui::AlignTextToFramePadding();
+            ImGui::Text(" X\n");
+            ImGui::SameLine(200.f);
+            ImGui::SetNextItemWidth(85);
+            if (ImGui::DragFloat("##Sphere Geometry Location X", &center.x, 1.0f, -100.0f, 100.0f))
+            {
+                sphere->setPosition(center);
+                this->resetRenderParams();
+            }
+
+            ImGui::Text("            ");
+            ImGui::SameLine(178.f);
+            ImGui::AlignTextToFramePadding();
+            ImGui::Text(" Y\n");
+            ImGui::SameLine(200.f);
+            ImGui::SetNextItemWidth(85);
+            if (ImGui::DragFloat("##Sphere Geometry Location Y", &center.y, 1.0f, -100.0f, 100.0f))
+            {
+                sphere->setPosition(center);
+                this->resetRenderParams();
+            }
+
+            ImGui::Text("            ");
+            ImGui::SameLine(178.f);
+            ImGui::AlignTextToFramePadding();
+            ImGui::Text(" Z\n");
+            ImGui::SameLine(200.f);
+            ImGui::SetNextItemWidth(85);
+            if (ImGui::DragFloat("##Sphere Geometry Location Z", &center.z, 1.0f, -100.0f, 100.0f))
+            {
+                sphere->setPosition(center);
+                this->resetRenderParams();
+            }
+
+            ImGui::Text("");
+            ImGui::SameLine(135.5f);
+            ImGui::AlignTextToFramePadding();
+            ImGui::Text("Radius");
+            ImGui::SameLine(178.f);
+            ImGui::AlignTextToFramePadding();
+            ImGui::Text(" X\n");
+            ImGui::SameLine(200.f);
+            ImGui::SetNextItemWidth(85);
+            if (ImGui::DragFloat("##Sphere Geometry Radius", &radius, 1.0f, 0.1f, 100.0f))
+            {
+                sphere->setRadius(radius);
+                this->resetRenderParams();
+            }
+        }
+
+        /* Get underlying BSDF from Sphere Shape. */
+        const std::shared_ptr<BSDF> &bsdf = this->m_materialPool->getBSDF(sphere->getMaterialIndex());
+        TW_ASSERT(bsdf);
+
+        /*std::string bsdfName = bsdf->getName();
+        if (ImGui::InputText("##Object Name Quad BSDF", &bsdfName))
+        {
+            bsdf->setName(bsdfName);
+        }*/
+        if (ImGui::CollapsingHeader("Material##Sphere Geometry BSDF", ImGuiTreeNodeFlags_CollapsingHeader))
+        {
+            GUIHelper::drawInspector_MaterialCollapsingHeader(bsdf, this);
+        }
+
+
+        /* Public Remove Button */
+        ImGui::BeginGroup();
+
+        ImGui::BeginChild("RemoveObjectSpaceChild", ImVec2(0, -ImGui::GetFrameHeightWithSpacing())); // Leave room for 1 line below us
+        ImGui::EndChild();
+
+        /* Last line of Inspector window. */
+        if (ImGui::Button("Remove Object"))
+        {
+            this->m_sceneGraph->removeGeometry(sphere);
+            this->m_materialPool->removeBSDF(bsdf);
+            this->m_currentHierarchyNode.reset();
+            this->resetRenderParams();
+        }
+
+        ImGui::EndGroup();
+    }
+    else if (objectType == IEditableObject::IEditableObjectType::SphereLight)
+    {
+        std::shared_ptr<SphereLight> sphereLight = std::static_pointer_cast<SphereLight>(this->m_currentHierarchyNode);
+        TW_ASSERT(sphereLight);
+
+        std::string sphereLightName = sphereLight->getName();
+        if (ImGui::InputText("##Object Name", &sphereLightName))
+        {
+            sphereLight->setName(sphereLightName);
+        }
+
+        ImGui::Separator();
+
+        if (ImGui::CollapsingHeader("General##Sphere Light", ImGuiTreeNodeFlags_CollapsingHeader))
+        {
+            optix::float3 color = sphereLight->getLightColor();
+            float intensity = sphereLight->getLightIntensity();
+
+            ImGui::AlignTextToFramePadding();
+            ImGui::Text("                                  Color"); ImGui::SameLine(200.f);
+            ImGui::SetNextItemWidth(165);
+            if (ImGui::ColorEdit3("##Sphere Light Color", static_cast<float *>(&color.x), ImGuiColorEditFlags__OptionsDefault))
+            {
+                sphereLight->setLightColor(color);
+                this->resetRenderParams();
+            }
+
+            ImGui::AlignTextToFramePadding();
+            ImGui::Text("                             Intensity"); ImGui::SameLine(200.f);
+            ImGui::SetNextItemWidth(165);
+            if (ImGui::InputFloat("##Light Intensity", &intensity, 1, 1))
+            {
+                if (intensity < 0.0f)
+                    intensity = 0.0f;
+                sphereLight->setLightIntensity(intensity);
+                this->resetRenderParams();
+            }
+        }
+
+        if (ImGui::CollapsingHeader("Transform##Sphere Light", ImGuiTreeNodeFlags_CollapsingHeader))
+        {
+            float3 sphereLightLocation = sphereLight->getPosition();
+            float  sphereLightRadius = sphereLight->getRadius();
+
+            ImGui::AlignTextToFramePadding();
+            ImGui::Text("                         Location");
+            ImGui::SameLine(178.f);
+            ImGui::AlignTextToFramePadding();
+            ImGui::Text(" X\n");
+            ImGui::SameLine(200.f);
+            ImGui::SetNextItemWidth(85);
+            if (ImGui::DragFloat("##SphereLight Location X", &sphereLightLocation.x, 1.0f, -100.0f, 100.0f))
+            {
+                sphereLight->setPosition(sphereLightLocation);
+                this->resetRenderParams();
+            }
+
+            ImGui::Text("            ");
+            ImGui::SameLine(178.f);
+            ImGui::AlignTextToFramePadding();
+            ImGui::Text(" Y\n");
+            ImGui::SameLine(200.f);
+            ImGui::SetNextItemWidth(85);
+            if (ImGui::DragFloat("##SphereLight Location Y", &sphereLightLocation.y, 1.0f, -100.0f, 100.0f))
+            {
+                sphereLight->setPosition(sphereLightLocation);
+                this->resetRenderParams();
+            }
+
+            ImGui::Text("            ");
+            ImGui::SameLine(178.f);
+            ImGui::AlignTextToFramePadding();
+            ImGui::Text(" Z\n");
+            ImGui::SameLine(200.f);
+            ImGui::SetNextItemWidth(85);
+            if (ImGui::DragFloat("##SphereLight Location Z", &sphereLightLocation.z, 1.0f, -100.0f, 100.0f))
+            {
+                sphereLight->setPosition(sphereLightLocation);
+                this->resetRenderParams();
+            }
+
+            ImGui::Text("");
+            ImGui::SameLine(135.5f);
+            ImGui::AlignTextToFramePadding();
+            ImGui::Text("Radius");
+            ImGui::SameLine(178.f);
+            ImGui::AlignTextToFramePadding();
+            ImGui::Text(" X\n");
+            ImGui::SameLine(200.f);
+            ImGui::SetNextItemWidth(85);
+            if (ImGui::DragFloat("##Sphere Light Radius", &sphereLightRadius, 1.0f, 0.1f, 100.0f))
+            {
+                sphereLight->setRadius(sphereLightRadius);
+                this->resetRenderParams();
+            }
+        }
+
+        /* Public Remove Button */
+        ImGui::BeginGroup();
+
+        ImGui::BeginChild("RemoveObjectSpaceChild", ImVec2(0, -ImGui::GetFrameHeightWithSpacing())); // Leave room for 1 line below us
+        ImGui::EndChild();
+
+        /* Last line of Inspector window. */
+        if (ImGui::Button("Remove Object"))
+        {
+            this->m_lightPool->removeSphereLight(sphereLight);
+            this->m_currentHierarchyNode.reset();
+            this->resetRenderParams();
+        }
+
+        ImGui::EndGroup();
+    }
     else if (objectType == IEditableObject::IEditableObjectType::BSDF)
     {
         std::shared_ptr<BSDF> bsdf = std::static_pointer_cast<BSDF>(this->m_currentHierarchyNode);
@@ -1490,6 +1716,13 @@ void Application::drawHierarchy()
                     this->m_lightPool->createQuadLight(make_float3(0.f), make_float3(0.f), make_float3(1.f, 1.f, 1.f), make_float3(1.f), 5.f, emissiveIdx, emissiveBSDF, false);
                     this->resetRenderParams();
                 }
+                if (ImGui::MenuItem("SphereLight"))
+                {
+                    std::shared_ptr<BSDF> emissiveBSDF;
+                    int32_t emissiveIdx = this->m_materialPool->getEmissiveMaterial(emissiveBSDF);
+                    this->m_lightPool->createSphereLight(make_float3(0.f), 1.f, make_float3(1.f), 5.f, emissiveIdx, emissiveBSDF);
+                    this->resetRenderParams();
+                }
                 ImGui::EndMenu();
             }
             if (ImGui::BeginMenu("Geometry"))
@@ -1501,6 +1734,15 @@ void Application::drawHierarchy()
                     this->m_sceneGraph->createQuad(this->m_sceneGraph.get(), lamIdx, make_float3(0.f), make_float3(0.f), make_float3(1.0f, 1.0f, 1.0f), lamBSDF);
                     this->resetRenderParams();
                 }
+
+                if (ImGui::MenuItem("Sphere"))
+                {
+                    std::shared_ptr<BSDF> lamBSDF;
+                    int32_t lamIdx = this->m_materialPool->createLambertMaterial(optix::make_float4(0.5f, 0.5f, 0.5f, 1.f), lamBSDF);
+                    this->m_sceneGraph->createSphere(this->m_sceneGraph.get(), lamIdx, make_float3(0.f), 1.0f, lamBSDF);
+                    this->resetRenderParams();
+                }
+
                 if (ImGui::MenuItem("TriangleMesh"))
                 {
                     static char const * lFilterPatterns[2] = { "*.obj" };
@@ -1513,6 +1755,7 @@ void Application::drawHierarchy()
                         this->resetRenderParams();
                     } 
                 }
+
                 ImGui::EndMenu();
             }
 
@@ -1572,6 +1815,20 @@ void Application::drawHierarchy()
             }
         }
 
+        /* SphereLights */
+        for (auto sphereLightItr = lightPool->getSphereLights().cbegin(); sphereLightItr != lightPool->getSphereLights().cend(); ++sphereLightItr)
+        {
+            ImGuiTreeNodeFlags sphereLight_TreeNode_flag = (this->m_currentHierarchyNode ?
+                ((this->m_currentHierarchyNode->getId() == (*sphereLightItr)->getId()) ?
+                (base_flags | ImGuiTreeNodeFlags_Selected) : base_flags)
+                : base_flags);
+            ImGui::TreeNodeEx((void*)(intptr_t)((*sphereLightItr)->getId()), sphereLight_TreeNode_flag, (*sphereLightItr)->getName().c_str());
+            if (ImGui::IsItemClicked())
+            {
+                this->m_currentHierarchyNode = *sphereLightItr;
+            }
+        }
+
 
 
         ImGui::TreePop();
@@ -1588,22 +1845,23 @@ void Application::drawHierarchy()
          *        -- We assumed that there are only quads in GeometryShape in current implementation. */
         const std::vector<std::shared_ptr<GeometryShape>> &shapes_Geometry = this->m_sceneGraph->getShapes_Geometry();
 
-        for (auto quadShapePtrItr = shapes_Geometry.cbegin(); quadShapePtrItr != shapes_Geometry.cend(); ++quadShapePtrItr)
+        for (auto geometryShapeItr = shapes_Geometry.cbegin(); geometryShapeItr != shapes_Geometry.cend(); ++geometryShapeItr)
         {
             /* If this Quad shape is used to be an underlying shape for AreaLight, never show 
              * -- it up in Hierarchy. Because once the special Quad (used for AreaLight) is 
-             * -- removed by user, QuadLight is ill-defined and thus leading to corruption. */
-            if(std::static_pointer_cast<Quad>(*quadShapePtrItr)->isAreaLight())
+             * -- removed by user, QuadLight is ill-defined and thus leading to corruption. 
+             * Same for spherical light. */
+            if((*geometryShapeItr)->isAreaLight())
                 continue;
 
-            ImGuiTreeNodeFlags quadShape_TreeNode_flag = (this->m_currentHierarchyNode ?
-                ((this->m_currentHierarchyNode->getId() == (*quadShapePtrItr)->getId()) ?
+            ImGuiTreeNodeFlags geometryShape_TreeNode_flag = (this->m_currentHierarchyNode ?
+                ((this->m_currentHierarchyNode->getId() == (*geometryShapeItr)->getId()) ?
                 (base_flags | ImGuiTreeNodeFlags_Selected) : base_flags)
                 : base_flags);
-            ImGui::TreeNodeEx((void*)(intptr_t)((*quadShapePtrItr)->getId()), quadShape_TreeNode_flag, (*quadShapePtrItr)->getName().c_str());
+            ImGui::TreeNodeEx((void*)(intptr_t)((*geometryShapeItr)->getId()), geometryShape_TreeNode_flag, (*geometryShapeItr)->getName().c_str());
             if (ImGui::IsItemClicked())
             {
-                this->m_currentHierarchyNode = *quadShapePtrItr;
+                this->m_currentHierarchyNode = *geometryShapeItr;
             }
         }
 
@@ -1776,7 +2034,8 @@ void Application::createProgramsFromPTX()
     loadProgram("SphericalSkybox", { "Miss_Default" });
 
     loadProgram("TriangleMesh", { "Attributes_TriangleMesh", "BoundingBox_TriangleMesh" , "Intersect_TriangleMesh", "Attributes_TriangleSoup" });
-    loadProgram("Quad",         { "BoundingBox_Quad", "Intersect_Quad" });
+    loadProgram("Quad",         { "BoundingBox_Quad",  "Intersect_Quad" });
+    loadProgram("Sphere",       { "BoundingBox_Sphere","Intersect_Sphere" });
 
     loadProgram("DirectLighting", { "ClosestHit_DirectLighting" });
     loadProgram("PathTracing",    { "ClosestHit_PathTracing", "ClosestHit_PTRay_PathTracing" });
@@ -1789,6 +2048,7 @@ void Application::createProgramsFromPTX()
     loadProgram("HDRILight",  { "Sample_Ld_HDRI", "LightPdf_HDRI", 
                                 "RayGeneration_PrefilterHDRILight" });
     loadProgram("QuadLight",  { "Sample_Ld_Quad", "LightPdf_Quad" });
+    loadProgram("SphereLight", { "Sample_Ld_Sphere", "LightPdf_Sphere" });
 
     auto loadProgramMaterial = [loadProgram](const std::initializer_list<std::string> materials)->void
     {
@@ -2082,6 +2342,7 @@ void Application::initializeCallableProgramGroup()
     loadLightPrograms(CommonStructs::LightType::PointLight, "Point");
     loadLightPrograms(CommonStructs::LightType::QuadLight,  "Quad");//todo:fix name 
     loadLightPrograms(CommonStructs::LightType::HDRILight,  "HDRI");
+    loadLightPrograms(CommonStructs::LightType::SphereLight,"Sphere");
 
     sampleLdProgramBuffer->unmap();
     lightPdfProgramBuffer->unmap();

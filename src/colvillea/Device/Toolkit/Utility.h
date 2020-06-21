@@ -39,7 +39,7 @@ namespace TwUtil
 		static __device__ __inline__ void ConcentricSampleDisk(const optix::float2 & urand, float * dx, float * dy);
 
 		static __host__ __device__ __inline__ float PowerHeuristic(int nf, float fPdf, int ng, float gPdf);
-
+        static __host__ __device__ __inline__ float UniformConePdf(float cosThetaMax);
 
 		//MCSampling
 		static __device__ __inline__ optix::float3 CosineSampleHemisphere(optix::float2 urand)
@@ -111,6 +111,14 @@ namespace TwUtil
 			float f = nf * fPdf, g = ng * gPdf;
 			return (f*f) / (f*f + g * g);
 		}
+
+        /**
+         * @brief Pdf (w.r.t Solid Angle measure) for uniform sampling cone.
+         */
+        static __host__ __device__ __inline__ float UniformConePdf(float cosThetaMax) 
+        {
+            return 1 / (2 * M_PIf * (1 - cosThetaMax));
+        }
 	}
 
 	namespace BSDFMath

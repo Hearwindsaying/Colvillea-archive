@@ -21,6 +21,7 @@
 #include "colvillea/Module/Integrator/PathTracing.h"
 #include "colvillea/Module/Geometry/TriangleMesh.h"
 #include "colvillea/Module/Geometry/Quad.h"
+#include "colvillea/Module/Geometry/Sphere.h"
 #include "colvillea/Module/Sampler/HaltonSampler.h"
 #include "colvillea/Module/Sampler/SobolSampler.h"
 #include "colvillea/Module/Sampler/IndependentSampler.h"
@@ -210,6 +211,27 @@ public:
 
 
     void createTriangleSoup(int32_t materialIndex, const std::shared_ptr<BSDF> &bsdf, const std::vector<optix::float3> &vertices);
+
+    /**
+     * @brief Create a sphere and add to SceneGraph shape
+     * pool. A simple function to encapsulate constructor and
+     * loadShape().
+     *
+     * @param[in] materialIndex material index to materialBuffer
+     * @param[in] center
+     * @param[in] position       
+     */
+    std::shared_ptr<Sphere> createSphere(SceneGraph *sceneGraph, int32_t materialIndex, const optix::float3 &center, const float radius, const std::shared_ptr<BSDF> &bsdf);
+
+    /**
+     * @brief Create a sphere for spherelight and add to SceneGraph shape
+     * pool. A simple function to encapsulate constructor and
+     * loadShape().
+     * @param[in] materialIndex material index to materialBuffer
+     * @param[in] center
+     * @param[in] position
+     */
+    std::shared_ptr<Sphere> createSphere(int32_t materialIndex, const optix::float3 &center, const float radius, int32_t sphereLightIndex, const std::shared_ptr<BSDF> &bsdf);
 
     /**
      * @brief Remove a Geometry from graph.

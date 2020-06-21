@@ -49,6 +49,7 @@ namespace CommonStructs
         PointLight,
         HDRILight,
         QuadLight,
+        SphereLight,
 
         CountOfType
     };
@@ -105,11 +106,29 @@ namespace CommonStructs
         //optix::float2 scaleXY;
     };
 
+    struct SphereLight
+    {
+        optix::float4 intensity;
+
+        /* Transform matrices and |reverseOrientation| is the same as
+         * -- sphereLight's underlying shape's one. */
+        optix::Matrix4x4 lightToWorld;         /* corresponding to objectToWorld */
+        optix::Matrix4x4 worldToLight;         /* corresponding to worldToObject */
+        optix::float3  center;
+        float          radius;
+        //int              reverseOrientation; /* corresponding to reverseOrientation */
+        float            invSurfaceArea;       /* corresponding to (not exists yet) invSurfaceArea
+                                                -- useful in light sampling */
+
+        LightType lightType;
+    };
+
     struct LightBuffers
     {
-        rtBufferId<CommonStructs::PointLight> pointLightBuffer;
-        rtBufferId<CommonStructs::QuadLight>  quadLightBuffer;
-        CommonStructs::HDRILight              hdriLight;
+        rtBufferId<CommonStructs::PointLight>  pointLightBuffer;
+        rtBufferId<CommonStructs::QuadLight>   quadLightBuffer;
+        rtBufferId<CommonStructs::SphereLight> sphereLightBuffer;
+        CommonStructs::HDRILight               hdriLight;
     };
 
     struct HDRIEnvmapLuminanceBufferWrapper

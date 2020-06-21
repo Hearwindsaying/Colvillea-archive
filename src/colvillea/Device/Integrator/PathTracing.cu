@@ -19,7 +19,10 @@ rtBuffer<ShaderParams, 1> shaderBuffer;
 
 // Material related:->GeometryInstance
 rtDeclareVariable(int, materialIndex, , );
-rtDeclareVariable(int, quadLightIndex, , ); /* potential area light binded to the geometryInstance */
+// Avaliable for Quad Area Light
+rtDeclareVariable(int, quadLightIndex, , ) = -1; /* potential area light binded to the geometryInstance */
+// Avaliable for Sphere Area Light
+rtDeclareVariable(int, sphereLightIndex, , ) = -1;
 
 //differential geometry:->Attribute
 rtDeclareVariable(optix::float4,		nGeometry, attribute nGeometry, );
@@ -51,7 +54,12 @@ RT_PROGRAM void ClosestHit_PTRay_PathTracing()
 	prdPT.bsdfType = shaderBuffer[materialIndex].bsdfType;
     if (prdPT.bsdfType == CommonStructs::BSDFType::Emissive)
     {
-        prdPT.emittedRadiance = TwUtil::Le_QuadLight(sysLightBuffers.quadLightBuffer[quadLightIndex], -ray.direction);
+        if(quadLightIndex != -1)
+            prdPT.emittedRadiance = TwUtil::Le_QuadLight(sysLightBuffers.quadLightBuffer[quadLightIndex], -ray.direction);
+        else
+            prdPT.emittedRadiance = (TwUtil::dot(prdPT.isectP - sysLightBuffers.sphereLightBuffer[sphereLightIndex].center, nGeometry) > 0.f
+                                     ? sysLightBuffers.sphereLightBuffer[sphereLightIndex].intensity
+                                     : make_float4(0.f));
     }
 }
 
@@ -79,13 +87,19 @@ RT_PROGRAM void ClosestHit_PathTracing()
 	             currentShaderParams.dgShading = dgShading;
 	             currentShaderParams.nGeometry = nGeometry;
 
-    float4 emittedRadiance = (currentShaderParams.bsdfType == CommonStructs::BSDFType::Emissive ?
-        TwUtil::Le_QuadLight(sysLightBuffers.quadLightBuffer[quadLightIndex], -ray.direction) :
-        make_float4(0.f)); /* Emitted radiance from area light. */
-
-	float3 isectP = ray.origin + tHit * ray.direction;
+    float3 isectP = ray.origin + tHit * ray.direction;
 	float3 isectDir = ray.direction;
-	
+
+    //float4 emittedRadiance = (currentShaderParams.bsdfType == CommonStructs::BSDFType::Emissive ?
+    //    TwUtil::Le_QuadLight(sysLightBuffers.quadLightBuffer[quadLightIndex], -ray.direction) :
+    //    make_float4(0.f)); /* Emitted radiance from area light. */
+    float4 emittedRadiance = (currentShaderParams.bsdfType == CommonStructs::BSDFType::Emissive ?
+                                (quadLightIndex == -1 ?
+                                     (TwUtil::dot(isectP - sysLightBuffers.sphereLightBuffer[sphereLightIndex].center, nGeometry) > 0.f ? sysLightBuffers.sphereLightBuffer[sphereLightIndex].intensity
+                                      : make_float4(0.f))
+                                 : TwUtil::Le_QuadLight(sysLightBuffers.quadLightBuffer[quadLightIndex], -ray.direction))
+                             : make_float4(0.f));
+
     /* Always found intersection for the first ray. */
     bool foundIntersection = true;
 
