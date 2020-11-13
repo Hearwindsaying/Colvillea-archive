@@ -59,6 +59,25 @@ void create_CornellBoxScene(std::shared_ptr<SceneGraph> &sceneGraph, std::shared
         make_float3(17.f, 12.f, 4.f)/17.f, 17.f, emissiveIdx, emissiveBSDF, true);
 }
 
+void create_LTCScene(std::shared_ptr<SceneGraph>& sceneGraph, std::shared_ptr<LightPool>& lightPool, std::shared_ptr<MaterialPool>& materialPool, const std::string& basePath)
+{
+    sceneGraph->createSampler(CommonStructs::SamplerType::IndependentSampler);
+    /* Create triangle mesh. */
+    std::shared_ptr<BSDF> lamBSDF;
+    int lamIdx = materialPool->createPlasticMaterial(0.005f, 1.0f, make_float4(0.0f), make_float4(1.0f), lamBSDF);
+    sceneGraph->createTriangleMesh(
+        "D:/Project/graphics/resources/sphere.obj",
+        lamIdx, lamBSDF);
+
+    /* Create light. */
+    std::shared_ptr<BSDF> emissiveBSDF;
+    int emissiveIdx = materialPool->getEmissiveMaterial(emissiveBSDF);
+    lightPool->createQuadLight(
+        make_float3(0.f, 0.f, 11.7f), make_float3(0.f),
+        make_float3(3.25f, 2.625f, 1.f),
+        make_float3(17.f, 12.f, 4.f) / 17.f, 17.f, emissiveIdx, emissiveBSDF, true);
+}
+
 /* Create test scene. */
 void create_TestScene(std::shared_ptr<SceneGraph> &sceneGraph, std::shared_ptr<LightPool> &lightPool, std::shared_ptr<MaterialPool> &materialPool, const std::string & basePath)
 {
@@ -281,7 +300,8 @@ int main(int argc, char *argv[])
 
     /* Create scene using sceneGraph::createXXX methods. */
     sceneGraph->createCamera(Matrix4x4::identity(), fov, filmWidth, filmHeight, 0.06f, 0.0f);
-    create_CornellBoxScene(sceneGraph, lightPool, materialPool, examplesBasePath); /* left scene configurations are created... */
+    //create_CornellBoxScene(sceneGraph, lightPool, materialPool, examplesBasePath); /* left scene configurations are created... */
+    create_LTCScene(sceneGraph, lightPool, materialPool, examplesBasePath);
     //create_TestScene(sceneGraph, lightPool, materialPool, examplesBasePath);
     //create_DiningRoom(sceneGraph, lightPool, materialPool, examplesBasePath);
 

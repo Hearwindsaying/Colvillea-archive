@@ -37,6 +37,7 @@ enum class IntegratorType
 {
     DirectLighting, // Direct light only.
     PathTracing,    // Direct light + indirect light.
+    AnalyticalDirectLighting, // Direct lighting with LTC.
 
     CountOfType
 };

@@ -117,6 +117,11 @@ namespace CommonStructs
         rtBufferId<float, 2> HDRIEnvmapLuminanceBuffer;
     };
 
+    struct LTCBuffers
+    {
+        int ltc1;
+    };
+
 
     struct GlobalSobolSampler
     {

@@ -562,7 +562,7 @@ void Application::drawSettings()
         ImGui::AlignTextToFramePadding();
         ImGui::Text("                          Integrator"); ImGui::SameLine(200.f);
         ImGui::SetNextItemWidth(165);
-        if (ImGui::Combo("##Integrator", &currentIntegratorIdx, "Direct Lighting\0Path Tracing\0\0"))
+        if (ImGui::Combo("##Integrator", &currentIntegratorIdx, "Direct Lighting\0Path Tracing\0Analytical Direct Lighting\0"))
         {
             /* Switch integrator. */
             this->m_sceneGraph->changeIntegrator(static_cast<IntegratorType>(currentIntegratorIdx));
@@ -1606,6 +1606,7 @@ void Application::createProgramsFromPTX()
     loadProgram("Quad",         { "BoundingBox_Quad", "Intersect_Quad" });
 
     loadProgram("DirectLighting", { "ClosestHit_DirectLighting" });
+    loadProgram("AnalyticalDirectLighting", { "ClosestHit_AnalyticalDirectLighting" });
     loadProgram("PathTracing",    { "ClosestHit_PathTracing", "ClosestHit_PTRay_PathTracing" });
 
     loadProgram("HitProgram", { "ClosestHit_ShadowRay_GeometryTriangles" });

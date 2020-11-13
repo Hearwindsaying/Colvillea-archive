@@ -18,6 +18,7 @@
 #include <memory>
 
 #include "colvillea/Module/Integrator/DirectLighting.h"
+#include "colvillea/Module/Integrator/AnalyticalDirectLighting.h"
 #include "colvillea/Module/Integrator/PathTracing.h"
 #include "colvillea/Module/Geometry/TriangleMesh.h"
 #include "colvillea/Module/Geometry/Quad.h"
@@ -125,6 +126,9 @@ private:
         constexpr int  maxDepth = 5;
         integrator = PathTracing::createIntegrator(this->m_context, this->m_programsMap, enableRoussianRoulette, maxDepth);
         TW_ASSERT(this->m_integratorsMap.insert({ IntegratorType::PathTracing, integrator }).second);
+
+        integrator = AnalyticalDirectLighting::createIntegrator(this->m_context, this->m_programsMap);
+        TW_ASSERT(this->m_integratorsMap.insert({ IntegratorType::AnalyticalDirectLighting, integrator }).second);
     }
 
     /**

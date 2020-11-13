@@ -47,6 +47,7 @@ set(SOURCE_LIST
 	"${CMAKE_CURRENT_SOURCE_DIR}/Device/Geometry/Quad.h"
 	"${CMAKE_CURRENT_SOURCE_DIR}/Device/Geometry/TriangleMesh.cu"
 	"${CMAKE_CURRENT_SOURCE_DIR}/Device/Integrator/DirectLighting.cu"
+	"${CMAKE_CURRENT_SOURCE_DIR}/Device/Integrator/AnalyticalDirectLighting.cu"
 	"${CMAKE_CURRENT_SOURCE_DIR}/Device/Integrator/PathTracing.cu"
 	"${CMAKE_CURRENT_SOURCE_DIR}/Device/Integrator/Integrator.h"
 	"${CMAKE_CURRENT_SOURCE_DIR}/Device/Light/HDRILight.cu"
@@ -98,6 +99,7 @@ set(SOURCE_LIST
 	"${CMAKE_CURRENT_SOURCE_DIR}/Module/Image/ImageLoader.h"
 	
 	"${CMAKE_CURRENT_SOURCE_DIR}/Module/Integrator/DirectLighting.h"
+	"${CMAKE_CURRENT_SOURCE_DIR}/Module/Integrator/AnalyticalDirectLighting.h"
 	"${CMAKE_CURRENT_SOURCE_DIR}/Module/Integrator/Integrator.cpp"
 	"${CMAKE_CURRENT_SOURCE_DIR}/Module/Integrator/Integrator.h"
 	"${CMAKE_CURRENT_SOURCE_DIR}/Module/Integrator/PathTracing.cpp"
@@ -182,6 +184,7 @@ OPTIX_add_sample_executable( colvillea
 	${CMAKE_CURRENT_SOURCE_DIR}/Device/Geometry/Quad.h
 	${CMAKE_CURRENT_SOURCE_DIR}/Device/Geometry/TriangleMesh.cu
 	${CMAKE_CURRENT_SOURCE_DIR}/Device/Integrator/DirectLighting.cu
+	${CMAKE_CURRENT_SOURCE_DIR}/Device/Integrator/AnalyticalDirectLighting.cu
 	${CMAKE_CURRENT_SOURCE_DIR}/Device/Integrator/PathTracing.cu
 	${CMAKE_CURRENT_SOURCE_DIR}/Device/Integrator/Integrator.h
 	${CMAKE_CURRENT_SOURCE_DIR}/Device/Light/HDRILight.cu
@@ -233,6 +236,7 @@ OPTIX_add_sample_executable( colvillea
 	${CMAKE_CURRENT_SOURCE_DIR}/Module/Image/ImageLoader.h
 	
 	${CMAKE_CURRENT_SOURCE_DIR}/Module/Integrator/DirectLighting.h
+	${CMAKE_CURRENT_SOURCE_DIR}/Module/Integrator/AnalyticalDirectLighting.h
 	${CMAKE_CURRENT_SOURCE_DIR}/Module/Integrator/Integrator.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/Module/Integrator/Integrator.h
 	${CMAKE_CURRENT_SOURCE_DIR}/Module/Integrator/PathTracing.cpp
