@@ -41,7 +41,7 @@ static __device__ __inline__ float3 sphericalToCartesian(const float theta, cons
 //ClosestHit program:
 RT_PROGRAM void ClosestHit_DirectLighting(void)
 {
-#if 0
+#if 1
     GPUSampler localSampler; 
     makeSampler(RayTracingPipelinePhase::ClosestHit, localSampler);
 
@@ -59,7 +59,7 @@ RT_PROGRAM void ClosestHit_DirectLighting(void)
 	Ld += SampleLightsAggregate(shaderParams, ray.origin + tHit * ray.direction, -ray.direction, localSampler);
 
 	prdRadiance.radiance = Ld;
-#endif
+#else
     float3 wo = sphericalToCartesian(wo_theta, wo_phi);
     float3 wi = safe_normalize(ray.origin + tHit * ray.direction);
 
@@ -67,4 +67,5 @@ RT_PROGRAM void ClosestHit_DirectLighting(void)
     shaderParams.nGeometry = nGeometry;
     shaderParams.dgShading = dgShading;
     prdRadiance.radiance = MicrofacetReflection_InnerEval_f(wo, wi, shaderParams, true) * fabsf(wi.z);
+#endif
 }

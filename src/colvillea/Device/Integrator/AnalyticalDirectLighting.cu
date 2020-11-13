@@ -371,7 +371,8 @@ RT_PROGRAM void ClosestHit_AnalyticalDirectLighting(void)
     Matrix3x3 mInv{ mInvData };
 
     float Do = Eval_Do(safe_normalize(mInv * wi));
-    Do *= mInv.det() / (length(mInv * wi) * length(mInv * wi) * length(mInv * wi));
+    float l = length(mInv * wi);
+    Do *= mInv.det() / ( l * l * l);
     prdRadiance.radiance = make_float4(Do);
 #endif
 }
