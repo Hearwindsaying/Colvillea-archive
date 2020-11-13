@@ -66,5 +66,5 @@ RT_PROGRAM void ClosestHit_DirectLighting(void)
     ShaderParams shaderParams = shaderBuffer[materialIndex];
     shaderParams.nGeometry = nGeometry;
     shaderParams.dgShading = dgShading;
-    prdRadiance.radiance = MicrofacetReflection_InnerEval_f(wo, wi, shaderParams, true);
+    prdRadiance.radiance = MicrofacetReflection_InnerEval_f(wo, wi, shaderParams, true) * fabsf(wi.z);
 }

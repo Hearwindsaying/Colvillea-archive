@@ -307,12 +307,13 @@ optix::TextureSampler ImageLoader::LoadImageTextureLinear(optix::Context & conte
 				TW_ASSERT(!isinf(static_cast<float>(bits[0])) && !isnan(static_cast<float>(bits[0])));
 				TW_ASSERT(!isinf(static_cast<float>(bits[1])) && !isnan(static_cast<float>(bits[1])));
 				TW_ASSERT(!isinf(static_cast<float>(bits[2])) && !isnan(static_cast<float>(bits[2])));
+				TW_ASSERT(!isinf(static_cast<float>(bits[3])) && !isnan(static_cast<float>(bits[3])));
 
 				//note that for RGBAF/RGBF format, the pixel order is:RGB(A)
 				buffer_data[buf_index] = static_cast<float>(bits[0]);
 				buffer_data[buf_index + 1] = static_cast<float>(bits[1]);
 				buffer_data[buf_index + 2] = static_cast<float>(bits[2]);
-				buffer_data[buf_index + 3] = 1.0f;
+				buffer_data[buf_index + 3] = static_cast<float>(bits[3]);
 				// jump to next pixel
 				bits += bytespp;
 			}

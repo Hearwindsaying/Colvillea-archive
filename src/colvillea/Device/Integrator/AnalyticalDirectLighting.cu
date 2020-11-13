@@ -315,10 +315,25 @@ static __device__ __inline__ float4 AnalyticalQuadLights(const CommonStructs::Sh
     return L;
 }
 
+// Visualize BRDF distribution
+rtDeclareVariable(float, wo_theta, , ) = 0.0f;
+rtDeclareVariable(float, wo_phi, , ) = 0.0f;
+
+static __device__ __inline__ float3 sphericalToCartesian(const float theta, const float phi)
+{
+    return make_float3(sin(theta) * cos(phi), sin(theta) * sin(phi), cos(theta));
+};
+
+static __device__ __inline__ float Eval_Do(const float3& w)
+{
+    return M_1_PIf * fmaxf(0, w.z);
+}
+
 //////////////////////////////////////////////////////////////////////////
 //ClosestHit program:
 RT_PROGRAM void ClosestHit_AnalyticalDirectLighting(void)
 {
+#if 1
     GPUSampler localSampler;
     makeSampler(RayTracingPipelinePhase::ClosestHit, localSampler);
 
@@ -336,4 +351,27 @@ RT_PROGRAM void ClosestHit_AnalyticalDirectLighting(void)
     Ld += AnalyticalQuadLights(shaderParams, ray.origin + tHit * ray.direction, -ray.direction, localSampler);
 
     prdRadiance.radiance = Ld;
+#else
+    float3 wo = sphericalToCartesian(wo_theta, wo_phi);
+    float3 wi = safe_normalize(ray.origin + tHit * ray.direction);
+
+    ShaderParams shaderParams = shaderBuffer[materialIndex];
+    shaderParams.nGeometry = nGeometry;
+    shaderParams.dgShading = dgShading;
+
+    float ndotv = optix::clamp(TwUtil::dot(wo, shaderParams.dgShading.nn), 0.0f, 1.0f);
+    float2 uv = make_float2(shaderParams.alphax, sqrtf(1.0f - ndotv));
+    uv = uv * LUT_SCALE + LUT_BIAS;
+    assert(ltcBuffers.ltc1 != RT_TEXTURE_ID_NULL);
+    float4 t1 = rtTex2D<float4>(ltcBuffers.ltc1, uv.x, uv.y);
+
+    const float mInvData[3 * 3]{ t1.x, 0, t1.z,
+                                 0,    1,    0,
+                                 t1.y, 0, t1.w };
+    Matrix3x3 mInv{ mInvData };
+
+    float Do = Eval_Do(safe_normalize(mInv * wi));
+    Do *= mInv.det() / (length(mInv * wi) * length(mInv * wi) * length(mInv * wi));
+    prdRadiance.radiance = make_float4(Do);
+#endif
 }
