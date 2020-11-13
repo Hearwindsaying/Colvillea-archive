@@ -594,6 +594,19 @@ void Application::drawSettings()
                 this->resetRenderParams();
             }
         }
+
+        static float theta = 0.0f;
+        static float phi = 0.0f;
+        if (ImGui::SliderAngle("wo theta", &theta, 0.0f, 180.0f))
+        {
+            this->m_context["wo_theta"]->setFloat(theta);
+            this->resetRenderParams();
+        }
+        if (ImGui::SliderAngle("wo phi", &phi, 0.0f, 360.0f))
+        {
+            this->m_context["wo_phi"]->setFloat(phi);
+            this->resetRenderParams();
+        }
     }
 
 
@@ -1777,7 +1790,7 @@ void Application::initializeContext()
     /* Setup number of ray type. */
     this->m_context->setRayTypeCount(toUnderlyingValue(CommonStructs::RayType::CountOfType));
 
-    // todo:pack scene related paramters(materialBuffer) into a struct
+    // todo:pack scene related parameters(materialBuffer) into a struct
     this->m_context["sysSceneEpsilon"]->setFloat(1e-4f);
 
     /* Create gpu programs from PTX files and add to programs map. */

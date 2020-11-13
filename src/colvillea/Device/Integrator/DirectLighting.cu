@@ -2,6 +2,7 @@
 #include <optix_device.h>
 
 #include "Integrator.h"
+#include "../Shader/MicrofacetBRDF.h"
 
 using namespace optix;
 
@@ -27,10 +28,20 @@ rtDeclareVariable(int, quadLightIndex, , ); /* potential area light binded to th
 rtDeclareVariable(optix::float4,        nGeometry, attribute nGeometry, );
 rtDeclareVariable(DifferentialGeometry, dgShading, attribute dgShading, );
 
+// Visualize BRDF distribution
+rtDeclareVariable(float, wo_theta, , ) = 0.0f;
+rtDeclareVariable(float, wo_phi, , ) = 0.0f;
+
+static __device__ __inline__ float3 sphericalToCartesian(const float theta, const float phi)
+{
+    return make_float3(sin(theta) * cos(phi), sin(theta) * sin(phi), cos(theta));
+};
+
 //////////////////////////////////////////////////////////////////////////
 //ClosestHit program:
 RT_PROGRAM void ClosestHit_DirectLighting(void)
 {
+#if 0
     GPUSampler localSampler; 
     makeSampler(RayTracingPipelinePhase::ClosestHit, localSampler);
 
@@ -48,4 +59,12 @@ RT_PROGRAM void ClosestHit_DirectLighting(void)
 	Ld += SampleLightsAggregate(shaderParams, ray.origin + tHit * ray.direction, -ray.direction, localSampler);
 
 	prdRadiance.radiance = Ld;
+#endif
+    float3 wo = sphericalToCartesian(wo_theta, wo_phi);
+    float3 wi = safe_normalize(ray.origin + tHit * ray.direction);
+
+    ShaderParams shaderParams = shaderBuffer[materialIndex];
+    shaderParams.nGeometry = nGeometry;
+    shaderParams.dgShading = dgShading;
+    prdRadiance.radiance = MicrofacetReflection_InnerEval_f(wo, wi, shaderParams, true);
 }
