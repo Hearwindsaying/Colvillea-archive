@@ -1638,7 +1638,7 @@ void Application::createProgramsFromPTX()
             loadProgram(material, { "Pdf_" + material, "Eval_f_" + material, "Sample_f_" + material });
         }
     };
-    loadProgramMaterial({ "Lambert","RoughMetal","RoughDielectric","SmoothGlass","Plastic","SmoothMirror","FrostedMetal" });
+    loadProgramMaterial({ "Lambert","RoughMetal","RoughDielectric","SmoothGlass","Plastic","SmoothMirror","FrostedMetal","Cloth" });
 
 
 }
@@ -1882,6 +1882,7 @@ void Application::initializeCallableProgramGroup()
     // todo:using enumerating to loop over all types instead of handling them.
     loadBSDFPrograms(CommonStructs::BSDFType::Lambert,         "Lambert");
     loadBSDFPrograms(CommonStructs::BSDFType::RoughMetal,      "RoughMetal");
+    loadBSDFPrograms(CommonStructs::BSDFType::Cloth,           "Cloth");
     loadBSDFPrograms(CommonStructs::BSDFType::RoughDielectric, "RoughDielectric");
     loadBSDFPrograms(CommonStructs::BSDFType::SmoothGlass,     "SmoothGlass");
     loadBSDFPrograms(CommonStructs::BSDFType::Plastic,         "Plastic");

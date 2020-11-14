@@ -256,6 +256,7 @@ namespace CommonStructs
         Emissive        = 5,
         SmoothMirror    = 6, //todo:categorize by lobe attributes
         FrostedMetal    = 7,
+        Cloth           = 8,
 
         CountOfType
     };

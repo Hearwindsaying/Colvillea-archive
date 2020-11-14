@@ -115,6 +115,9 @@ public:
         case CommonStructs::BSDFType::FrostedMetal:
             this->setName("FrostedMetal");
             break;
+        case CommonStructs::BSDFType::Cloth:
+            this->setName("Cloth");
+            break;
         }
     }
 
@@ -441,6 +444,16 @@ public:
         outBSDF = BSDF::createBSDF(this->m_context, this, materialParams);
         return this->addMaterial(outBSDF);
     }
+
+    inline int32_t createClothMaterial(std::shared_ptr<BSDF>& outBSDF, const float roughness)
+    {
+        CommonStructs::ShaderParams materialParams;
+        MaterialPool::settingMaterialParameters(materialParams, CommonStructs::BSDFType::Cloth);
+        
+        materialParams.alphax = roughness;
+        outBSDF = BSDF::createBSDF(this->m_context, this, materialParams);
+        return this->addMaterial(outBSDF);
+    }
 #pragma endregion CodeFromSceneGraph_createXXMaterial()
 
     /**
@@ -618,6 +631,7 @@ public:
     /*static constexpr int comboBSDFType_Emissive = 5;*/
     static constexpr int comboBSDFType_SmoothMirror = 5;
     static constexpr int comboBSDFType_FrostedMetal = 6;
+    static constexpr int comboBSDFType_Cloth = 7;
 
 private:
     const std::map<std::string, optix::Program> &m_programsMap;

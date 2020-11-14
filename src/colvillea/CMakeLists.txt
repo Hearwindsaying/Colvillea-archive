@@ -73,6 +73,7 @@ set(SOURCE_LIST
 	"${CMAKE_CURRENT_SOURCE_DIR}/Device/Shader/Plastic.cu"
 	"${CMAKE_CURRENT_SOURCE_DIR}/Device/Shader/RoughDielectric.cu"
 	"${CMAKE_CURRENT_SOURCE_DIR}/Device/Shader/RoughMetal.cu"
+	"${CMAKE_CURRENT_SOURCE_DIR}/Device/Shader/Cloth.cu"
 	"${CMAKE_CURRENT_SOURCE_DIR}/Device/Shader/SmoothGlass.cu"
 	"${CMAKE_CURRENT_SOURCE_DIR}/Device/Shader/SmoothMirror.cu"
 	"${CMAKE_CURRENT_SOURCE_DIR}/Device/Toolkit/CommonStructs.h"
@@ -210,6 +211,7 @@ OPTIX_add_sample_executable( colvillea
 	${CMAKE_CURRENT_SOURCE_DIR}/Device/Shader/Plastic.cu
 	${CMAKE_CURRENT_SOURCE_DIR}/Device/Shader/RoughDielectric.cu
 	${CMAKE_CURRENT_SOURCE_DIR}/Device/Shader/RoughMetal.cu
+	${CMAKE_CURRENT_SOURCE_DIR}/Device/Shader/Cloth.cu
 	${CMAKE_CURRENT_SOURCE_DIR}/Device/Shader/SmoothGlass.cu
 	${CMAKE_CURRENT_SOURCE_DIR}/Device/Shader/SmoothMirror.cu
 	${CMAKE_CURRENT_SOURCE_DIR}/Device/Toolkit/CommonStructs.h

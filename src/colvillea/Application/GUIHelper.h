@@ -197,7 +197,7 @@ namespace GUIHelper
         ImGui::SetNextItemWidth(165);
         /* Note that we hide Emissive BSDF to user, which is used for AreaLight. */
 
-        if (ImGui::Combo("##BSDF", &currentBSDFTypeIdx, "Lambert\0RoughMetal\0RoughDielectric\0SmoothGlass\0Plastic\0SmoothMirror\0FrostedMetal\0\0"))
+        if (ImGui::Combo("##BSDF", &currentBSDFTypeIdx, "Lambert\0RoughMetal\0RoughDielectric\0SmoothGlass\0Plastic\0SmoothMirror\0FrostedMetal\0Cloth\0"))
         {
             bsdf->setBSDFType(MaterialPool::comboBSDFTypeToCommonStructsBSDFType(currentBSDFTypeIdx));
             application->resetRenderParams();
@@ -249,6 +249,11 @@ namespace GUIHelper
         case MaterialPool::comboBSDFType_FrostedMetal:
         {
 
+        }
+        break;
+        case MaterialPool::comboBSDFType_Cloth:
+        {
+            GUIHelper::drawInspector_MaterialCollapsingHeader_Roughness(bsdf, application);
         }
         break;
         default:
