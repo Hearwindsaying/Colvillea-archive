@@ -42,7 +42,7 @@ public:
             return filePath + "\\..\\data\\";
         };
 
-        this->m_ltc1TS = ImageLoader::LoadImageTexture(context, getDataDirectoryPath() + "ltc_1.exr", optix::make_float4(0.f));
+        this->m_ltc1TS = ImageLoader::LoadImageTexture(context, getDataDirectoryPath() + "ltc_1_ashCloth.exr", optix::make_float4(0.f));
         CommonStructs::LTCBuffers ltcBuffersHost;
         ltcBuffersHost.ltc1 = this->m_ltc1TS->getId();
         context["ltcBuffers"]->setUserData(sizeof(CommonStructs::LTCBuffers), &ltcBuffersHost);

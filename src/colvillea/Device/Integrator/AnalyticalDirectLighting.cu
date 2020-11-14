@@ -285,7 +285,7 @@ static __device__ __inline__ float4 AnalyticalEstimateDirectLighting<CommonStruc
     quadShape[3] = TwUtil::xfmPoint(make_float3(-1.f, 1.f, 0.f), quadLight.lightToWorld);
 
     float ndotv = optix::clamp(TwUtil::dot(wo_world, shaderParams.dgShading.nn), 0.0f, 1.0f);
-    float2 uv = make_float2(shaderParams.alphax, sqrtf(1.0f - ndotv));
+    float2 uv = make_float2(sqrtf(shaderParams.alphax), sqrtf(1.0f - ndotv));
     uv = uv * LUT_SCALE + LUT_BIAS;
 
     assert(ltcBuffers.ltc1 != RT_TEXTURE_ID_NULL);
@@ -360,7 +360,7 @@ RT_PROGRAM void ClosestHit_AnalyticalDirectLighting(void)
     shaderParams.dgShading = dgShading;
 
     float ndotv = optix::clamp(TwUtil::dot(wo, shaderParams.dgShading.nn), 0.0f, 1.0f);
-    float2 uv = make_float2(shaderParams.alphax, sqrtf(1.0f - ndotv));
+    float2 uv = make_float2(sqrtf(shaderParams.alphax), sqrtf(1.0f - ndotv));
     uv = uv * LUT_SCALE + LUT_BIAS;
     assert(ltcBuffers.ltc1 != RT_TEXTURE_ID_NULL);
     float4 t1 = rtTex2D<float4>(ltcBuffers.ltc1, uv.x, uv.y);
