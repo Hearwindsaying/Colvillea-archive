@@ -37,6 +37,18 @@ static __device__ __inline__ float3 sphericalToCartesian(const float theta, cons
     return make_float3(sin(theta) * cos(phi), sin(theta) * sin(phi), cos(theta));
 };
 
+static __device__ __inline__ float Ashikhmin_D(float roughness, float NoH)
+{
+    // Ref: Filament implementation
+    // Ashikhmin 2007, "Distribution-based BRDFs"
+    float a2 = roughness * roughness;
+    float cos2h = NoH * NoH;
+    float sin2h = fmaxf(1.0f - cos2h, 0.0078125f); // 2^(-14/2), so sin2h^2 > 0 in fp16
+    float sin4h = sin2h * sin2h;
+    float cot2 = -cos2h / (a2 * sin2h);
+    return 1.0 / (M_PIf * (4.0 * a2 + 1.0f) * sin4h) * (4.0f * expf(cot2) + sin4h);
+}
+
 //////////////////////////////////////////////////////////////////////////
 //ClosestHit program:
 RT_PROGRAM void ClosestHit_DirectLighting(void)
@@ -66,6 +78,11 @@ RT_PROGRAM void ClosestHit_DirectLighting(void)
     ShaderParams shaderParams = shaderBuffer[materialIndex];
     shaderParams.nGeometry = nGeometry;
     shaderParams.dgShading = dgShading;
-    prdRadiance.radiance = MicrofacetReflection_InnerEval_f(wo, wi, shaderParams, true) * fabsf(wi.z);
+
+    float3 wh = wo + wi;
+    wh = safe_normalize(wh);
+
+    //prdRadiance.radiance = MicrofacetReflection_InnerEval_f(wo, wi, shaderParams, true) * fabsf(wi.z);
+    prdRadiance.radiance = make_float4(Ashikhmin_D(shaderParams.alphax, BSDFMath::AbsCosTheta(wh)) * fabsf(wi.z));
 #endif
 }

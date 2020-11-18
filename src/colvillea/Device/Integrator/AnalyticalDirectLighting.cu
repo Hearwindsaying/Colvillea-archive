@@ -359,7 +359,8 @@ RT_PROGRAM void ClosestHit_AnalyticalDirectLighting(void)
     shaderParams.nGeometry = nGeometry;
     shaderParams.dgShading = dgShading;
 
-    float ndotv = optix::clamp(TwUtil::dot(wo, shaderParams.dgShading.nn), 0.0f, 1.0f);
+    //float ndotv = optix::clamp(TwUtil::dot(wo, shaderParams.dgShading.nn), 0.0f, 1.0f);
+    float ndotv = optix::clamp(wo.z, 0.0f, 1.0f);
     float2 uv = make_float2(sqrtf(shaderParams.alphax), sqrtf(1.0f - ndotv));
     uv = uv * LUT_SCALE + LUT_BIAS;
     assert(ltcBuffers.ltc1 != RT_TEXTURE_ID_NULL);
@@ -369,6 +370,8 @@ RT_PROGRAM void ClosestHit_AnalyticalDirectLighting(void)
                                  0,    1,    0,
                                  t1.y, 0, t1.w };
     Matrix3x3 mInv{ mInvData };
+    if (sysLaunch_index == make_uint2(384, 384))
+        rtPrintf("%f 0 %f \n 0 1 0 \n %f 0 %f \n\n", t1.x, t1.z, t1.y, t1.w);
 
     float Do = Eval_Do(safe_normalize(mInv * wi));
     float l = length(mInv * wi);
