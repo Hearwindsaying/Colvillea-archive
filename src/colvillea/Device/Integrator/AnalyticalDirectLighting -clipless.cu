@@ -203,7 +203,7 @@ static __device__ __inline__ float IntegrateEdge(const float3& v1, const float3&
 }
 
 static __device__ __inline__ float4 LTC_Evaluate(
-    const float3& N, const float3& V, const float3& P, const Matrix3x3& Minv, const float3 points[4], bool twoSided)
+    const float3& N, const float3& V, const float3& P, const Matrix3x3& Minv, const float3 points[4], bool twoSided, bool behind)
 {
     // construct orthonormal basis around N
     float3 T1, T2;
@@ -212,31 +212,47 @@ static __device__ __inline__ float4 LTC_Evaluate(
 
     // rotate area light in (T1, T2, N) basis
     const float T1T2NMatrixData[9]{ T1.x,T1.y,T1.z,T2.x,T2.y,T2.z,N.x,N.y,N.z };
-    const Matrix3x3 TBNmatrix = Matrix3x3{ T1T2NMatrixData };
-
-    float3 Lclipped[5];
-    Lclipped[0] = TBNmatrix * (points[0] - P);
-    Lclipped[1] = TBNmatrix * (points[1] - P);
-    Lclipped[2] = TBNmatrix * (points[2] - P);
-    Lclipped[3] = TBNmatrix * (points[3] - P);
-    int n;
-    ClipQuadToHorizon(Lclipped, n);
-
-    const Matrix3x3 tmpMat = Minv;
+    const Matrix3x3 tmpMat = Minv * Matrix3x3{ T1T2NMatrixData };
 
     // polygon (allocate 5 vertices for clipping)
     float3 L[5];
-    L[0] = tmpMat * (Lclipped[0]);
-    L[1] = tmpMat * (Lclipped[1]);
-    L[2] = tmpMat * (Lclipped[2]);
-    L[3] = tmpMat * (Lclipped[3]);
-    L[4] = tmpMat * (Lclipped[4]);
+    L[0] = tmpMat * (points[0] - P);
+    L[1] = tmpMat * (points[1] - P);
+    L[2] = tmpMat * (points[2] - P);
+    L[3] = tmpMat * (points[3] - P);
 
     // integrate
     float sum = 0.0;
 
-    if (sysLaunch_index == make_uint2(971, 720 - 384))
-        rtPrintf("N:%d L:%f %f %f, %f %f %f, %f %f %f, %f %f %f\n", n, L[0].x,L[0].y,L[0].z, L[1].x, L[1].y, L[1].z,L[2].x, L[2].y, L[2].z,L[3].x, L[3].y, L[3].z);
+    L[0] = safe_normalize(L[0]);
+    L[1] = safe_normalize(L[1]);
+    L[2] = safe_normalize(L[2]);
+    L[3] = safe_normalize(L[3]);
+
+    float3 vsum = make_float3(0.f);
+    vsum += IntegrateEdgeVec(L[0], L[1]);
+    vsum += IntegrateEdgeVec(L[1], L[2]);
+    vsum += IntegrateEdgeVec(L[2], L[3]);
+    vsum += IntegrateEdgeVec(L[3], L[0]);
+
+    float len = length(vsum);
+    float z = vsum.z / len;
+
+    if (behind)
+        z = -z;
+    float2 uv = make_float2(z * 0.5f + 0.5f, len);
+    uv = uv * LUT_SCALE + LUT_BIAS;
+    float scale = rtTex2D<float4>(ltcBuffers.ltc2, uv.x, uv.y).w;
+
+    sum = len * scale;
+
+    if (behind && !twoSided)
+        sum = 0.0;
+
+#if 0
+    int n;
+    ClipQuadToHorizon(L, n);
+
     if (n == 0)
         return make_float4(0.f);
     // project onto sphere
@@ -248,29 +264,15 @@ static __device__ __inline__ float4 LTC_Evaluate(
 
     // integrate
     sum += IntegrateEdge(L[0], L[1]);
-    if (sysLaunch_index == make_uint2(971, 720 - 384))
-        rtPrintf("sum: %f", sum);
     sum += IntegrateEdge(L[1], L[2]);
-    if (sysLaunch_index == make_uint2(971, 720 - 384))
-        rtPrintf(" %f ", sum);
     sum += IntegrateEdge(L[2], L[3]);
-    if (sysLaunch_index == make_uint2(971, 720 - 384))
-        rtPrintf(" %f ", sum);
     if (n >= 4)
-    {
         sum += IntegrateEdge(L[3], L[4]);
-        if (sysLaunch_index == make_uint2(971, 720 - 384))
-            rtPrintf(" %f ", sum);
-    }
-
     if (n == 5)
-    {
         sum += IntegrateEdge(L[4], L[0]);
-        if (sysLaunch_index == make_uint2(971, 720 - 384))
-            rtPrintf(" %f ", sum);
-    }
 
     sum = twoSided ? fabsf(sum) : fmaxf(0.0, sum);
+#endif
 
     return make_float4(sum, sum, sum, 1.0f);
 }
@@ -329,12 +331,16 @@ static __device__ __inline__ float4 AnalyticalEstimateDirectLighting<CommonStruc
     assert(ltcBuffers.ltc2 != RT_TEXTURE_ID_NULL);
     float4 t1 = rtTex2D<float4>(ltcBuffers.ltc1, uv.x, uv.y);
     float4 t2 = rtTex2D<float4>(ltcBuffers.ltc2, uv.x, uv.y);
+    
+    float3 dir = quadShape[0] - isectP;
+    float3 lightNormal = cross(quadShape[1] - quadShape[0], quadShape[3] - quadShape[0]);
+    bool behind = (dot(dir, lightNormal) < 0.0);
 
     const float mInvData[3 * 3]{ t1.x, 0, t1.z,
                                  0,    1,    0, 
                                  t1.y, 0, t1.w };
     Matrix3x3 mInv{ mInvData };
-    float4 spec = LTC_Evaluate(make_float3(shaderParams.dgShading.nn), wo_world, isectP, mInv, quadShape, false);
+    float4 spec = LTC_Evaluate(make_float3(shaderParams.dgShading.nn), wo_world, isectP, mInv, quadShape, false, behind);
 
     /// BRDF shadowing and Fresnel
     spec *= (shaderParams.Specular * t2.x + (make_float4(1.0f) - shaderParams.Specular) * t2.y);

@@ -119,7 +119,8 @@ namespace CommonStructs
 
     struct LTCBuffers
     {
-        int ltc1;
+        int ltc1; // GGX
+        int ltc2; // GGX Magnitude
     };
 
 

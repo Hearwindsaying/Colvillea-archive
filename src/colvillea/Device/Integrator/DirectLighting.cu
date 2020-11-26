@@ -70,6 +70,9 @@ RT_PROGRAM void ClosestHit_DirectLighting(void)
 
 	Ld += SampleLightsAggregate(shaderParams, ray.origin + tHit * ray.direction, -ray.direction, localSampler);
 
+    if (sysLaunch_index == make_uint2(971, 720 - 384))
+        rtPrintf("ld :%f %f %f\n", Ld.x, Ld.y, Ld.z);
+
 	prdRadiance.radiance = Ld;
 #else
     float3 wo = sphericalToCartesian(wo_theta, wo_phi);

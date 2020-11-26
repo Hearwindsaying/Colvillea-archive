@@ -40,7 +40,7 @@ static __device__ __inline__ float GGX_D(const float3 &m, const CommonStructs::S
 
 
 //deprecated
-static __device__ __inline__ float GGX_Lambda(const float3 &w, const ShaderParams &shaderParams)
+static __device__ __inline__ float GGX_Lambda(const float3 &w, const CommonStructs::ShaderParams &shaderParams)
 {
 	/*float roughness = 0.0f;
 	if (shaderParams.RoughnessID != RT_TEXTURE_ID_NULL)
@@ -68,7 +68,7 @@ static __device__ __inline__ float GGX_Lambda(const float3 &w, const ShaderParam
 }
 
 /*Height-Correlated Masking and Shadowing Smith_G:under construction*/
-static __device__ __inline__ float Smith_G(const float3 &wo, const float3 &wi, const ShaderParams &shaderParams)
+static __device__ __inline__ float Smith_G(const float3 &wo, const float3 &wi, const CommonStructs::ShaderParams &shaderParams)
 {
 	rtPrintf("Smith_G");
 	return 1 / (1 + GGX_Lambda(wo, shaderParams) + GGX_Lambda(wi, shaderParams));
@@ -140,7 +140,7 @@ static __device__ __inline__ float SamplingMicrofacetNormal_Pdf(const float3 &wo
 }
 
 //deprecated
-//static __device__ __inline__ float SamplingMicrofacetNormal_Pdf(const float3 & wo_Local, const float3 & wh_Local, const ShaderParams & shaderParams)
+//static __device__ __inline__ float SamplingMicrofacetNormal_Pdf(const float3 & wo_Local, const float3 & wh_Local, const CommonStructs::ShaderParams & shaderParams)
 //{
 //	rtPrintf("SamplingMicrofacetNormal_Pdf");
 //#ifdef USE_SAMPLING_NORMAL

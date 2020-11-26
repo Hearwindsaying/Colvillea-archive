@@ -74,7 +74,7 @@ void create_LTCScene(std::shared_ptr<SceneGraph>& sceneGraph, std::shared_ptr<Li
     int emissiveIdx = materialPool->getEmissiveMaterial(emissiveBSDF);
     lightPool->createQuadLight(
         make_float3(0.f, 0.f, 11.7f), make_float3(0.f),
-        make_float3(3.25f, 2.625f, 1.f),
+        make_float3(3.f, 3.f, 1.f),
         make_float3(17.f, 12.f, 4.f) / 17.f, 17.f, emissiveIdx, emissiveBSDF, true);
 }
 
