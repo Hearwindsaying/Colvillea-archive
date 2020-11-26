@@ -203,8 +203,9 @@ static __device__ __inline__ float IntegrateEdge(const float3& v1, const float3&
 }
 
 static __device__ __inline__ float4 LTC_Evaluate(
-    const float3 &N, const float3& V, const float3& P, const Matrix3x3& Minv, const float3 points[4], bool twoSided)
+    const float3& N, const float3& V, const float3& P, const Matrix3x3& Minv, const float3 points[4], bool twoSided)
 {
+    twoSided = true;
     // construct orthonormal basis around N
     float3 T1, T2;
     T1 = safe_normalize(V - N * dot(V, N));
@@ -212,20 +213,33 @@ static __device__ __inline__ float4 LTC_Evaluate(
 
     // rotate area light in (T1, T2, N) basis
     const float T1T2NMatrixData[9]{ T1.x,T1.y,T1.z,T2.x,T2.y,T2.z,N.x,N.y,N.z };
-    const Matrix3x3 tmpMat = Minv * Matrix3x3{ T1T2NMatrixData };
+    const Matrix3x3 TBNmatrix = Matrix3x3{ T1T2NMatrixData };
+
+    float3 Lclipped[5];
+    Lclipped[0] = TBNmatrix * (points[0] - P);
+    Lclipped[1] = TBNmatrix * (points[1] - P);
+    Lclipped[2] = TBNmatrix * (points[2] - P);
+    Lclipped[3] = TBNmatrix * (points[3] - P);
+    int n;
+    ClipQuadToHorizon(Lclipped, n);
+
+
+    const Matrix3x3 tmpMat = Minv;
 
     // polygon (allocate 5 vertices for clipping)
     float3 L[5];
-    L[0] = tmpMat * (points[0] - P);
-    L[1] = tmpMat * (points[1] - P);
-    L[2] = tmpMat * (points[2] - P);
-    L[3] = tmpMat * (points[3] - P);
+    L[0] = tmpMat * (Lclipped[0]);
+    L[1] = tmpMat * (Lclipped[1]);
+    L[2] = tmpMat * (Lclipped[2]);
+    L[3] = tmpMat * (Lclipped[3]);
+    L[4] = tmpMat * (Lclipped[4]);
 
     // integrate
     float sum = 0.0;
 
-    int n;
-    ClipQuadToHorizon(L, n);
+    
+    if (sysLaunch_index == make_uint2(971, 720 - 384))
+        rtPrintf("N:%d\n", n);
 
     if (n == 0)
         return make_float4(0.f);
@@ -238,18 +252,44 @@ static __device__ __inline__ float4 LTC_Evaluate(
 
     // integrate
     sum += IntegrateEdge(L[0], L[1]);
+    if (sysLaunch_index == make_uint2(971, 720 - 384))
+        rtPrintf("sum: %f", sum);
     sum += IntegrateEdge(L[1], L[2]);
+    if (sysLaunch_index == make_uint2(971, 720 - 384))
+        rtPrintf(" %f ", sum);
     sum += IntegrateEdge(L[2], L[3]);
+    if (sysLaunch_index == make_uint2(971, 720 - 384))
+        rtPrintf(" %f ", sum);
     if (n >= 4)
+    {
         sum += IntegrateEdge(L[3], L[4]);
+        if (sysLaunch_index == make_uint2(971, 720 - 384))
+            rtPrintf(" %f ", sum);
+    }
+        
     if (n == 5)
+    {
         sum += IntegrateEdge(L[4], L[0]);
+        if (sysLaunch_index == make_uint2(971, 720 - 384))
+            rtPrintf(" %f ", sum);
+    }
 
     sum = twoSided ? fabsf(sum) : fmaxf(0.0, sum);
 
     return make_float4(sum, sum, sum, 1.0f);
 }
 
+namespace Cl
+{
+    static __device__ __inline__ optix::float3 BSDFWorldToLocal_Project(const optix::float3& v, const optix::float3& sn, const optix::float3& tn, const optix::float4& nn, const optix::float3& worldPoint)
+    {
+        optix::float3 pt;
+        pt.x = optix::dot(v, sn) - optix::dot(worldPoint, sn);
+        pt.y = optix::dot(v, tn) - optix::dot(worldPoint, tn);
+        pt.z = TwUtil::dot(v, nn) - TwUtil::dot(worldPoint, nn);
+        return pt;
+    }
+}
 
 template<CommonStructs::LightType lightType>
 static __device__ __inline__ float4 AnalyticalEstimateDirectLighting(
@@ -284,12 +324,15 @@ static __device__ __inline__ float4 AnalyticalEstimateDirectLighting<CommonStruc
     quadShape[2] = TwUtil::xfmPoint(make_float3(1.f, 1.f, 0.f), quadLight.lightToWorld);
     quadShape[3] = TwUtil::xfmPoint(make_float3(-1.f, 1.f, 0.f), quadLight.lightToWorld);
 
+
     float ndotv = optix::clamp(TwUtil::dot(wo_world, shaderParams.dgShading.nn), 0.0f, 1.0f);
     float2 uv = make_float2(sqrtf(shaderParams.alphax), sqrtf(1.0f - ndotv));
     uv = uv * LUT_SCALE + LUT_BIAS;
 
     assert(ltcBuffers.ltc1 != RT_TEXTURE_ID_NULL);
+    assert(ltcBuffers.ltc2 != RT_TEXTURE_ID_NULL);
     float4 t1 = rtTex2D<float4>(ltcBuffers.ltc1, uv.x, uv.y);
+    float4 t2 = rtTex2D<float4>(ltcBuffers.ltc2, uv.x, uv.y);
     
     const float mInvData[3 * 3]{ t1.x, 0, t1.z,
                                  0,    1,    0, 
@@ -297,7 +340,24 @@ static __device__ __inline__ float4 AnalyticalEstimateDirectLighting<CommonStruc
     Matrix3x3 mInv{ mInvData };
     float4 spec = LTC_Evaluate(make_float3(shaderParams.dgShading.nn), wo_world, isectP, mInv, quadShape, false);
 
-    return spec * quadLight.intensity;
+    /// BRDF shadowing and Fresnel
+    spec *= (shaderParams.Specular * t2.x + (make_float4(1.0f) - shaderParams.Specular) * t2.y);
+    
+    /*if (sysLaunch_index == make_uint2(971,720-384))
+        rtPrintf("spec :%f %f %f\n", spec.x,spec.y,spec.z);*/
+
+    /// Diffuse component
+    //vec3 diff = LTC_Evaluate(N, V, pos, mat3(1), points, twoSided);
+    //const float identityData[3 * 3]{ 1.f,    0.f,    0.f,
+    //                                 0.f,    1.f,    0.f,
+    //                                 0.f,    0.f,    1.f };
+    //Matrix3x3 identityDataMatrix{ identityData };
+
+    //col = lcol * (spec + dcol * diff);
+    //float4 diff = LTC_Evaluate(make_float3(shaderParams.dgShading.nn), wo_world, isectP, identityDataMatrix, quadShape, false);
+
+    //return quadLight.intensity * (spec + shaderParams.Reflectance * diff);
+    return quadLight.intensity * spec;
 }
 
 static __device__ __inline__ float4 AnalyticalQuadLights(const CommonStructs::ShaderParams& shaderParams, const float3& isectP, const float3& isectDir, GPUSampler& localSampler)
