@@ -66,7 +66,7 @@ rtBuffer< rtCallableProgramId<
 
 //Bindless Light callable programs:->Context
 rtBuffer< rtCallableProgramId<
-    float4(const float3 &point, const float & rayEpsilon, float3 & outwi, float & outpdf, float2 lightSample, uint lightBufferIndex, Ray & outShadowRay)> > 
+    float4(const float3 &point, const float & rayEpsilon, float3 & outwi, float & outpdf, float2 lightSample, uint lightBufferIndex, Ray & outShadowRay, const float3 & geometricNormal)> >
     Sample_Ld;
 rtBuffer< rtCallableProgramId<
     float(const float3 & p, const float3 & wi, const int lightId, Ray &shadowRay)> >
@@ -122,7 +122,7 @@ static __device__ __inline__ float4 EstimateDirectLighting<CommonStructs::LightT
     /* Sample light source with Mulitple Importance Sampling. */
     float2 randSamples = Get2D(&localSampler);
 
-    float4 Li = Sample_Ld[toUnderlyingValue(CommonStructs::LightType::HDRILight)](p, sceneEpsilon, outWi, lightPdf, randSamples, lightId, shadowRay);
+    float4 Li = Sample_Ld[toUnderlyingValue(CommonStructs::LightType::HDRILight)](p, sceneEpsilon, outWi, lightPdf, randSamples, lightId, shadowRay, make_float3(shaderParams.nGeometry));
     if (lightPdf > 0.f && !isBlack(Li))
     {
         /* Compute BSDF value using sampled outWi from sampling light source. */
@@ -185,7 +185,7 @@ static __device__ __inline__ float4 EstimateDirectLighting<CommonStructs::LightT
         /* Trace shadow ray to find out whether it's blocked down by object. */
         CommonStructs::PerRayData_shadow shadow_prd;
         shadow_prd.blocked = 0;
-        shadowRay = TwUtil::MakeShadowRay(p, sceneEpsilon, outWi);
+        shadowRay = TwUtil::MakeShadowRayPointVector(p, outWi, make_float3(shaderParams.nGeometry));
         
         const RTrayflags shadowRayFlags = static_cast<RTrayflags>(RTrayflags::RT_RAY_FLAG_DISABLE_ANYHIT | RTrayflags::RT_RAY_FLAG_TERMINATE_ON_FIRST_HIT);
         rtTrace<CommonStructs::PerRayData_shadow>(sysTopShadower, shadowRay, shadow_prd, RT_VISIBILITY_ALL,
@@ -233,7 +233,7 @@ static __device__ __inline__ float4 EstimateDirectLighting<CommonStructs::LightT
 	Ray shadowRay;
 
 	//Sample point light, no MIS performed here
-	float4 Li = Sample_Ld[toUnderlyingValue(CommonStructs::LightType::PointLight)](p, sceneEpsilon, outWi, lightPdf, make_float2(0.f), lightId, shadowRay);
+	float4 Li = Sample_Ld[toUnderlyingValue(CommonStructs::LightType::PointLight)](p, sceneEpsilon, outWi, lightPdf, make_float2(0.f), lightId, shadowRay, make_float3(shaderParams.nGeometry));
 
 	if (lightPdf > 0.f && !isBlack(Li))
 	{
@@ -271,10 +271,11 @@ static __device__ __inline__ float4 EstimateDirectLighting<CommonStructs::LightT
 	float3 outWi = make_float3(0.f);
 	float lightPdf = 0.f, bsdfPdf = 0.f;
     Ray shadowRay;
+    shadowRay.direction = make_float3(shaderParams.nGeometry);
 
     /* Sample light source with Mulitple Importance Sampling. */
     float2 randSamples = Get2D(&localSampler);
-	float4 Li = Sample_Ld[toUnderlyingValue(CommonStructs::LightType::QuadLight)](p, sceneEpsilon, outWi, lightPdf, randSamples, lightId, shadowRay);
+	float4 Li = Sample_Ld[toUnderlyingValue(CommonStructs::LightType::QuadLight)](p, sceneEpsilon, outWi, lightPdf, randSamples, lightId, shadowRay, make_float3(shaderParams.nGeometry));
 	if (lightPdf > 0.f && !isBlack(Li))
 	{
         /* Compute BSDF value using sampled outWi from sampling light source. */

@@ -44,7 +44,7 @@ rtDeclareVariable(float, sysSceneEpsilon, , );
  *
  * @return contribution radiance from light
  */
-RT_CALLABLE_PROGRAM float4 Sample_Ld_Quad(const float3 &point, const float & rayEpsilon, float3 & outwi, float & outpdf, float2 lightSample, uint lightBufferIndex, Ray & outShadowRay)
+RT_CALLABLE_PROGRAM float4 Sample_Ld_Quad(const float3 &point, const float & rayEpsilon, float3 & outwi, float & outpdf, float2 lightSample, uint lightBufferIndex, Ray & outShadowRay, const float3 & geometricNormal)
 {
     const CommonStructs::QuadLight &quadLight = sysLightBuffers.quadLightBuffer[lightBufferIndex];
     float3 sampledPoint = Quad_Sample(quadLight, lightSample, &outpdf); /* outpdf for temporary storage, it's with respect to area now! */
@@ -66,7 +66,7 @@ RT_CALLABLE_PROGRAM float4 Sample_Ld_Quad(const float3 &point, const float & ray
         if (isinf(outpdf))
             outpdf = 0.f;
 
-        outShadowRay = MakeShadowRay(point, rayEpsilon, sampledPoint, 1e-3f);
+        outShadowRay = MakeShadowRayTwoPoint(point, sampledPoint, geometricNormal);
 
         return Le_QuadLight(quadLight, -outwi);
     }
@@ -153,7 +153,7 @@ RT_CALLABLE_PROGRAM float LightPdf_Quad(const float3 & p, const float3 & wi, con
     }
 
     /* Make shadow ray for later detection. */
-    shadowRay = MakeShadowRay(p, sysSceneEpsilon, sampledPoint, 1e-3f); // bug:need to review MakeShadowRay
+    shadowRay = MakeShadowRayTwoPoint(p, sampledPoint, shadowRay.direction/*which is a geometric normal*/); // bug:need to review MakeShadowRay
     
     //shadowRay = optix::make_Ray(p, wi, toUnderlyingValue(CommonStructs::RayType::Shadow), sysSceneEpsilon, tHit); //todo:review epsilon
 

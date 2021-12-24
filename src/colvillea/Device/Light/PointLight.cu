@@ -21,7 +21,7 @@ rtDeclareVariable(CommonStructs::LightBuffers, sysLightBuffers, , );
 
 //////////////////////////////////////////////////////////////////////////
 //Pointlight Sample_Ld function:
-RT_CALLABLE_PROGRAM float4 Sample_Ld_Point(const float3 &point, const float & rayEpsilon, float3 & outwi, float & outpdf, float2 lightSample, uint lightBufferIndex, Ray & outShadowRay)
+RT_CALLABLE_PROGRAM float4 Sample_Ld_Point(const float3 &point, const float & rayEpsilon, float3 & outwi, float & outpdf, float2 lightSample, uint lightBufferIndex, Ray & outShadowRay, const float3 & geometricNormal)
 {
 	float3 &lightPos = sysLightBuffers.pointLightBuffer[lightBufferIndex].lightPos;
 	
@@ -29,7 +29,7 @@ RT_CALLABLE_PROGRAM float4 Sample_Ld_Point(const float3 &point, const float & ra
 	outpdf = 1.f;
 
 	float distanceSqr = sqr_length(lightPos - point);
-	outShadowRay = MakeShadowRay(point, rayEpsilon, lightPos, 1e-3f);
+	outShadowRay = MakeShadowRayTwoPoint(point, lightPos, geometricNormal);
 
 	return sysLightBuffers.pointLightBuffer[lightBufferIndex].intensity / distanceSqr;
 }

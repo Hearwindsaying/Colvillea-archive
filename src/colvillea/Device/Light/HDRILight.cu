@@ -110,7 +110,7 @@ static __device__ __inline__ float SampleContinuous2D_Pdf(const float2 &p)
 
 //////////////////////////////////////////////////////////////////////////
 //HDRILight SampleLd function:
-RT_CALLABLE_PROGRAM float4 Sample_Ld_HDRI(const float3 &point, const float & rayEpsilon, float3 & outwi, float & outpdf, float2 lightSample, uint lightBufferIndex, Ray & outShadowRay)
+RT_CALLABLE_PROGRAM float4 Sample_Ld_HDRI(const float3 &point, const float & rayEpsilon, float3 & outwi, float & outpdf, float2 lightSample, uint lightBufferIndex, Ray & outShadowRay, const float3 & geometricNormal)
 {
 	float mapPdf = 0.f;
 	float2 uv = SampleContinuous2D(lightSample, mapPdf);
@@ -129,7 +129,7 @@ RT_CALLABLE_PROGRAM float4 Sample_Ld_HDRI(const float3 &point, const float & ray
 	if (sinTheta == 0.f)
 		outpdf = 0.f;
 
-	outShadowRay = MakeShadowRay(point, rayEpsilon, outwi);
+	outShadowRay = MakeShadowRayPointVector(point, outwi, geometricNormal);
 	return rtTex2D<float4>(sysLightBuffers.hdriLight.hdriEnvmap, uv.x, uv.y);
 }
 

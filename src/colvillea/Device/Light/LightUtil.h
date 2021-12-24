@@ -49,6 +49,25 @@ namespace TwUtil
         return optix::rtTex2D<optix::float4>(hdriEnvmap, TwUtil::sphericalPhi(wNormalized) * M_1_PIf / 2.f, TwUtil::sphericalTheta(wNormalized) * M_1_PIf);
     }
 
+    static __device__ __inline__ float origin() { return 1.0f / 32.0f; }
+    static __device__ __inline__ float float_scale() { return 1.0f / 65536.0f; }
+    static __device__ __inline__ float int_scale() { return 256.0f; }
+
+    // Normal points outward for rays exiting the surface, else is flipped.
+    static __device__ __inline__ float3 offset_ray(const float3 p, const float3 n)
+    {
+        int3 of_i = make_int3(int_scale() * n.x, int_scale() * n.y, int_scale() * n.z);
+
+        float3 p_i = make_float3(
+            int_as_float(float_as_int(p.x) + ((p.x < 0) ? -of_i.x : of_i.x)),
+            int_as_float(float_as_int(p.y) + ((p.y < 0) ? -of_i.y : of_i.y)),
+            int_as_float(float_as_int(p.z) + ((p.z < 0) ? -of_i.z : of_i.z)));
+
+        return make_float3(fabsf(p.x) < origin() ? p.x + float_scale()*n.x : p_i.x,
+            fabsf(p.y) < origin() ? p.y + float_scale()*n.y : p_i.y,
+            fabsf(p.z) < origin() ? p.z + float_scale()*n.z : p_i.z);
+    }
+
     /**
      * @brief Make a shadow ray given start and end position.
      * 
@@ -61,11 +80,14 @@ namespace TwUtil
      * 
      * @return The created shadow ray.
      */
-    static __device__ __inline__ optix::Ray MakeShadowRay(const optix::float3 & point1, float eps1, const optix::float3 & point2, float eps2)
+    static __device__ __inline__ optix::Ray MakeShadowRayTwoPoint(const optix::float3 & rayOrigin, const optix::float3 & rayEnd, const optix::float3 & geometricNormal)
     {
-        float dist = distance(point1, point2);
+        float dist = distance(rayOrigin, rayEnd);
 
-        return optix::make_Ray(point1, (point2 - point1) / dist, toUnderlyingValue(CommonStructs::RayType::Shadow), eps1, dist * (1.f - eps2));
+        optix::Ray shadowRay = optix::make_Ray(rayOrigin, (rayEnd - rayOrigin) / dist, toUnderlyingValue(CommonStructs::RayType::Shadow), 0.0f, dist);
+        shadowRay.origin = offset_ray(rayOrigin, geometricNormal);
+
+        return shadowRay;
     }
 
     /**
@@ -80,9 +102,12 @@ namespace TwUtil
      *
      * @return The created shadow ray.
      */
-    static __device__ __inline__ optix::Ray MakeShadowRay(const optix::float3 & point1, float eps, const optix::float3 & wi)
+    static __device__ __inline__ optix::Ray MakeShadowRayPointVector(const optix::float3 & rayOrigin, const optix::float3 & wi, const optix::float3 & geometricNormal)
     {
-        return optix::make_Ray(point1, wi, toUnderlyingValue(CommonStructs::RayType::Shadow), eps, RT_DEFAULT_MAX);
+        optix::Ray shadowRay = optix::make_Ray(rayOrigin, wi, toUnderlyingValue(CommonStructs::RayType::Shadow), 0.0f, RT_DEFAULT_MAX);
+        shadowRay.origin = offset_ray(rayOrigin, geometricNormal);
+
+        return shadowRay;
     }
 }
 
